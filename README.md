@@ -1,4 +1,5 @@
 # The CELLRV32 RISC-V Processor
+Note: this project is referenced from [The NEORV32 Processor](https://github.com/stnolting/neorv32.git) by Stephan Nolting.
 
 1. [Overview](#1-Overview)
    * [Key Features](#Key-Features)
