@@ -1,3 +1,5 @@
+[![CELLRV32](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/figures/cellrv32%20logo.png)](https://github.com/DatNguyen97-VN/cellrv32/tree/main)
+
 # The CELLRV32 RISC-V Processor
 `Note: this project is referred from [The NEORV32 Processor](https://github.com/stnolting/neorv32.git) by Stephan Nolting.`
 
