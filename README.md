@@ -10,5 +10,5 @@ Note: this project is referred from [The NEORV32 Processor](https://github.com/s
 5. [Software Framework & Tooling](#5-Software-Framework-and-Tooling)
 6. [Getting Started](#6-Getting-Started)
 
-
-[![CELLRV32](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/figures/cellrv32%20top.png)]
+## 1. Overview
+![cellrv32 overview](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/figures/cellrv32%20top.png)
