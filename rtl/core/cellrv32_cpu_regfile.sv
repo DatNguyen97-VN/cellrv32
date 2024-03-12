@@ -18,7 +18,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_regfile #(
+module cellrv32_cpu_regfile #(
     parameter XLEN                  = 32, // data path width
     parameter CPU_EXTENSION_RISCV_E = 1,  // implement embedded RF extension?
     parameter RS3_EN                = 1,  // enable 3rd read port
@@ -91,8 +91,8 @@ module neorv32_cpu_regfile #(
                     reg_file[opa_addr[4:0]] <= rf_wdata;
                 end
                 //
-                rs1_o = reg_file[opa_addr[4:0]];
-                rs2_o = reg_file[opb_addr[4:0]];
+                rs1_o <= reg_file[opa_addr[4:0]];
+                rs2_o <= reg_file[opb_addr[4:0]];
                 //
                 /* optional 3rd read port */
                 if (RS3_EN == 1) begin
