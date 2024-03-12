@@ -98,14 +98,14 @@ module cellrv32_cpu_regfile #(
                 if (RS3_EN == 1) begin
                     rs3_o <= reg_file[opc_addr[4:0]];
                 end else begin
-                    rs3_o <= 'b0;
+                    rs3_o <= '0;
                 end
                 //
                 /* optional 4th read port */
                 if (RS4_EN == 1) begin
                     rs4_o <= reg_file[opd_addr[4:0]];
                 end else begin
-                    rs4_o <= 'b0;
+                    rs4_o <= '0;
                 end
             end : rf_access
         end : reg_file_rv32i
@@ -121,21 +121,21 @@ module cellrv32_cpu_regfile #(
                     reg_file_emb[opa_addr[3:0]] <= rf_wdata;
                 end
                 //
-                rs1_o = reg_file_emb[opa_addr[3:0]];
-                rs2_o = reg_file_emb[opb_addr[3:0]];
+                rs1_o <= reg_file_emb[opa_addr[3:0]];
+                rs2_o <= reg_file_emb[opb_addr[3:0]];
                 //
                 /* optional 3rd read port */
                 if (RS3_EN == 1) begin
                     rs3_o <= reg_file_emb[opc_addr[3:0]];
                 end else begin
-                    rs3_o <= 'b0;
+                    rs3_o <= '0;
                 end
                 //
                 /* optional 4th read port */
                 if (RS4_EN == 1) begin // implement fourth read port?
                     rs4_o <= reg_file_emb[opd_addr[3:0]];
                 end else begin
-                    rs4_o <= 'b0;
+                    rs4_o <= '0;
                 end
             end : rf_access
         end : reg_file_rv32e
