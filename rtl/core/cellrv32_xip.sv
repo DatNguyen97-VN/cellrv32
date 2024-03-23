@@ -12,7 +12,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_xip (
+module cellrv32_xip (
     /* global control */
     input  logic        clk_i ,    // global clock line
     input  logic        rstn_i,    // global reset line, low-active, async

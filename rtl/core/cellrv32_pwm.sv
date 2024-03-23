@@ -9,7 +9,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_pwm #(
+module cellrv32_pwm #(
     parameter int NUM_CHANNELS = 0 // number of PWM channels (0..12)
 ) (
     /* host access */

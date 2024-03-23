@@ -10,7 +10,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_cp_muldiv #(
+module cellrv32_cpu_cp_muldiv #(
     parameter XLEN        = 32, // data path width
     parameter FAST_MUL_EN = 1,  // use DSPs for faster multiplication
     parameter DIVISION_EN = 1   // implement divider hardware

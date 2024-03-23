@@ -9,7 +9,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_sysinfo #(
+module cellrv32_sysinfo #(
     /* General */
     parameter int     CLOCK_FREQUENCY    = 0, // clock frequency of clk_i in Hz
     parameter logic[31:0] CUSTOM_ID          = 32'h00000000, // custom user-defined ID
@@ -133,10 +133,10 @@ module neorv32_sysinfo #(
     assign sysinfo[3][31 : 28] = '0; // reserved - d-cache: replacement strategy
 
     /* SYSINFO(4): Base address of instruction memory space */
-    assign sysinfo[4] = ispace_base_c; // defined in neorv32_package.vhd file
+    assign sysinfo[4] = ispace_base_c; // defined in cellrv32_package.sv file
 
     /* SYSINFO(5): Base address of data memory space */
-    assign sysinfo[5] = dspace_base_c; // defined in neorv32_package.vhd file
+    assign sysinfo[5] = dspace_base_c; // defined in cellrv32_package.sv file
 
     /* SYSINFO(6): Size of IMEM in bytes */
     assign sysinfo[6] =  (MEM_INT_IMEM_EN == 1'b1) ? MEM_INT_IMEM_SIZE : '0;

@@ -11,7 +11,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_twi (
+module cellrv32_twi (
     /* host access */
     input  logic        clk_i ,  // global clock line
     input  logic        rstn_i,  // global reset line, low-active, async

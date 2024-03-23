@@ -9,7 +9,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_icache #(
+module cellrv32_icache #(
     parameter int ICACHE_NUM_BLOCKS = 4,  // number of blocks (min 1), has to be a power of 2
     parameter int ICACHE_BLOCK_SIZE = 64, // block size in bytes (min 4), has to be a power of 2
     parameter int ICACHE_NUM_SETS   = 1   // associativity / number of sets (1=direct_mapped), has to be a power of 2

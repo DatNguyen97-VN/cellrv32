@@ -6,7 +6,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_fifo #(
+module cellrv32_fifo #(
     parameter int FIFO_DEPTH = 2,    // number of fifo entries; has to be a power of two; min 1
     parameter int FIFO_WIDTH = 18,   // size of data elements in fifo
     parameter logic   FIFO_RSYNC = 1'b0, // false = async read; true = sync read

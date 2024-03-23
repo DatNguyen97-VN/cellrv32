@@ -9,7 +9,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_sdi #(
+module cellrv32_sdi #(
     parameter int RTX_FIFO = 1 // RTX fifo depth, has to be a power of two, min 1
 ) (
     /* host access */
@@ -184,7 +184,7 @@ module neorv32_sdi #(
     // Data FIFO ("Ring Buffer") -----------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* TX */
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH(RTX_FIFO), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH(8),        // size of data elements in fifo (32-bit only for simulation)
         .FIFO_RSYNC(1'b1),    // async read
@@ -215,7 +215,7 @@ module neorv32_sdi #(
     assign tx_fifo.re = serial.start;
 
     /* RX */
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH(RTX_FIFO), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH(8),        // size of data elements in fifo (32-bit only for simulation)
         .FIFO_RSYNC(1'b1),    // async read

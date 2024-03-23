@@ -6,7 +6,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_decompressor #(
+module cellrv32_cpu_decompressor #(
     parameter FPU_ENABLE = 1  // floating-point instruction enabled
 ) (
     /* instruction input */

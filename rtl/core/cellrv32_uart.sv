@@ -31,7 +31,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_uart #(
+module cellrv32_uart #(
     parameter logic   UART_PRIMARY = 0, // true = primary UART (UART0), false = secondary UART (UART1)
     parameter int UART_RX_FIFO = 1, // RX fifo depth, has to be a power of two, min 1
     parameter int UART_TX_FIFO = 1 // TX fifo depth, has to be a power of two, min 1
@@ -258,7 +258,7 @@ module neorv32_uart #(
     // -------------------------------------------------------------------------------------------
 
     /* TX FIFO */
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH (UART_TX_FIFO), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH (8),            // size of data elements in fifo (32-bit only for simulation)
         .FIFO_RSYNC (1'b1),         // sync read
@@ -293,7 +293,7 @@ module neorv32_uart #(
     end : tx_interrupt
 
     /* RX FIFO */
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH (UART_RX_FIFO), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH (8),            // size of data elements in fifo
         .FIFO_RSYNC (1'b1),         // sync read

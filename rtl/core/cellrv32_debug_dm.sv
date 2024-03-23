@@ -22,7 +22,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_debug_dm (
+module cellrv32_debug_dm (
     /* global control */
     input  logic        clk_i,  // global clock line
     input  logic        rstn_i, // global reset line, low-active
@@ -165,7 +165,7 @@ module neorv32_debug_dm (
     localparam int sreg_exception_ack_c = 24; // -/w: CPU has detected an exception
 
     /* code ROM containing "park loop" */
-    /* copied manually from 'sw/ocd-firmware/neorv32_debug_mem_code.vhd' */
+    /* copied manually from 'sw/ocd-firmware/cellrv32_debug_mem_code.vhd' */
     typedef logic [0:15][31:0] code_rom_file_t;
     //
     const code_rom_file_t code_rom_file = '{

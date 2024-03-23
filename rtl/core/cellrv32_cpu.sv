@@ -6,7 +6,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu #(
+module cellrv32_cpu #(
     /* General */
     parameter int     HW_THREAD_ID = 0,          // hardware thread id (32-bit)
     parameter logic[31:0] CPU_BOOT_ADDR = '0,       // cpu boot address
@@ -239,7 +239,7 @@ module neorv32_cpu #(
 
     // Control Unit ---------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_cpu_control #(
+    cellrv32_cpu_control #(
         /* General */
         .XLEN(XLEN),                                   // data path width
         .HW_THREAD_ID(HW_THREAD_ID),                   // hardware thread id
@@ -272,7 +272,7 @@ module neorv32_cpu #(
         /* Hardware Performance Monitors (HPM) */
         .HPM_NUM_CNTS(HPM_NUM_CNTS),                    // number of implemented HPM counters (0..29)
         .HPM_CNT_WIDTH(HPM_CNT_WIDTH)                   // total size of HPM counters
-    ) neorv32_cpu_control_inst (
+    ) cellrv32_cpu_control_inst (
         /* global control */
         .clk_i(clk_i),          // global clock, rising edge
         .rstn_i(rstn_i),        // global reset, low-active, async
@@ -352,7 +352,7 @@ module neorv32_cpu #(
     
     // ALU ---------------------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_cpu_alu #(
+    cellrv32_cpu_alu #(
         .XLEN                       (XLEN),                        // data path width
         /* RISC-V CPU Extensions */
         .CPU_EXTENSION_RISCV_B      (CPU_EXTENSION_RISCV_B),       // implement bit-manipulation extension?
@@ -364,7 +364,7 @@ module neorv32_cpu #(
         /* Extension Options */
         .FAST_MUL_EN                (FAST_MUL_EN),                 // use DSPs for M extension's multiplier
         .FAST_SHIFT_EN              (FAST_SHIFT_EN)                // use barrel shifter for shift operations
-    ) neorv32_cpu_alu_inst (
+    ) cellrv32_cpu_alu_inst (
         /* global control */
         .clk_i       (clk_i),     // global clock, rising edge
         .rstn_i      (rstn_i),    // global reset, low-active, async

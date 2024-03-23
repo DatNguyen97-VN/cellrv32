@@ -22,7 +22,7 @@
 //                                                                                                                                       //                              
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-module neorv32_top #(
+module cellrv32_top #(
     /* General */
     parameter int     CLOCK_FREQUENCY   = 0,            // clock frequency of clk_i in Hz
     parameter int     HW_THREAD_ID      = 0,            // hardware thread id (32-bit)
@@ -530,7 +530,7 @@ module neorv32_top #(
                                                               
     // CPU Core ----------------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_cpu #(
+    cellrv32_cpu #(
         /* General */
         .HW_THREAD_ID                (HW_THREAD_ID),                 // hardware thread id
         .CPU_BOOT_ADDR               (cpu_boot_addr_c),              // cpu boot address
@@ -562,7 +562,7 @@ module neorv32_top #(
         /* Hardware Performance Monitors (HPM) */
         .HPM_NUM_CNTS                (HPM_NUM_CNTS),                 // number of implemented HPM counters (0..29)
         .HPM_CNT_WIDTH               (HPM_CNT_WIDTH)                 // total size of HPM counters (0..64)
-    ) neorv32_cpu_inst (
+    ) cellrv32_cpu_inst (
         /* global control */
         .clk_i         (clk_i),       // global clock, rising edge
         .rstn_i        (rstn_int),    // global reset, low-active, async
@@ -640,7 +640,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (ICACHE_EN == 1'b1) begin : cellrv32_icache_inst_ON
-            neorv32_icache #(
+            cellrv32_icache #(
                 .ICACHE_NUM_BLOCKS (ICACHE_NUM_BLOCKS),   // number of blocks (min 2), has to be a power of 2
                 .ICACHE_BLOCK_SIZE (ICACHE_BLOCK_SIZE),   // block size in bytes (min 4), has to be a power of 2
                 .ICACHE_NUM_SETS   (ICACHE_ASSOCIATIVITY) // associativity / number of sets (1=direct_mapped), has to be a power of 2
@@ -703,7 +703,7 @@ module neorv32_top #(
 
     // CPU Bus Switch ----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_busswitch #(
+    cellrv32_busswitch #(
         .PORT_CA_READ_ONLY (1'b0), // set if controller port A is read-only
         .PORT_CB_READ_ONLY (1'b1)  // set if controller port B is read-only
     ) cellrv32_busswitch_inst (
@@ -772,7 +772,7 @@ module neorv32_top #(
 
     // Bus Keeper (BUSKEEPER) --------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_bus_keeper cellrv32_bus_keeper_inst (
+    cellrv32_bus_keeper cellrv32_bus_keeper_inst (
         /* host access */
         .clk_i      (clk_i),                          // global clock line
         .rstn_i     (rstn_int),                       // global reset line, low-active, use as async
@@ -805,7 +805,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if ((MEM_INT_IMEM_EN == 1'b1) && (MEM_INT_IMEM_SIZE > 0)) begin : cellrv32_int_imem_inst_ON
-            neorv32_imem #(
+            cellrv32_imem #(
                 .IMEM_BASE    (imem_base_c),          // memory base address
                 .IMEM_SIZE    (MEM_INT_IMEM_SIZE),    // processor-internal instruction memory size in bytes
                 .IMEM_AS_IROM (~ INT_BOOTLOADER_EN)   // implement IMEM as pre-initialized read-only memory?
@@ -833,7 +833,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if ((MEM_INT_DMEM_EN == 1'b1) && (MEM_INT_DMEM_SIZE > 0)) begin : cellrv32_int_dmem_inst_ON
-            neorv32_dmem #(
+            cellrv32_dmem #(
               .DMEM_BASE (dmem_base_c),      // memory base address
               .DMEM_SIZE (MEM_INT_DMEM_SIZE) // processor-internal data memory size in bytes  
             ) cellrv32_int_dmem_inst (
@@ -861,7 +861,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (INT_BOOTLOADER_EN == 1'b1) begin : cellrv32_boot_rom_inst_ON
-            neorv32_boot_rom #(
+            cellrv32_boot_rom #(
                 .BOOTROM_BASE(boot_rom_base_c)
             ) cellrv32_boot_rom_inst (
                 .clk_i(clk_i), // global clock line
@@ -885,7 +885,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (MEM_EXT_EN == 1'b1) begin : cellrv32_wishbone_inst_ON
-            neorv32_wishbone #(
+            cellrv32_wishbone #(
                 /* Internal instruction memory */
                 .MEM_INT_IMEM_EN   (MEM_INT_IMEM_EN),    // implement processor-internal instruction memory
                 .MEM_INT_IMEM_SIZE (MEM_INT_IMEM_SIZE),  // size of processor-internal instruction memory in bytes
@@ -953,7 +953,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_XIP_EN == 1'b1) begin : cellrv32_xip_inst_ON
-            neorv32_xip cellrv32_xip_inst (
+            cellrv32_xip cellrv32_xip_inst (
                 /* global control */
                 .clk_i       (clk_i),                        // global clock line
                 .rstn_i      (rstn_int),                     // global reset line, low-active, async
@@ -1018,7 +1018,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_CFS_EN == 1'b1) begin : cellrv32_cfs_inst_ON
-            neorv32_cfs #(
+            cellrv32_cfs #(
                 .CFS_CONFIG   (IO_CFS_CONFIG),  // custom CFS configuration generic
                 .CFS_IN_SIZE  (IO_CFS_IN_SIZE), // size of CFS input conduit in bits
                 .CFS_OUT_SIZE (IO_CFS_OUT_SIZE) // size of CFS output conduit in bits
@@ -1060,7 +1060,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_SDI_EN == 1'b1) begin : cellrv32_sdi_inst_ON
-            neorv32_sdi #(
+            cellrv32_sdi #(
                 .RTX_FIFO (IO_SDI_FIFO) // RTX fifo depth, has to be a power of two, min 1
             ) cellrv32_sdi_inst (
                 /* host access */
@@ -1098,7 +1098,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_GPIO_NUM > 0) begin : cellrv32_gpio_inst_ON
-            neorv32_gpio #(
+            cellrv32_gpio #(
                 .GPIO_NUM (IO_GPIO_NUM) // number of GPIO input/output pairs (0..64)
             ) cellrv32_gpio_inst (
                 /* host access */
@@ -1131,7 +1131,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_WDT_EN == 1'b1) begin : cellrv32_wdt_inst_ON
-            neorv32_wdt cellrv32_wdt_inst (
+            cellrv32_wdt cellrv32_wdt_inst (
                 /* host access */
                 .clk_i       (clk_i),                    // global clock line
                 .rstn_ext_i  (rstn_ext),                 // external reset line, low-active, async
@@ -1171,7 +1171,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_MTIME_EN == 1'b1) begin : cellrv32_mtime_inst_ON
-            neorv32_mtime cellrv32_mtime_inst (
+            cellrv32_mtime cellrv32_mtime_inst (
                 /* host access */
                 .clk_i  (clk_i),                      // global clock line
                 .rstn_i (rstn_int),                   // global reset line, low-active, async
@@ -1201,7 +1201,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_UART0_EN == 1'b1) begin : cellrv32_uart0_inst_ON
-            neorv32_uart #(
+            cellrv32_uart #(
                 .UART_PRIMARY (1'b1),             // true = primary UART (UART0), false = secondary UART (UART1)
                 .UART_RX_FIFO (IO_UART0_RX_FIFO), // RX fifo depth, has to be a power of two, min 1
                 .UART_TX_FIFO (IO_UART0_TX_FIFO)  // TX fifo depth, has to be a power of two, min 1
@@ -1249,7 +1249,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_UART1_EN == 1'b1) begin : cellrv32_uart1_inst_ON
-            neorv32_uart #(
+            cellrv32_uart #(
                 .UART_PRIMARY (1'b0),             // true = primary UART (UART0), false = secondary UART (UART1)
                 .UART_RX_FIFO (IO_UART1_RX_FIFO), // RX fifo depth, has to be a power of two, min 1
                 .UART_TX_FIFO (IO_UART1_TX_FIFO)  // TX fifo depth, has to be a power of two, min 1
@@ -1297,7 +1297,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_SPI_EN == 1'b1) begin : cellrv32_spi_inst_ON
-            neorv32_spi #(
+            cellrv32_spi #(
                 .IO_SPI_FIFO (IO_SPI_FIFO) // SPI RTX fifo depth, has to be a power of two, min 1
             ) cellrv32_spi_inst (
                 /* host access */
@@ -1341,7 +1341,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_TWI_EN == 1'b1) begin : cellrv32_twi_inst_ON
-            neorv32_twi cellrv32_twi_inst (
+            cellrv32_twi cellrv32_twi_inst (
                 /* host access */
                 .clk_i       (clk_i),                    // global clock line
                 .rstn_i      (rstn_int),                 // global reset line, low-active, async
@@ -1382,7 +1382,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_PWM_NUM_CH > 0) begin : cellrv32_pwm_inst_ON
-            neorv32_pwm #(
+            cellrv32_pwm #(
                 .NUM_CHANNELS (IO_PWM_NUM_CH) // number of PWM channels (0..12)
             ) cellrv32_pwm_inst (
                 /* host access */
@@ -1419,7 +1419,7 @@ module neorv32_top #(
  
     generate
         if (IO_TRNG_EN == 1'b1) begin : cellrv32_trng_inst_ON
-            neorv32_trng #(
+            cellrv32_trng #(
                 .IO_TRNG_FIFO (IO_TRNG_FIFO) // RND fifo depth, has to be a power of two, min 1
             ) cellrv32_trng_inst (
                 /* host access */
@@ -1447,7 +1447,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_NEOLED_EN == 1'b1) begin : cellrv32_neoled_inst_ON
-            neorv32_neoled #(
+            cellrv32_neoled #(
                 .FIFO_DEPTH (IO_NEOLED_TX_FIFO) // NEOLED FIFO depth, has to be a power of two, min 1
             ) cellrv32_neoled_inst (
                 /* host access */
@@ -1486,7 +1486,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (XIRQ_NUM_CH > 0) begin : cellrv32_xirq_inst_ON
-            neorv32_xirq #(
+            cellrv32_xirq #(
                 .XIRQ_NUM_CH           (XIRQ_NUM_CH),          // number of external IRQ channels (0..32)
                 .XIRQ_TRIGGER_TYPE     (XIRQ_TRIGGER_TYPE),    // trigger type: 0=level, 1=edge
                 .XIRQ_TRIGGER_POLARITY (XIRQ_TRIGGER_POLARITY) // trigger polarity: 0=low-level/falling-edge, 1=high-level/rising-edge
@@ -1522,7 +1522,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_GPTMR_EN == 1'b1) begin : cellrv32_gptmr_inst_ON
-            neorv32_gptmr cellrv32_gptmr_inst (
+            cellrv32_gptmr cellrv32_gptmr_inst (
                 /* host access */
                 .clk_i       (clk_i),                      // global clock line
                 .rstn_i      (rstn_int),                   // global reset line, low-active, async
@@ -1556,7 +1556,7 @@ module neorv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IO_ONEWIRE_EN == 1'b1) begin : cellrv32_onewire_inst_ON
-            neorv32_onewire cellrv32_onewire_inst (
+            cellrv32_onewire cellrv32_onewire_inst (
                 /* host access */
                 .clk_i       (clk_i),                        // global clock line
                 .rstn_i      (rstn_int),                     // global reset line, low-active, async
@@ -1592,7 +1592,7 @@ module neorv32_top #(
 
     // System Configuration Information Memory (SYSINFO) -----------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_sysinfo #(
+    cellrv32_sysinfo #(
         /* General */
         .CLOCK_FREQUENCY      (CLOCK_FREQUENCY),      // clock frequency of clk_i in Hz
         .CUSTOM_ID            (CUSTOM_ID),            // custom user-defined ID
@@ -1650,7 +1650,7 @@ module neorv32_top #(
         if (ON_CHIP_DEBUGGER_EN == 1'b1) begin : cellv32_ocd_inst_ON
             // On-Chip Debugger - Debug Module (DM) ------------------------------------------------------
             // -------------------------------------------------------------------------------------------
-            neorv32_debug_dm cellrv32_debug_dm_inst (
+            cellrv32_debug_dm cellrv32_debug_dm_inst (
                 /* global control */
                 .clk_i             (clk_i),                    // global clock line
                 .rstn_i            (rstn_ext),                 // external reset, low-active
@@ -1682,7 +1682,7 @@ module neorv32_top #(
 
             // On-Chip Debugger - Debug Transport Module (DTM) -------------------------------------------
             // -------------------------------------------------------------------------------------------
-            neorv32_debug_dtm #(
+            cellrv32_debug_dtm #(
                 .IDCODE_VERSION (jtag_tap_idcode_version_c), // version
                 .IDCODE_PARTID  (jtag_tap_idcode_partid_c),  // part number
                 .IDCODE_MANID   (jtag_tap_idcode_manid_c)    // manufacturer id

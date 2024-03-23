@@ -13,7 +13,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_xirq #(
+module cellrv32_xirq #(
     parameter int     XIRQ_NUM_CH           = 0,   // number of external IRQ channels (0..32)
     parameter logic[31:0] XIRQ_TRIGGER_TYPE     = '0, // trigger type: 0=level, 1=edge
     parameter logic[31:0] XIRQ_TRIGGER_POLARITY = '0  // trigger polarity: 0=low-level/falling-edge, 1=high-level/rising-edge

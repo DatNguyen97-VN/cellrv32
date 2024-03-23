@@ -10,7 +10,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_trng #(
+module cellrv32_trng #(
     parameter int IO_TRNG_FIFO = 1 // RND fifo depth, has to be a power of two, min 1
 ) (
     /* host access */
@@ -130,7 +130,7 @@ module neorv32_trng #(
 
     // Data FIFO ("Random Pool") -----------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH(IO_TRNG_FIFO), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH(8),            // size of data elements in fifo
         .FIFO_RSYNC(1'b0),        // async read

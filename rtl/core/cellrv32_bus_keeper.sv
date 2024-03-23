@@ -10,7 +10,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_bus_keeper (
+module cellrv32_bus_keeper (
     // bus monitoring
     input  logic [31:0] bus_addr_i, // address
     input  logic        bus_rden_i, // read enable

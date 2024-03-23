@@ -9,7 +9,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_debug_dtm #(
+module cellrv32_debug_dtm #(
     parameter logic[03:0] IDCODE_VERSION = '0, // version
     parameter logic[15:0] IDCODE_PARTID  = '0, // part number
     parameter logic[10:0] IDCODE_MANID   = '0  // manufacturer id

@@ -8,7 +8,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_alu #(
+module cellrv32_cpu_alu #(
     parameter XLEN = 32, // data path width
     /* RISC-V CPU Extensions */
     parameter CPU_EXTENSION_RISCV_B      = 0, // implement bit-manipulation extension?
@@ -171,11 +171,11 @@ module neorv32_cpu_alu #(
     // -------------------------------------------------------------------------------------------
     // Co-Processor 0: Shifter Unit ('I'/'E' Base ISA) -------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_cpu_cp_shifter  #(
+    cellrv32_cpu_cp_shifter  #(
         .XLEN          (XLEN), 
         .FAST_SHIFT_EN (FAST_SHIFT_EN)
     ) 
-    neorv32_cpu_cp_shifter_inst (
+    cellrv32_cpu_cp_shifter_inst (
         /* global control */
         .clk_i   (clk_i),        // global clock, rising edge
         .rstn_i  (rstn_i),       // global reset, low-active, async
@@ -193,12 +193,12 @@ module neorv32_cpu_alu #(
     // Co-Processor 1: int Multiplication/Division Unit ('M' Extension) ----------------------
     // -------------------------------------------------------------------------------------------
     generate
-        if ((CPU_EXTENSION_RISCV_M == 1'b1) || (CPU_EXTENSION_RISCV_Zmmul == 1'b1)) begin : neorv32_cpu_cp_muldiv_inst_ON
-            neorv32_cpu_cp_muldiv #(
+        if ((CPU_EXTENSION_RISCV_M == 1'b1) || (CPU_EXTENSION_RISCV_Zmmul == 1'b1)) begin : cellrv32_cpu_cp_muldiv_inst_ON
+            cellrv32_cpu_cp_muldiv #(
                 .XLEN        (XLEN),
                 .FAST_MUL_EN (FAST_MUL_EN),
                 .DIVISION_EN (CPU_EXTENSION_RISCV_M)
-            ) neorv32_cpu_cp_muldiv_inst (
+            ) cellrv32_cpu_cp_muldiv_inst (
                 /* global control */
                 .clk_i   ( clk_i),       // global clock, rising edge
                 .rstn_i  (rstn_i),       // global reset, low-active, async
@@ -211,25 +211,25 @@ module neorv32_cpu_alu #(
                 .res_o   (cp_result[1]), // operation result
                 .valid_o (cp_valid[1])   // data output valid
             );
-        end : neorv32_cpu_cp_muldiv_inst_ON
+        end : cellrv32_cpu_cp_muldiv_inst_ON
     endgenerate
 
     generate
-        if ((CPU_EXTENSION_RISCV_M == 1'b0) && (CPU_EXTENSION_RISCV_Zmmul == 1'b0)) begin : neorv32_cpu_cp_muldiv_inst_OFF
+        if ((CPU_EXTENSION_RISCV_M == 1'b0) && (CPU_EXTENSION_RISCV_Zmmul == 1'b0)) begin : cellrv32_cpu_cp_muldiv_inst_OFF
             assign cp_result[1] = '0;
             assign cp_valid[1]  = 1'b0;
-        end : neorv32_cpu_cp_muldiv_inst_OFF
+        end : cellrv32_cpu_cp_muldiv_inst_OFF
     endgenerate
     
     // -------------------------------------------------------------------------------------------
     // Co-Processor 2: Bit-Manipulation Unit ('B' Extension) -------------------------------------
     // -------------------------------------------------------------------------------------------
     generate
-        if (CPU_EXTENSION_RISCV_B == 1'b1) begin : neorv32_cpu_cp_bitmanip_inst_ON
-            neorv32_cpu_cp_bitmanip #(
+        if (CPU_EXTENSION_RISCV_B == 1'b1) begin : cellrv32_cpu_cp_bitmanip_inst_ON
+            cellrv32_cpu_cp_bitmanip #(
                 .XLEN          (XLEN),
                 .FAST_SHIFT_EN (FAST_SHIFT_EN)
-            ) neorv32_cpu_cp_bitmanip_inst (
+            ) cellrv32_cpu_cp_bitmanip_inst (
                 /* global control */
                 .clk_i   ( clk_i),       // global clock, rising edge
                 .rstn_i  (rstn_i),       // global reset, low-active, async
@@ -244,24 +244,24 @@ module neorv32_cpu_alu #(
                 .res_o   (cp_result[2]), // operation result
                 .valid_o (cp_valid[2])   // data output valid
             );
-        end : neorv32_cpu_cp_bitmanip_inst_ON
+        end : cellrv32_cpu_cp_bitmanip_inst_ON
     endgenerate
 
     generate
-        if (CPU_EXTENSION_RISCV_B == 1'b0) begin : neorv32_cpu_cp_bitmanip_inst_OFF
+        if (CPU_EXTENSION_RISCV_B == 1'b0) begin : cellrv32_cpu_cp_bitmanip_inst_OFF
             assign cp_result[2] = '0;
             assign cp_valid[2]  = 1'b0;
-        end : neorv32_cpu_cp_bitmanip_inst_OFF
+        end : cellrv32_cpu_cp_bitmanip_inst_OFF
     endgenerate
     
     // --------------------------------------------------------------------------------------------
     // Co-Processor 3: Single-Precision Floating-Point Unit ('Zfinx' Extension) ------------------
     // -------------------------------------------------------------------------------------------
     generate
-       if (CPU_EXTENSION_RISCV_Zfinx == 1'b1) begin : neorv32_cpu_cp_fpu_inst_ON
-           neorv32_cpu_cp_fpu #(
+       if (CPU_EXTENSION_RISCV_Zfinx == 1'b1) begin : cellrv32_cpu_cp_fpu_inst_ON
+           cellrv32_cpu_cp_fpu #(
                .XLEN (XLEN)
-           ) neorv32_cpu_cp_fpu_inst (
+           ) cellrv32_cpu_cp_fpu_inst (
                /* global control */
                .clk_i    (clk_i),        // global clock, rising edge
                .rstn_i   (rstn_i),       // global reset, low-active, async
@@ -277,25 +277,25 @@ module neorv32_cpu_alu #(
                .fflags_o (fpu_flags_o),  // exception flags
                .valid_o  (cp_valid[3])   // data output valid
            );
-       end : neorv32_cpu_cp_fpu_inst_ON
+       end : cellrv32_cpu_cp_fpu_inst_ON
     endgenerate
 
     generate
-       if (CPU_EXTENSION_RISCV_Zfinx == 1'b0) begin : neorv32_cpu_cp_fpu_inst_OFF
+       if (CPU_EXTENSION_RISCV_Zfinx == 1'b0) begin : cellrv32_cpu_cp_fpu_inst_OFF
            assign cp_result[3] = '0;
            assign fpu_flags_o  = '0;
            assign cp_valid[3]  = 1'b0;
-       end : neorv32_cpu_cp_fpu_inst_OFF
+       end : cellrv32_cpu_cp_fpu_inst_OFF
     endgenerate
      
     // -------------------------------------------------------------------------------------------
     // Co-Processor 4: Custom (Instructions) Functions Unit ('Zxcfu' Extension) ------------------
     // -------------------------------------------------------------------------------------------
     generate
-       if (CPU_EXTENSION_RISCV_Zxcfu == 1'b1) begin : neorv32_cpu_cp_cfu_inst_ON
-           neorv32_cpu_cp_cfu #(
+       if (CPU_EXTENSION_RISCV_Zxcfu == 1'b1) begin : cellrv32_cpu_cp_cfu_inst_ON
+           cellrv32_cpu_cp_cfu #(
                .XLEN(XLEN)
-           ) neorv32_cpu_cp_cfu_inst (
+           ) cellrv32_cpu_cp_cfu_inst (
                /* global control */
                .clk_i   (clk_i),        // global clock, rising edge
                .rstn_i  (rstn_i),       // global reset, low-active, async
@@ -310,23 +310,23 @@ module neorv32_cpu_alu #(
                .res_o   (cp_result[4]), // operation result
                .valid_o (cp_valid[4])   // data output valid
            );
-       end : neorv32_cpu_cp_cfu_inst_ON
+       end : cellrv32_cpu_cp_cfu_inst_ON
     endgenerate
 
     generate
-       if (CPU_EXTENSION_RISCV_Zxcfu == 1'b0) begin : neorv32_cpu_cp_cfu_inst_OFF
+       if (CPU_EXTENSION_RISCV_Zxcfu == 1'b0) begin : cellrv32_cpu_cp_cfu_inst_OFF
            assign cp_result[4] = '0;
            assign cp_valid[4]  = 1'b0;
-       end : neorv32_cpu_cp_cfu_inst_OFF
+       end : cellrv32_cpu_cp_cfu_inst_OFF
     endgenerate
 
     // -------------------------------------------------------------------------------------------
     // Co-Processor 5: Conditional Operations ('Zicond' Extension) -------------------------------
     // -------------------------------------------------------------------------------------------
     generate
-       if (CPU_EXTENSION_RISCV_Zicond == 1'b1) begin : neorv32_cpu_cp_cond_inst_ON
-           neorv32_cpu_cp_cond #(.XLEN(XLEN))
-           neorv32_cpu_cp_cond_inst (
+       if (CPU_EXTENSION_RISCV_Zicond == 1'b1) begin : cellrv32_cpu_cp_cond_inst_ON
+           cellrv32_cpu_cp_cond #(.XLEN(XLEN))
+           cellrv32_cpu_cp_cond_inst (
                /* global control */
                .clk_i   (clk_i),        // global clock, rising edge
                .ctrl_i  (ctrl_i),       // main control bus
@@ -338,14 +338,14 @@ module neorv32_cpu_alu #(
                .res_o   (cp_result[5]), // operation result
                .valid_o (cp_valid[5])   // data output valid
            );
-       end : neorv32_cpu_cp_cond_inst_ON
+       end : cellrv32_cpu_cp_cond_inst_ON
     endgenerate
 
     generate
-       if (CPU_EXTENSION_RISCV_Zicond == 1'b0) begin : neorv32_cpu_cp_cond_inst_OFF
+       if (CPU_EXTENSION_RISCV_Zicond == 1'b0) begin : cellrv32_cpu_cp_cond_inst_OFF
            assign cp_result[5] = '0;
            assign cp_valid[5]  = 1'b0;
-       end : neorv32_cpu_cp_cond_inst_OFF
+       end : cellrv32_cpu_cp_cond_inst_OFF
     endgenerate
     
 endmodule

@@ -6,7 +6,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_spi #(
+module cellrv32_spi #(
     parameter int IO_SPI_FIFO = 1 // SPI RTX fifo depth, has to be a power of two, min 1
 ) (
     /* host access */
@@ -211,7 +211,7 @@ module neorv32_spi #(
     // -------------------------------------------------------------------------------------------
 
     /* TX FIFO */
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH(IO_SPI_FIFO), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH(8),           // size of data elements in fifo
         .FIFO_RSYNC(1'b1),        // sync read
@@ -239,7 +239,7 @@ module neorv32_spi #(
     assign tx_fifo.re    = ((rtx_engine.state == 3'b100) && (tx_fifo.avail == 1'b1) && (rtx_engine.start == 1'b0)) ? 1'b1 : 1'b0;
     
     /* RX FIFO */
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH(IO_SPI_FIFO), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH(8),           // size of data elements in fifo
         .FIFO_RSYNC(1'b1),        // sync read

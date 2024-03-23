@@ -11,7 +11,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_gptmr(
+module cellrv32_gptmr(
     /* host access */
     input  logic        clk_i,       // global clock line
     input  logic        rstn_i,      // global reset line, low-active, async

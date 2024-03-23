@@ -22,7 +22,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_cp_fpu #(
+module cellrv32_cpu_cp_fpu #(
     parameter XLEN = 32 // data path width
 ) (
     /* global control */
@@ -475,7 +475,7 @@ module neorv32_cpu_cp_fpu #(
     // -------------------------------------------------------------------------------------------
     cellrv32_cpu_cp_fpu_f2i #(
         .XLEN(XLEN)) // data path width
-    neorv32_cpu_cp_fpu_f2i_inst (
+    cellrv32_cpu_cp_fpu_f2i_inst (
         /* control */
         .clk_i(clk_i),                        // global clock, rising edge
         .rstn_i(rstn_i),                      // global reset, low-active, async
@@ -997,7 +997,7 @@ module neorv32_cpu_cp_fpu #(
     // Normalizer & Rounding Unit ----------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     cellrv32_cpu_cp_fpu_normalizer 
-    neorv32_cpu_cp_fpu_normalizer_inst (
+    cellrv32_cpu_cp_fpu_normalizer_inst (
         /* control */
         .clk_i( clk_i),                   // global clock, rising edge
         .rstn_i(rstn_i),                  // global reset, low-active, async

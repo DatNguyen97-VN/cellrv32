@@ -9,7 +9,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_mtime (
+module cellrv32_mtime (
     /* host access */
     input  logic        clk_i,  // global clock line
     input  logic        rstn_i, // global reset line, low-active, async

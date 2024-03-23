@@ -20,7 +20,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_neoled #(
+module cellrv32_neoled #(
     parameter int FIFO_DEPTH = 1 // NEOLED FIFO depth, has to be a power of two, min 1
 ) (
     /* host access */
@@ -206,7 +206,7 @@ module neorv32_neoled #(
 
     // TX Buffer (FIFO) --------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_fifo #(
+    cellrv32_fifo #(
         .FIFO_DEPTH(FIFO_DEPTH), // number of fifo entries; has to be a power of two; min 1
         .FIFO_WIDTH(32+2),       // size of data elements in fifo
         .FIFO_RSYNC(1'b1),       // sync read

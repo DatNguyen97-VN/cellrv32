@@ -6,7 +6,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_gpio #(
+module cellrv32_gpio #(
     parameter int GPIO_NUM = 64 // number of GPIO input/output pairs (0..64)
 ) (
     /* host access */

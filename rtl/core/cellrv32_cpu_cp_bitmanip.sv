@@ -15,7 +15,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_cp_bitmanip #(
+module cellrv32_cpu_cp_bitmanip #(
     parameter XLEN          = 32, // data path width
     parameter FAST_SHIFT_EN = 1   // use barrel shifter for shift operations
 ) (

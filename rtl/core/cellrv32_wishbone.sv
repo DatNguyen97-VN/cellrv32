@@ -19,7 +19,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_wishbone #(
+module cellrv32_wishbone #(
     /* Internal instruction memory */
     parameter logic   MEM_INT_IMEM_EN   = 1'b0, // implement processor-internal instruction memory
     parameter int MEM_INT_IMEM_SIZE = 0,    // size of processor-internal instruction memory in bytes

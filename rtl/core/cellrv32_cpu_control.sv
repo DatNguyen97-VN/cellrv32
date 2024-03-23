@@ -16,7 +16,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_control #(
+module cellrv32_cpu_control #(
     /* General */
     parameter XLEN                         = 32, // data path width
     parameter HW_THREAD_ID                 = 0,  // hardware thread id (32-bit)
@@ -475,7 +475,7 @@ module neorv32_cpu_control #(
     generate
      // low half-word and high half-word (+status)
      for (i = 0; i < 2; ++i) begin : prefetch_buffer
-         neorv32_fifo #(
+         cellrv32_fifo #(
              .FIFO_DEPTH (CPU_IPB_ENTRIES),     // number of fifo entries; has to be a power of two; min 1
              .FIFO_WIDTH ($bits(ipb.wdata[i])), // size of data elements in fifo
              .FIFO_RSYNC (0),                   // we NEED to read data asynchronously
@@ -563,7 +563,7 @@ module neorv32_cpu_control #(
     // -------------------------------------------------------------------------------------------
     generate
      if (CPU_EXTENSION_RISCV_C == 1) begin : cellrv32_cpu_decompressor_inst_true
-         neorv32_cpu_decompressor #(
+         cellrv32_cpu_decompressor #(
              .FPU_ENABLE (CPU_EXTENSION_RISCV_Zfinx) //  floating-point instructions enabled
          ) cellrv32_cpu_decompressor_inst (
              .ci_instr16_i (issue_engine.ci_i16), // compressed instruction input

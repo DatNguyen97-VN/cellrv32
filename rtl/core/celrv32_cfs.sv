@@ -13,7 +13,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cfs #(
+module cellrv32_cfs #(
     parameter logic[31:0] CFS_CONFIG = 32'h00000000, // custom CFS configuration generic
     parameter int CFS_IN_SIZE    = 32,  // size of CFS input conduit in bits
     parameter int CFS_OUT_SIZE   = 32,  // size of CFS output conduit in bits

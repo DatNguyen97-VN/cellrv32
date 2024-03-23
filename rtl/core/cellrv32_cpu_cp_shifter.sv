@@ -10,7 +10,7 @@
 `endif // _INCL_DEFINITIONS
 
 
-module neorv32_cpu_cp_shifter #(
+module cellrv32_cpu_cp_shifter #(
     parameter XLEN          = 32, // data path width
     parameter FAST_SHIFT_EN = 1   // implement fast but large barrel shifter
 ) (

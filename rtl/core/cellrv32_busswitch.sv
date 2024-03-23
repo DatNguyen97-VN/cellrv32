@@ -9,7 +9,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_busswitch #(
+module cellrv32_busswitch #(
     parameter PORT_CA_READ_ONLY = 1,
     parameter PORT_CB_READ_ONLY = 1
 )(

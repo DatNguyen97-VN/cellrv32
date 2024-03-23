@@ -11,7 +11,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_cpu_cp_cfu #(
+module cellrv32_cpu_cp_cfu #(
     parameter XLEN = 32 // data path width
 ) (
     /* global control */

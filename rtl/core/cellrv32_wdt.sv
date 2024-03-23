@@ -14,7 +14,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module neorv32_wdt (
+module cellrv32_wdt (
     /* host access */
     input  logic        clk_i,       // global clock line
     input  logic        rstn_ext_i,  // external reset line, low-active, async
