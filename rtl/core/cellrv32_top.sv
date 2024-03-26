@@ -805,7 +805,7 @@ module cellrv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if ((MEM_INT_IMEM_EN == 1'b1) && (MEM_INT_IMEM_SIZE > 0)) begin : cellrv32_int_imem_inst_ON
-            cellrv32_imem #(
+            neorv32_imem #(
                 .IMEM_BASE    (imem_base_c),          // memory base address
                 .IMEM_SIZE    (MEM_INT_IMEM_SIZE),    // processor-internal instruction memory size in bytes
                 .IMEM_AS_IROM (~ INT_BOOTLOADER_EN)   // implement IMEM as pre-initialized read-only memory?
@@ -833,7 +833,7 @@ module cellrv32_top #(
     // -------------------------------------------------------------------------------------------
     generate
         if ((MEM_INT_DMEM_EN == 1'b1) && (MEM_INT_DMEM_SIZE > 0)) begin : cellrv32_int_dmem_inst_ON
-            cellrv32_dmem #(
+            neorv32_dmem #(
               .DMEM_BASE (dmem_base_c),      // memory base address
               .DMEM_SIZE (MEM_INT_DMEM_SIZE) // processor-internal data memory size in bytes  
             ) cellrv32_int_dmem_inst (
