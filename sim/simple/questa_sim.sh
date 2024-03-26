@@ -24,7 +24,7 @@ QUESTA_RUN_ARGS="${@:---stop-time=20ms}"
 echo "Using simulation runtime args: $QUESTA_RUN_ARGS";
 
 # -voptargs="+acc" option for debug mode to add wave internal signal
-vsim.exe neorv32.neorv32_tb_simple  -debugdb -do "source add_wave_debug.tcl; run 5ms; exit"
+vsim.exe neorv32.neorv32_tb_simple  -l sim_log.log -voptargs="+acc" -do "source add_wave_debug.tcl; run 5ms; exit"
 
 # verify results of processor check: sw/example/processor_check
 cat cellrv32.uart0.sim_mode.text.out | grep "PROCESSOR TEST COMPLETED SUCCESSFULLY!"

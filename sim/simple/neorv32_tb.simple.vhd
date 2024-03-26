@@ -167,7 +167,7 @@ begin
 
   -- The Core of the Problem ----------------------------------------------------------------
   -- -------------------------------------------------------------------------------------------
-  neorv32_top_inst: cellrv32_top
+  cellrv32_top_inst: cellrv32_top
   generic map (
     -- General --
     CLOCK_FREQUENCY              => f_clock_c,     -- clock frequency of clk_i in Hz

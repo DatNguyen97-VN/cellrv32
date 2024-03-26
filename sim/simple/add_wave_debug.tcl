@@ -4,13 +4,13 @@ add wave -group "Top Module" /neorv32_tb_simple/cellrv32_top_inst/*
 
 add wave -group "Top Module" /neorv32_tb_simple/cellrv32_top_inst/resp_bus
 
-add wave -group "Cpu Control" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/neorv32_cpu_control_inst/*
+add wave -group "Cpu Control" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_control_inst/*
 
 add wave -group "Cpu Bus" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_bus_inst/*
  
-add wave -group "Cpu Decompressor" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/neorv32_cpu_control_inst/cellrv32_cpu_decompressor_inst_true/cellrv32_cpu_decompressor_inst/*
+add wave -group "Cpu Decompressor" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_control_inst/cellrv32_cpu_decompressor_inst_true/cellrv32_cpu_decompressor_inst/*
 
-add wave -group "Cpu Alu" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/neorv32_cpu_alu_inst/*
+add wave -group "Cpu Alu" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_alu_inst/*
 
 add wave -group "Cpu Regfile" /neorv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/*
 

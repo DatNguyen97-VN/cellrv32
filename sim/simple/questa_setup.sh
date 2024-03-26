@@ -23,7 +23,7 @@ vcom.exe -work neorv32 "$NEOV32_LOCAL_RTL"/core/neorv32_package.vhd \
          uart_rx.simple.vhd \
          neorv32_tb.simple.vhd
 
-vopt.exe neorv32.neorv32_top -o optver
+vopt.exe neorv32.cellrv32_top -o optver
          
     
 
