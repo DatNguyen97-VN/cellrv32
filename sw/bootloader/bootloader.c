@@ -1,46 +1,15 @@
 // #################################################################################################
-// # << NEORV32 - Bootloader >>                                                                    #
+// # << CELLRV32 - Bootloader >>                                                                    #
 // # ********************************************************************************************* #
-// # BSD 3-Clause License                                                                          #
-// #                                                                                               #
-// # Copyright (c) 2023, Stephan Nolting. All rights reserved.                                     #
-// #                                                                                               #
-// # Redistribution and use in source and binary forms, with or without modification, are          #
-// # permitted provided that the following conditions are met:                                     #
-// #                                                                                               #
-// # 1. Redistributions of source code must retain the above copyright notice, this list of        #
-// #    conditions and the following disclaimer.                                                   #
-// #                                                                                               #
-// # 2. Redistributions in binary form must reproduce the above copyright notice, this list of     #
-// #    conditions and the following disclaimer in the documentation and/or other materials        #
-// #    provided with the distribution.                                                            #
-// #                                                                                               #
-// # 3. Neither the name of the copyright holder nor the names of its contributors may be used to  #
-// #    endorse or promote products derived from this software without specific prior written      #
-// #    permission.                                                                                #
-// #                                                                                               #
-// # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS   #
-// # OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF               #
-// # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE    #
-// # COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,     #
-// # EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE #
-// # GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED    #
-// # AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING     #
-// # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  #
-// # OF THE POSSIBILITY OF SUCH DAMAGE.                                                            #
-// # ********************************************************************************************* #
-// # The NEORV32 RISC-V Processor - https://github.com/stnolting/neorv32       (c) Stephan Nolting #
-// #################################################################################################
-
 
 /**********************************************************************//**
  * @file bootloader.c
  * @author Stephan Nolting
- * @brief Default NEORV32 bootloader.
+ * @brief Default CELLRV32 bootloader.
  **************************************************************************/
 
 #include <stdint.h>
-#include <neorv32.h>
+#include <cellrv32.h>
 
 
 /**********************************************************************//**
@@ -102,7 +71,7 @@
   #define SPI_FLASH_SECTOR_SIZE 65536 // default = 64kB
 #endif
 
-/** SPI flash clock pre-scaler; see #NEORV32_SPI_CTRL_enum */
+/** SPI flash clock pre-scaler; see #CELLRV32_SPI_CTRL_enum */
 #ifndef SPI_FLASH_CLK_PRSC
   #define SPI_FLASH_CLK_PRSC CLK_PRSC_8
 #endif
@@ -180,9 +149,9 @@ enum SPI_FLASH_SREG_enum {
 
 
 /**********************************************************************//**
- * NEORV32 executable
+ * CELLRV32 executable
  **************************************************************************/
-enum NEORV32_EXECUTABLE_enum {
+enum CELLRV32_EXECUTABLE_enum {
   EXE_OFFSET_SIGNATURE =  0, /**< Offset in bytes from start to signature (32-bit) */
   EXE_OFFSET_SIZE      =  4, /**< Offset in bytes from start to size (32-bit) */
   EXE_OFFSET_CHECKSUM  =  8, /**< Offset in bytes from start to checksum (32-bit) */
@@ -206,10 +175,10 @@ enum NEORV32_EXECUTABLE_enum {
 #define str(a) #a
 /** Print to UART 0 */
 #if (UART_EN != 0)
-  #define PRINT_TEXT(...) neorv32_uart0_puts(__VA_ARGS__)
+  #define PRINT_TEXT(...) cellrv32_uart0_puts(__VA_ARGS__)
   #define PRINT_XNUM(a) print_hex_word(a)
-  #define PRINT_GETC(a) neorv32_uart0_getc()
-  #define PRINT_PUTC(a) neorv32_uart0_putc(a)
+  #define PRINT_GETC(a) cellrv32_uart0_getc()
+  #define PRINT_PUTC(a) cellrv32_uart0_putc(a)
 #else
   #define PRINT_TEXT(...)
   #define PRINT_XNUM(a)
@@ -272,71 +241,71 @@ int main(void) {
   exe_available = 0; // global variable for executable size; 0 means there is no exe available
   getting_exe   = 0; // we are not trying to get an executable yet
 
-  // configure trap handler (bare-metal, no neorv32 rte available)
-  neorv32_cpu_csr_write(CSR_MTVEC, (uint32_t)(&bootloader_trap_handler));
+  // configure trap handler (bare-metal, no cellrv32 rte available)
+  cellrv32_cpu_csr_write(CSR_MTVEC, (uint32_t)(&bootloader_trap_handler));
 
 #if (SPI_EN != 0)
   // setup SPI for clock-mode 0
-  if (neorv32_spi_available()) {
-    neorv32_spi_setup(SPI_FLASH_CLK_PRSC, 0, 0, 0, 0);
+  if (cellrv32_spi_available()) {
+    cellrv32_spi_setup(SPI_FLASH_CLK_PRSC, 0, 0, 0, 0);
   }
 #endif
 
 #if (XIP_EN != 0)
   // setup XIP: clock mode 0, bursts enabled
-  if (neorv32_xip_available()) {
-    neorv32_xip_setup(SPI_FLASH_CLK_PRSC, 0, 0, SPI_FLASH_CMD_READ);
-    neorv32_xip_burst_mode_enable();
-    neorv32_xip_start(SPI_FLASH_ADDR_BYTES, XIP_PAGE_BASE_ADDR);
+  if (cellrv32_xip_available()) {
+    cellrv32_xip_setup(SPI_FLASH_CLK_PRSC, 0, 0, SPI_FLASH_CMD_READ);
+    cellrv32_xip_burst_mode_enable();
+    cellrv32_xip_start(SPI_FLASH_ADDR_BYTES, XIP_PAGE_BASE_ADDR);
   }
 #endif
 
 #if (STATUS_LED_EN != 0)
   // activate status LED, clear all others
-  if (neorv32_gpio_available()) {
-    neorv32_gpio_port_set(1 << STATUS_LED_PIN);
+  if (cellrv32_gpio_available()) {
+    cellrv32_gpio_port_set(1 << STATUS_LED_PIN);
   }
 #endif
 
 #if (UART_EN != 0)
   // setup UART0
-  neorv32_uart0_setup(UART_BAUD, 0);
+  cellrv32_uart0_setup(UART_BAUD, 0);
 #endif
 
   // Configure machine system timer interrupt
-  if (neorv32_mtime_available()) {
-    NEORV32_MTIME->TIME_LO = 0;
-    NEORV32_MTIME->TIME_HI = 0;
-    NEORV32_MTIME->TIMECMP_LO = NEORV32_SYSINFO->CLK/4;
-    NEORV32_MTIME->TIMECMP_HI = 0;
-    neorv32_cpu_csr_write(CSR_MIE, 1 << CSR_MIE_MTIE); // activate MTIME IRQ source
-    neorv32_cpu_csr_set(CSR_MSTATUS, 1 << CSR_MSTATUS_MIE); // enable machine-mode interrupts
+  if (cellrv32_mtime_available()) {
+    CELLRV32_MTIME->TIME_LO = 0;
+    CELLRV32_MTIME->TIME_HI = 0;
+    CELLRV32_MTIME->TIMECMP_LO = CELLRV32_SYSINFO->CLK/4;
+    CELLRV32_MTIME->TIMECMP_HI = 0;
+    cellrv32_cpu_csr_write(CSR_MIE, 1 << CSR_MIE_MTIE); // activate MTIME IRQ source
+    cellrv32_cpu_csr_set(CSR_MSTATUS, 1 << CSR_MSTATUS_MIE); // enable machine-mode interrupts
   }
 
 
   // ------------------------------------------------
   // Show bootloader intro and system info
   // ------------------------------------------------
-  PRINT_TEXT("\n\n\n<< NEORV32 Bootloader >>\n\n"
+  PRINT_TEXT("\n\n\n<< CELLRV32 Bootloader >>\n\n"
                      "BLDV: "__DATE__"\nHWV:  ");
-  PRINT_XNUM(neorv32_cpu_csr_read(CSR_MIMPID));
+  PRINT_XNUM(cellrv32_cpu_csr_read(CSR_MIMPID));
   PRINT_TEXT("\nCID:  ");
-  PRINT_XNUM(NEORV32_SYSINFO->CUSTOM_ID);
+  PRINT_XNUM(CELLRV32_SYSINFO->CUSTOM_ID);
   PRINT_TEXT("\nCLK:  ");
-  PRINT_XNUM(NEORV32_SYSINFO->CLK);
+  PRINT_XNUM(CELLRV32_SYSINFO->CLK);
   PRINT_TEXT("\nMISA: ");
-  PRINT_XNUM(neorv32_cpu_csr_read(CSR_MISA));
+  PRINT_XNUM(cellrv32_cpu_csr_read(CSR_MISA));
   PRINT_TEXT("\nXISA: ");
-  PRINT_XNUM(neorv32_cpu_csr_read(CSR_MXISA));
+  PRINT_XNUM(cellrv32_cpu_csr_read(CSR_MXISA));
   PRINT_TEXT("\nSOC:  ");
-  PRINT_XNUM(NEORV32_SYSINFO->SOC);
+  PRINT_XNUM(CELLRV32_SYSINFO->SOC);
   PRINT_TEXT("\nIMEM: ");
-  PRINT_XNUM(NEORV32_SYSINFO->IMEM_SIZE); PRINT_TEXT(" bytes @");
-  PRINT_XNUM(NEORV32_SYSINFO->ISPACE_BASE);
+  PRINT_XNUM(CELLRV32_SYSINFO->IMEM_SIZE); PRINT_TEXT(" bytes @");
+  PRINT_XNUM(CELLRV32_SYSINFO->ISPACE_BASE);
   PRINT_TEXT("\nDMEM: ");
-  PRINT_XNUM(NEORV32_SYSINFO->DMEM_SIZE);
+  PRINT_XNUM(CELLRV32_SYSINFO->DMEM_SIZE);
   PRINT_TEXT(" bytes @");
-  PRINT_XNUM(NEORV32_SYSINFO->DSPACE_BASE);
+  PRINT_XNUM(CELLRV32_SYSINFO->DSPACE_BASE);
   PRINT_TEXT("\n");
 
 
@@ -345,21 +314,21 @@ int main(void) {
   // ------------------------------------------------
 #if (SPI_EN != 0)
 #if (AUTO_BOOT_TIMEOUT != 0)
-  if (neorv32_mtime_available()) {
+  if (cellrv32_mtime_available()) {
 
     PRINT_TEXT("\nAutoboot in "xstr(AUTO_BOOT_TIMEOUT)"s. Press any key to abort.\n");
-    uint64_t timeout_time = neorv32_mtime_get_time() + (uint64_t)(AUTO_BOOT_TIMEOUT * NEORV32_SYSINFO->CLK);
+    uint64_t timeout_time = cellrv32_mtime_get_time() + (uint64_t)(AUTO_BOOT_TIMEOUT * CELLRV32_SYSINFO->CLK);
 
     while(1){
 
-      if (neorv32_uart0_available()) { // wait for any key to be pressed
-        if (neorv32_uart0_char_received()) {
-          neorv32_uart0_char_received_get(); // discard received char
+      if (cellrv32_uart0_available()) { // wait for any key to be pressed
+        if (cellrv32_uart0_char_received()) {
+          cellrv32_uart0_char_received_get(); // discard received char
           break;
         }
       }
 
-      if (neorv32_mtime_get_time() >= timeout_time) { // timeout? start auto boot sequence
+      if (cellrv32_mtime_get_time() >= timeout_time) { // timeout? start auto boot sequence
         get_exe(EXE_STREAM_FLASH); // try booting from flash
         PRINT_TEXT("\n");
         start_app(0);
@@ -421,7 +390,7 @@ int main(void) {
     }
 #endif
     else if (c == '?') {
-      PRINT_TEXT("(c) by Stephan Nolting\ngithub.com/stnolting/neorv32");
+      PRINT_TEXT("(c) by Stephan Nolting\ngithub.com/stnolting/cellrv32");
     }
     else { // unknown command
       PRINT_TEXT("Invalid CMD");
@@ -461,9 +430,9 @@ void print_help(void) {
 void start_app(int boot_xip) {
 
   // deactivate global IRQs
-  neorv32_cpu_csr_clr(CSR_MSTATUS, 1 << CSR_MSTATUS_MIE);
+  cellrv32_cpu_csr_clr(CSR_MSTATUS, 1 << CSR_MSTATUS_MIE);
 
-  register uint32_t app_base = NEORV32_SYSINFO->ISPACE_BASE; // default = start at beginning of IMEM
+  register uint32_t app_base = CELLRV32_SYSINFO->ISPACE_BASE; // default = start at beginning of IMEM
 #if (XIP_EN != 0)
   if (boot_xip) {
     app_base = (uint32_t)(XIP_PAGE_BASE_ADDR + SPI_BOOT_BASE_ADDR); // start from XIP mapped address
@@ -475,7 +444,7 @@ void start_app(int boot_xip) {
   PRINT_TEXT("...\n\n");
 
   // wait for UART0 to finish transmitting
-  while (neorv32_uart0_tx_busy());
+  while (cellrv32_uart0_tx_busy());
 
   // start application
   asm volatile ("jalr ra, %0" : : "r" (app_base));
@@ -492,18 +461,18 @@ void start_app(int boot_xip) {
  **************************************************************************/
 void __attribute__((__interrupt__)) bootloader_trap_handler(void) {
 
-  register uint32_t mcause = neorv32_cpu_csr_read(CSR_MCAUSE);
+  register uint32_t mcause = cellrv32_cpu_csr_read(CSR_MCAUSE);
 
   // Machine timer interrupt
   if (mcause == TRAP_CODE_MTI) { // raw exception code for MTI
 #if (STATUS_LED_EN != 0)
-    if (neorv32_gpio_available()) {
-      neorv32_gpio_pin_toggle(STATUS_LED_PIN); // toggle status LED
+    if (cellrv32_gpio_available()) {
+      cellrv32_gpio_pin_toggle(STATUS_LED_PIN); // toggle status LED
     }
 #endif
     // set time for next IRQ
-    if (neorv32_mtime_available()) {
-      neorv32_mtime_set_timecmp(neorv32_mtime_get_time() + (NEORV32_SYSINFO->CLK/4));
+    if (cellrv32_mtime_available()) {
+      cellrv32_mtime_set_timecmp(cellrv32_mtime_get_time() + (CELLRV32_SYSINFO->CLK/4));
     }
   }
 
@@ -514,19 +483,19 @@ void __attribute__((__interrupt__)) bootloader_trap_handler(void) {
 
   // Anything else (that was not expected); output exception notifier and try to resume
   else {
-    register uint32_t mepc = neorv32_cpu_csr_read(CSR_MEPC);
+    register uint32_t mepc = cellrv32_cpu_csr_read(CSR_MEPC);
 #if (UART_EN != 0)
-    if (neorv32_uart0_available()) {
+    if (cellrv32_uart0_available()) {
       PRINT_TEXT("\nERR_EXC ");
       PRINT_XNUM(mcause);
       PRINT_PUTC(' ');
       PRINT_XNUM(mepc);
       PRINT_PUTC(' ');
-      PRINT_XNUM(neorv32_cpu_csr_read(CSR_MTVAL));
+      PRINT_XNUM(cellrv32_cpu_csr_read(CSR_MTVAL));
       PRINT_TEXT("\n");
     }
 #endif
-    neorv32_cpu_csr_write(CSR_MEPC, mepc + 4); // advance to next instruction
+    cellrv32_cpu_csr_write(CSR_MEPC, mepc + 4); // advance to next instruction
   }
 }
 
@@ -545,7 +514,7 @@ void get_exe(int src) {
 
   // get image from UART?
   if (src == EXE_STREAM_UART) {
-    PRINT_TEXT("Awaiting neorv32_exe.bin... ");
+    PRINT_TEXT("Awaiting cellrv32_exe.bin... ");
   }
 #if (SPI_EN != 0)
   else {
@@ -554,7 +523,7 @@ void get_exe(int src) {
     PRINT_TEXT(")...\n");
 
     // flash checks
-    if (((NEORV32_SYSINFO->SOC & (1<<SYSINFO_SOC_IO_SPI)) == 0) || // SPI module not implemented?
+    if (((CELLRV32_SYSINFO->SOC & (1<<SYSINFO_SOC_IO_SPI)) == 0) || // SPI module not implemented?
        (spi_flash_check() != 0)) { // check if flash ready (or available at all)
       system_error(ERROR_FLASH);
     }
@@ -572,7 +541,7 @@ void get_exe(int src) {
   uint32_t check = get_exe_word(src, addr + EXE_OFFSET_CHECKSUM); // complement sum checksum
 
   // transfer program data
-  uint32_t *pnt = (uint32_t*)NEORV32_SYSINFO->ISPACE_BASE;
+  uint32_t *pnt = (uint32_t*)CELLRV32_SYSINFO->ISPACE_BASE;
   uint32_t checksum = 0;
   uint32_t d = 0, i = 0;
   addr = addr + EXE_OFFSET_DATA;
@@ -642,7 +611,7 @@ void save_exe(void) {
 
   // store data from instruction memory and update checksum
   uint32_t checksum = 0;
-  uint32_t *pnt = (uint32_t*)NEORV32_SYSINFO->ISPACE_BASE;
+  uint32_t *pnt = (uint32_t*)CELLRV32_SYSINFO->ISPACE_BASE;
   addr = addr + EXE_OFFSET_DATA;
   uint32_t i = 0;
   while (i < size) { // in chunks of 4 bytes
@@ -701,12 +670,12 @@ void system_error(uint8_t err_code) {
   PRINT_TEXT("\a\nERR_"); // output error code with annoying bell sound
   PRINT_TEXT(error_message[err_code]);
 
-  neorv32_cpu_csr_clr(CSR_MSTATUS, 1 << CSR_MSTATUS_MIE); // deactivate IRQs
+  cellrv32_cpu_csr_clr(CSR_MSTATUS, 1 << CSR_MSTATUS_MIE); // deactivate IRQs
 
   // permanently light up status LED
 #if (STATUS_LED_EN != 0)
-  if (neorv32_gpio_available()) {
-    neorv32_gpio_port_set(1 << STATUS_LED_PIN);
+  if (cellrv32_gpio_available()) {
+    cellrv32_gpio_port_set(1 << STATUS_LED_PIN);
   }
 #endif
 
@@ -777,13 +746,13 @@ int spi_flash_check(void) {
 uint8_t spi_flash_read_byte(uint32_t addr) {
 
 #if (SPI_EN != 0)
-  neorv32_spi_cs_en(SPI_FLASH_CS);
+  cellrv32_spi_cs_en(SPI_FLASH_CS);
 
-  neorv32_spi_trans(SPI_FLASH_CMD_READ);
+  cellrv32_spi_trans(SPI_FLASH_CMD_READ);
   spi_flash_write_addr(addr);
-  uint8_t rdata = neorv32_spi_trans(0);
+  uint8_t rdata = cellrv32_spi_trans(0);
 
-  neorv32_spi_cs_dis();
+  cellrv32_spi_cs_dis();
 
   return rdata;
 #else
@@ -803,13 +772,13 @@ void spi_flash_write_byte(uint32_t addr, uint8_t wdata) {
 #if (SPI_EN != 0)
   spi_flash_write_enable(); // allow write-access
 
-  neorv32_spi_cs_en(SPI_FLASH_CS);
+  cellrv32_spi_cs_en(SPI_FLASH_CS);
 
-  neorv32_spi_trans(SPI_FLASH_CMD_PAGE_PROGRAM);
+  cellrv32_spi_trans(SPI_FLASH_CMD_PAGE_PROGRAM);
   spi_flash_write_addr(addr);
-  neorv32_spi_trans(wdata);
+  cellrv32_spi_trans(wdata);
 
-  neorv32_spi_cs_dis();
+  cellrv32_spi_cs_dis();
 
   while(1) {
     if ((spi_flash_read_status() & (1 << FLASH_SREG_BUSY)) == 0) { // write in progress flag cleared?
@@ -855,12 +824,12 @@ void spi_flash_erase_sector(uint32_t addr) {
 #if (SPI_EN != 0)
   spi_flash_write_enable(); // allow write-access
 
-  neorv32_spi_cs_en(SPI_FLASH_CS);
+  cellrv32_spi_cs_en(SPI_FLASH_CS);
 
-  neorv32_spi_trans(SPI_FLASH_CMD_SECTOR_ERASE);
+  cellrv32_spi_trans(SPI_FLASH_CMD_SECTOR_ERASE);
   spi_flash_write_addr(addr);
 
-  neorv32_spi_cs_dis();
+  cellrv32_spi_cs_dis();
 
   while(1) {
     if ((spi_flash_read_status() & (1 << FLASH_SREG_BUSY)) == 0) { // write in progress flag cleared?
@@ -877,9 +846,9 @@ void spi_flash_erase_sector(uint32_t addr) {
 void spi_flash_write_enable(void) {
 
 #if (SPI_EN != 0)
-  neorv32_spi_cs_en(SPI_FLASH_CS);
-  neorv32_spi_trans(SPI_FLASH_CMD_WRITE_ENABLE);
-  neorv32_spi_cs_dis();
+  cellrv32_spi_cs_en(SPI_FLASH_CS);
+  cellrv32_spi_trans(SPI_FLASH_CMD_WRITE_ENABLE);
+  cellrv32_spi_cs_dis();
 #endif
 }
 
@@ -890,9 +859,9 @@ void spi_flash_write_enable(void) {
 void spi_flash_write_disable(void) {
 
 #if (SPI_EN != 0)
-  neorv32_spi_cs_en(SPI_FLASH_CS);
-  neorv32_spi_trans(SPI_FLASH_CMD_WRITE_DISABLE);
-  neorv32_spi_cs_dis();
+  cellrv32_spi_cs_en(SPI_FLASH_CS);
+  cellrv32_spi_trans(SPI_FLASH_CMD_WRITE_DISABLE);
+  cellrv32_spi_cs_dis();
 #endif
 }
 
@@ -905,12 +874,12 @@ void spi_flash_write_disable(void) {
 uint8_t spi_flash_read_status(void) {
 
 #if (SPI_EN != 0)
-  neorv32_spi_cs_en(SPI_FLASH_CS);
+  cellrv32_spi_cs_en(SPI_FLASH_CS);
 
-  neorv32_spi_trans(SPI_FLASH_CMD_READ_STATUS);
-  uint8_t res = neorv32_spi_trans(0);
+  cellrv32_spi_trans(SPI_FLASH_CMD_READ_STATUS);
+  uint8_t res = cellrv32_spi_trans(0);
 
-  neorv32_spi_cs_dis();
+  cellrv32_spi_cs_dis();
 
   return res;
 #else
@@ -938,17 +907,17 @@ void spi_flash_write_addr(uint32_t addr) {
   address.uint32 = addr;
 
 #if (SPI_FLASH_ADDR_BYTES == 2)
-  neorv32_spi_trans(address.uint8[1]);
-  neorv32_spi_trans(address.uint8[0]);
+  cellrv32_spi_trans(address.uint8[1]);
+  cellrv32_spi_trans(address.uint8[0]);
 #elif (SPI_FLASH_ADDR_BYTES == 3)
-  neorv32_spi_trans(address.uint8[2]);
-  neorv32_spi_trans(address.uint8[1]);
-  neorv32_spi_trans(address.uint8[0]);
+  cellrv32_spi_trans(address.uint8[2]);
+  cellrv32_spi_trans(address.uint8[1]);
+  cellrv32_spi_trans(address.uint8[0]);
 #elif (SPI_FLASH_ADDR_BYTES == 4)
-  neorv32_spi_trans(address.uint8[3]);
-  neorv32_spi_trans(address.uint8[2]);
-  neorv32_spi_trans(address.uint8[1]);
-  neorv32_spi_trans(address.uint8[0]);
+  cellrv32_spi_trans(address.uint8[3]);
+  cellrv32_spi_trans(address.uint8[2]);
+  cellrv32_spi_trans(address.uint8[1]);
+  cellrv32_spi_trans(address.uint8[0]);
 #else
   #error "Unsupported SPI_FLASH_ADDR_BYTES configuration!"
 #endif

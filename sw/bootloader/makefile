@@ -1,4 +1,4 @@
-# Modify this variable to fit your NEORV32 setup (neorv32 home folder)
-NEORV32_HOME ?= ../..
+# Modify this variable to fit your NEORV32 setup (cellrv32 home folder)
+CELLRV32_HOME ?= ../..
 
-include $(NEORV32_HOME)/sw/common/common.mk
+include $(CELLRV32_HOME)/sw/common/common.mk
