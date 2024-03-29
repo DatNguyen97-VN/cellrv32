@@ -23,7 +23,7 @@ architecture a of uart_rx_simple is
   signal uart_rx_baud_cnt : real;
   signal uart_rx_bitcnt : natural;
 
-  file file_uart_tx_out : text open write_mode is "neorv32.testbench_" & name & ".out";
+  file file_uart_tx_out : text open write_mode is "cellrv32.testbench_" & name & ".out";
 
 begin
   uart_rx_console : process(clk)

@@ -121,10 +121,10 @@ module cellrv32_spi #(
     // -------------------------------------------------------------------------------------------
     initial begin
         assert (!(is_power_of_two_f(IO_SPI_FIFO) == 1'b0)) else
-        $error("NEORV32 PROCESSOR CONFIG ERROR: SPI FIFO size has to be a power of two.");
+        $error("CELLRV32 PROCESSOR CONFIG ERROR: SPI FIFO size has to be a power of two.");
         //
         assert (!(IO_SPI_FIFO > 2**15)) else
-        $error("NEORV32 PROCESSOR CONFIG ERROR: SPI FIFO size has to be in range 1..32768.");
+        $error("CELLRV32 PROCESSOR CONFIG ERROR: SPI FIFO size has to be in range 1..32768.");
     end
 
     // Host Access -------------------------------------------------------------------------------

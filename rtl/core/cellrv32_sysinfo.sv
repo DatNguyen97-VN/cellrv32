@@ -1,7 +1,7 @@
 // ##################################################################################################
 // # << CELLRV32 - System/Processor Configuration Information Memory (SYSINFO) >>                   #
 // # ********************************************************************************************** #
-// # This unit provides information regarding the NEORV32 processor system configuration -          #
+// # This unit provides information regarding the CELLRV32 processor system configuration -          #
 // # mostly derived from the top's configuration generics.                                          #
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS

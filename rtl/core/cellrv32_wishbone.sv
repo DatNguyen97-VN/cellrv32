@@ -108,14 +108,14 @@ module cellrv32_wishbone #(
     // -------------------------------------------------------------------------------------------
     initial begin
         assert (1'b0) else $info(
-               "NEORV32 PROCESSOR CONFIG NOTE: Ext. Bus Interface - %s Wishbone protocol, %s %s -endian byte order, %s RX, %s TX",
+               "CELLRV32 PROCESSOR CONFIG NOTE: Ext. Bus Interface - %s Wishbone protocol, %s %s -endian byte order, %s RX, %s TX",
                cond_sel_string_f(PIPE_MODE, "PIPELINED", "CLASSIC/STANDARD"),
                cond_sel_string_f(BUS_TIMEOUT != 0, "auto-timeout BUS_TIMEOUT cycles), ", "NO auto-timeout, "),
                cond_sel_string_f(BIG_ENDIAN, "BIG", "LITTLE"),
                cond_sel_string_f(ASYNC_RX, "ASYNC ", "registered "),
                cond_sel_string_f(ASYNC_TX, "ASYNC ", "registered "));
         /* no timeout warning */
-        assert (BUS_TIMEOUT != 0) else $warning("NEORV32 PROCESSOR CONFIG WARNING! Ext. Bus Interface - NO auto-timeout (can cause permanent CPU stall!).");
+        assert (BUS_TIMEOUT != 0) else $warning("CELLRV32 PROCESSOR CONFIG WARNING! Ext. Bus Interface - NO auto-timeout (can cause permanent CPU stall!).");
     end
 
     // Access Control ----------------------------------------------------------------------------

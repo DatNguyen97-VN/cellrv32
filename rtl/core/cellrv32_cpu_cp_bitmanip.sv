@@ -137,7 +137,7 @@ module cellrv32_cpu_cp_bitmanip #(
   // -------------------------------------------------------------------------------------------
   initial begin
     assert (1'b0)
-    else $info("NEORV32 CPU: Implementing bit-manipulation (B) sub-extensions %s %s %s %s",
+    else $info("CELLRV32 CPU: Implementing bit-manipulation (B) sub-extensions %s %s %s %s",
                 cond_sel_string_f(zba_en_c, "Zba ", ""),
                 cond_sel_string_f(zbb_en_c, "Zbb ", ""),
                 cond_sel_string_f(zbc_en_c, "Zbc ", ""),

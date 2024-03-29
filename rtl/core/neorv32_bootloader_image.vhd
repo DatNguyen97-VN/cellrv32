@@ -1,11 +1,11 @@
--- The NEORV32 RISC-V Processor: https://github.com/stnolting/neorv32
+-- The CELLRV32 RISC-V Processor: https://github.com/DatNguyen97-VN/cellrv32
 -- Auto-generated memory initialization file (for BOOTLOADER) from source file <bootloader/main.bin>
 -- Size: 4028 bytes
 -- MARCH: default
 -- Built: 25.02.2024 11:54:44
 
 -- prototype defined in 'neorv32_package.vhd'
-package body neorv32_bootloader_image is
+package body cellrv32_bootloader_image is
 
 constant bootloader_init_image : mem32_t := (
 x"30005073",
@@ -1017,4 +1017,4 @@ x"4600534b",
 x"0048534c"
 );
 
-end neorv32_bootloader_image;
+end cellrv32_bootloader_image;

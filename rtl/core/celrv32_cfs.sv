@@ -89,7 +89,7 @@ module cellrv32_cfs #(
     // The CFS can be reset using the global rstn_i signal. This signal should be used as asynchronous reset and is active-low.
     // Note that rstn_i can be asserted by a processor-external reset, the on-chip debugger and also by the watchdog.
     //
-    // Most default peripheral devices of the NEORV32 do NOT use a dedicated hardware reset at all. Instead, these units are
+    // Most default peripheral devices of the CELLRV32 do NOT use a dedicated hardware reset at all. Instead, these units are
     // reset by writing ZERO to a specific "control register" located right at the beginning of the device's address space
     // (so this register is cleared at first). The crt0 start-up code writes ZERO to every single address in the processor's
     // IO space - including the CFS. Make sure that this initial clearing does not cause any unintended CFS actions.

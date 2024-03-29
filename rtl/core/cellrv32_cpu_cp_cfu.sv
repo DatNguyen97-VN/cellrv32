@@ -112,7 +112,7 @@ module cellrv32_cpu_cp_cfu #(
     // This format consists of three source registers ('rs1', 'rs2', 'rs3'), a destination register ('rd') and one "immediate"
     // bit-field ('funct7').
     //
-    // Two individual RISC-V R5-Type Instructions (NEORV32-specific):
+    // Two individual RISC-V R5-Type Instructions (CELLRV32-specific):
     // This format consists of four source registers ('rs1', 'rs2', 'rs3', 'rs4') and a destination register ('rd'). There are
     // no immediate fields.
 

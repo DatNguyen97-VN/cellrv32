@@ -62,7 +62,7 @@ module cellrv32_pwm #(
     // -------------------------------------------------------------------------------------------
     initial begin
          assert (!(NUM_CHANNELS > 12)) else
-         $error("NEORV32 PROCESSOR CONFIG ERROR! <PWM controller> invalid number of channels (0..12)!");
+         $error("CELLRV32 PROCESSOR CONFIG ERROR! <PWM controller> invalid number of channels (0..12)!");
     end
 
     // Access Control ----------------------------------------------------------------------------

@@ -70,9 +70,9 @@ module cellrv32_trng #(
     // Sanity Checks -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     initial begin
-        assert (IO_TRNG_FIFO >= 1) else $error("NEORV32 PROCESSOR CONFIG ERROR: TRNG FIFO size <IO_TRNG_FIFO> has to be >= 1.");
-        assert (is_power_of_two_f(IO_TRNG_FIFO) != 1'b0) else $error("NEORV32 PROCESSOR CONFIG ERROR: TRNG FIFO size <IO_TRNG_FIFO> has to be a power of two.");
-        assert (sim_mode_c != 1'b1) else $warning("NEORV32 PROCESSOR CONFIG WARNING: TRNG uses SIMULATION mode!");
+        assert (IO_TRNG_FIFO >= 1) else $error("CELLRV32 PROCESSOR CONFIG ERROR: TRNG FIFO size <IO_TRNG_FIFO> has to be >= 1.");
+        assert (is_power_of_two_f(IO_TRNG_FIFO) != 1'b0) else $error("CELLRV32 PROCESSOR CONFIG ERROR: TRNG FIFO size <IO_TRNG_FIFO> has to be a power of two.");
+        assert (sim_mode_c != 1'b1) else $warning("CELLRV32 PROCESSOR CONFIG WARNING: TRNG uses SIMULATION mode!");
     end
 
     // Access Control ----------------------------------------------------------------------------

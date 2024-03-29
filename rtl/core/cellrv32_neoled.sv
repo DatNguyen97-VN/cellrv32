@@ -142,7 +142,7 @@ module cellrv32_neoled #(
     // -------------------------------------------------------------------------------------------
     initial begin
         assert  (!((is_power_of_two_f(FIFO_DEPTH) == 1'b0) || (FIFO_DEPTH < 1) || (FIFO_DEPTH > 32768)))
-        else $error("NEORV32 PROCESSOR CONFIG ERROR! Invalid NEOLED FIFO size configuration (1..32k).");
+        else $error("CELLRV32 PROCESSOR CONFIG ERROR! Invalid NEOLED FIFO size configuration (1..32k).");
     end
 
     // Host Access -------------------------------------------------------------------------------

@@ -114,10 +114,10 @@ module cellrv32_sdi #(
     // -------------------------------------------------------------------------------------------
     initial begin
         assert (!(is_power_of_two_f(RTX_FIFO) == 1'b0)) else
-        $error("NEORV32 PROCESSOR CONFIG ERROR: SDI FIFO size has to be a power of two.");
+        $error("CELLRV32 PROCESSOR CONFIG ERROR: SDI FIFO size has to be a power of two.");
         //
         assert (!(RTX_FIFO > 2**15)) else
-        $error("NEORV32 PROCESSOR CONFIG ERROR: SDI FIFO size out of valid range (1..32768).");
+        $error("CELLRV32 PROCESSOR CONFIG ERROR: SDI FIFO size out of valid range (1..32768).");
     end
 
     // Host Access -------------------------------------------------------------------------------

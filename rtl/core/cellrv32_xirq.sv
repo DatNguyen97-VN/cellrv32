@@ -66,7 +66,7 @@ module cellrv32_xirq #(
     // -------------------------------------------------------------------------------------------
     initial begin
         assert ((XIRQ_NUM_CH >= 0) && (XIRQ_NUM_CH <= 32)) else
-        $error("NEORV32 PROCESSOR CONFIG ERROR: Number of XIRQ inputs <XIRQ_NUM_CH> has to be 0..32.");
+        $error("CELLRV32 PROCESSOR CONFIG ERROR: Number of XIRQ inputs <XIRQ_NUM_CH> has to be 0..32.");
     end
 
     // Host Access -------------------------------------------------------------------------------

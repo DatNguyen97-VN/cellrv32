@@ -1,5 +1,5 @@
 -- #################################################################################################
--- # << NEORV32 - Processor-internal data memory (DMEM) >>                                         #
+-- # << CELLRV32 - Processor-internal data memory (DMEM) >>                                         #
 -- # ********************************************************************************************* #
 -- # BSD 3-Clause License                                                                          #
 -- #                                                                                               #
@@ -29,17 +29,17 @@
 -- # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  #
 -- # OF THE POSSIBILITY OF SUCH DAMAGE.                                                            #
 -- # ********************************************************************************************* #
--- # The NEORV32 Processor - https://github.com/stnolting/neorv32              (c) Stephan Nolting #
+-- # The CELLRV32 Processor - https://github.com/stnolting/cellrv32              (c) Stephan Nolting #
 -- #################################################################################################
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-library neorv32;
-use neorv32.neorv32_package.all;
+library cellrv32;
+use cellrv32.neorv32_package.all;
 
-architecture neorv32_dmem_rtl of neorv32_dmem is
+architecture cellrv32_dmem_rtl of cellrv32_dmem is
 
   -- IO space: module base address --
   constant hi_abb_c : natural := 31; -- high address boundary bit
@@ -70,10 +70,10 @@ begin
   -- Sanity Checks --------------------------------------------------------------------------
   -- -------------------------------------------------------------------------------------------
   assert false report
-    "NEORV32 PROCESSOR CONFIG NOTE: Using DEFAULT platform-agnostic DMEM." severity note;
+    "CELLRV32 PROCESSOR CONFIG NOTE: Using DEFAULT platform-agnostic DMEM." severity note;
 
   assert false report
-    "NEORV32 PROCESSOR CONFIG NOTE: Implementing processor-internal DMEM (RAM, " & natural'image(DMEM_SIZE) &
+    "CELLRV32 PROCESSOR CONFIG NOTE: Implementing processor-internal DMEM (RAM, " & natural'image(DMEM_SIZE) &
     " bytes)." severity note;
 
 
@@ -133,4 +133,4 @@ begin
   data_o <= rdata when (rden = '1') else (others => '0');
 
 
-end neorv32_dmem_rtl;
+end cellrv32_dmem_rtl;

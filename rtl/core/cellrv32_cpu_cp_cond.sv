@@ -26,7 +26,7 @@ module cellrv32_cpu_cp_cond #(
 
     /* Compliance notifier */
     initial begin
-        assert (1'b0) else $info("NEORV32 PROCESSOR CONFIG WARNING: The RISC-V 'Zicond' ISA extension is neither ratified nor frozen (yet).");
+        assert (1'b0) else $info("CELLRV32 PROCESSOR CONFIG WARNING: The RISC-V 'Zicond' ISA extension is neither ratified nor frozen (yet).");
     end
 
     /* Conditional output */

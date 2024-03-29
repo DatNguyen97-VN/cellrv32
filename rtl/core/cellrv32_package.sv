@@ -31,7 +31,7 @@ package cellrv32_package;
 
   // Architecture consts (do not modify!) ------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  const logic [31:0] hw_version_c = 32'h01080202; // NEORV32 version
+  const logic [31:0] hw_version_c = 32'h01080202; // CELLRV32 version
   const int archid_c = 19; // official RISC-V architecture ID
 
   // Check if we're inside the Matrix ----------------------------------------------------------
@@ -676,7 +676,7 @@ package cellrv32_package;
   const logic [11:0] csr_mimpid_c         = 12'hf13;
   const logic [11:0] csr_mhartid_c        = 12'hf14;
   const logic [11:0] csr_mconfigptr_c     = 12'hf15;
-  // <<< NEORV32-specific (custom) read-only CSRs >>> ---
+  // <<< CELLRV32-specific (custom) read-only CSRs >>> ---
   // machine extended ISA extensions information --
   const logic [11:0] csr_mxisa_c          = 12'hfc0;
 
@@ -810,7 +810,7 @@ package cellrv32_package;
   const logic [6:0] trap_msi_c      = {1'b1, 1'b0, 5'b00011}; // 3:  machine software interrupt
   const logic [6:0] trap_mti_c      = {1'b1, 1'b0, 5'b00111}; // 7:  machine timer interrupt
   const logic [6:0] trap_mei_c      = {1'b1, 1'b0, 5'b01011}; // 11: machine external interrupt
-  // NEORV32-specific (RISC-V custom) asynchronous exceptions (interrupts) --
+  // CELLRV32-specific (RISC-V custom) asynchronous exceptions (interrupts) --
   const logic [6:0] trap_firq0_c    = {1'b1, 1'b0, 5'b10000}; // 16: fast interrupt 0
   const logic [6:0] trap_firq1_c    = {1'b1, 1'b0, 5'b10001}; // 17: fast interrupt 1
   const logic [6:0] trap_firq2_c    = {1'b1, 1'b0, 5'b10010}; // 18: fast interrupt 2

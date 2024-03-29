@@ -21,9 +21,9 @@
 // # access to the TX register will not trigger any UART activity. Instead, the written data is     #
 // # output to the simulation environment. The lowest 8 bits of the written data are printed as     #
 // # ASCII char to the simulator console.                                                           #
-// # This char is also stored to the file "neorv32.uartX.sim_mode.text.out" (where X = 0 for UART0  #
+// # This char is also stored to the file "cellrv32.uartX.sim_mode.text.out" (where X = 0 for UART0  #
 // # and X = 1 for UART1). The full 32-bit write data is also stored as 8-digit hexadecimal value   #
-// # to the file "neorv32.uartX.sim_mode.data.out" (where X = 0 for UART0 and X = 1 for UART1).     #
+// # to the file "cellrv32.uartX.sim_mode.data.out" (where X = 0 for UART0 and X = 1 for UART1).     #
 // # No interrupts are triggered when in SIMULATION MODE.                                           #
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
@@ -170,8 +170,8 @@ module cellrv32_uart #(
     // Sanity Checks -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     initial begin
-        assert (is_power_of_two_f(UART_RX_FIFO) != 1'b0) else $error("NEORV32 PROCESSOR CONFIG ERROR: UART %s FIFO depth has to be a power of two.", cond_sel_string_f(UART_PRIMARY, "0", "1"));
-        assert (is_power_of_two_f(UART_TX_FIFO) != 1'b0) else $error("NEORV32 PROCESSOR CONFIG ERROR: UART %s FIFO depth has to be a power of two.", cond_sel_string_f(UART_PRIMARY, "0", "1"));
+        assert (is_power_of_two_f(UART_RX_FIFO) != 1'b0) else $error("CELLRV32 PROCESSOR CONFIG ERROR: UART %s FIFO depth has to be a power of two.", cond_sel_string_f(UART_PRIMARY, "0", "1"));
+        assert (is_power_of_two_f(UART_TX_FIFO) != 1'b0) else $error("CELLRV32 PROCESSOR CONFIG ERROR: UART %s FIFO depth has to be a power of two.", cond_sel_string_f(UART_PRIMARY, "0", "1"));
     end
 
     // Host Access -------------------------------------------------------------------------------
