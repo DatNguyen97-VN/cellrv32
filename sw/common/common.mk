@@ -1,35 +1,7 @@
 #################################################################################################
-# << NEORV32 - Application Makefile >>                                                          #
+# << CELLRV32 - Application Makefile >>                                                         #
 # ********************************************************************************************* #
-# BSD 3-Clause License                                                                          #
-#                                                                                               #
-# Copyright (c) 2023, Stephan Nolting. All rights reserved.                                     #
-#                                                                                               #
-# Redistribution and use in source and binary forms, with or without modification, are          #
-# permitted provided that the following conditions are met:                                     #
-#                                                                                               #
-# 1. Redistributions of source code must retain the above copyright notice, this list of        #
-#    conditions and the following disclaimer.                                                   #
-#                                                                                               #
-# 2. Redistributions in binary form must reproduce the above copyright notice, this list of     #
-#    conditions and the following disclaimer in the documentation and/or other materials        #
-#    provided with the distribution.                                                            #
-#                                                                                               #
-# 3. Neither the name of the copyright holder nor the names of its contributors may be used to  #
-#    endorse or promote products derived from this software without specific prior written      #
-#    permission.                                                                                #
-#                                                                                               #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS   #
-# OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF               #
-# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE    #
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,     #
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE #
-# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED    #
-# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING     #
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  #
-# OF THE POSSIBILITY OF SUCH DAMAGE.                                                            #
-# ********************************************************************************************* #
-# The NEORV32 Processor - https://github.com/stnolting/neorv32              (c) Stephan Nolting #
+# The CELLRV32 Processor - https://github.com//DatNguyen97-VN/cellrv32           (c) Dat Nguyen #
 #################################################################################################
 
 
@@ -57,42 +29,42 @@ MABI  ?= ilp32
 # User flags for additional configuration (will be added to compiler flags)
 USER_FLAGS ?=
 
-# Relative or absolute path to the NEORV32 home folder
-NEORV32_HOME ?= ../../..
-NEORV32_LOCAL_RTL ?= $(NEORV32_HOME)/rtl
+# Relative or absolute path to the CELLRV32 home folder
+CELLRV32_HOME ?= ../../..
+CELLRV32_LOCAL_RTL ?= $(CELLRV32_HOME)/rtl
 
 
 # -----------------------------------------------------------------------------
-# NEORV32 framework
+# CELLRV32 framework
 # -----------------------------------------------------------------------------
-# Path to NEORV32 linker script and startup file
-NEORV32_COM_PATH = $(NEORV32_HOME)/sw/common
-# Path to main NEORV32 library include files
-NEORV32_INC_PATH = $(NEORV32_HOME)/sw/lib/include
-# Path to main NEORV32 library source files
-NEORV32_SRC_PATH = $(NEORV32_HOME)/sw/lib/source
-# Path to NEORV32 executable generator
-NEORV32_EXG_PATH = $(NEORV32_HOME)/sw/image_gen
-# Path to NEORV32 core rtl folder
-NEORV32_RTL_PATH = $(NEORV32_LOCAL_RTL)/core
-# Path to NEORV32 sim folder
-NEORV32_SIM_PATH = $(NEORV32_HOME)/sim
-# Marker file to check for NEORV32 home folder
-NEORV32_HOME_MARKER = $(NEORV32_INC_PATH)/neorv32.h
+# Path to CELLRV32 linker script and startup file
+CELLRV32_COM_PATH = $(CELLRV32_HOME)/sw/common
+# Path to main CELLRV32 library include files
+CELLRV32_INC_PATH = $(CELLRV32_HOME)/sw/lib/include
+# Path to main CELLRV32 library source files
+CELLRV32_SRC_PATH = $(CELLRV32_HOME)/sw/lib/source
+# Path to CELLRV32 executable generator
+CELLRV32_EXG_PATH = $(CELLRV32_HOME)/sw/image_gen
+# Path to CELLRV32 core rtl folder
+CELLRV32_RTL_PATH = $(CELLRV32_LOCAL_RTL)/core
+# Path to CELLRV32 sim folder
+CELLRV32_SIM_PATH = $(CELLRV32_HOME)/sim
+# Marker file to check for CELLRV32 home folder
+CELLRV32_HOME_MARKER = $(CELLRV32_INC_PATH)/cellrv32.h
 
 # Core libraries (peripheral and CPU drivers)
-CORE_SRC  = $(wildcard $(NEORV32_SRC_PATH)/*.c)
+CORE_SRC  = $(wildcard $(CELLRV32_SRC_PATH)/*.c)
 # Application start-up code
-CORE_SRC += $(NEORV32_COM_PATH)/crt0.S
+CORE_SRC += $(CELLRV32_COM_PATH)/crt0.S
 
 # Linker script
-LD_SCRIPT = $(NEORV32_COM_PATH)/neorv32.ld
+LD_SCRIPT = $(CELLRV32_COM_PATH)/cellrv32.ld
 
 # Main output files
-APP_EXE  = neorv32_exe.bin
+APP_EXE  = cellrv32_exe.bin
 APP_ELF  = main.elf
-APP_HEX  = neorv32_raw_exe.hex
-APP_BIN  = neorv32_raw_exe.bin
+APP_HEX  = cellrv32_raw_exe.hex
+APP_BIN  = cellrv32_raw_exe.bin
 APP_ASM  = main.asm
 APP_IMG  = neorv32_application_image.vhd
 BOOT_IMG = neorv32_bootloader_image.vhd
@@ -121,8 +93,8 @@ SIZE    = $(RISCV_PREFIX)size
 # Host native compiler
 CC_X86 = gcc -Wall -O -g
 
-# NEORV32 executable image generator
-IMAGE_GEN = $(NEORV32_EXG_PATH)/image_gen
+# CELLRV32 executable image generator
+IMAGE_GEN = $(CELLRV32_EXG_PATH)/image_gen
 
 # Compiler & linker flags
 CC_OPTS  = -march=$(MARCH) -mabi=$(MABI) $(EFFORT) -Wall -ffunction-sections -fdata-sections -nostartfiles -mno-fdiv
@@ -158,7 +130,7 @@ target bl_image:   CC_OPTS += -Wl,--defsym=make_bootloader=1 -Dmake_bootloader -
 # Image generator targets
 # -----------------------------------------------------------------------------
 # install/compile tools
-$(IMAGE_GEN): $(NEORV32_EXG_PATH)/image_gen.c
+$(IMAGE_GEN): $(CELLRV32_EXG_PATH)/image_gen.c
 	@echo Compiling $(IMAGE_GEN)
 	@$(CC_X86) $< -o $(IMAGE_GEN)
 
@@ -168,19 +140,19 @@ $(IMAGE_GEN): $(NEORV32_EXG_PATH)/image_gen.c
 # -----------------------------------------------------------------------------
 # Compile app *.s sources (assembly)
 %.s.o: %.s
-	@$(CC) -c $(CC_OPTS) -I $(NEORV32_INC_PATH) $(ASM_INC) $< -o $@
+	@$(CC) -c $(CC_OPTS) -I $(CELLRV32_INC_PATH) $(ASM_INC) $< -o $@
 
 # Compile app *.S sources (assembly + C pre-processor)
 %.S.o: %.S
-	@$(CC) -c $(CC_OPTS) -I $(NEORV32_INC_PATH) $(ASM_INC) $< -o $@
+	@$(CC) -c $(CC_OPTS) -I $(CELLRV32_INC_PATH) $(ASM_INC) $< -o $@
 
 # Compile app *.c sources
 %.c.o: %.c
-	@$(CC) -c $(CC_OPTS) -I $(NEORV32_INC_PATH) $(APP_INC) $< -o $@
+	@$(CC) -c $(CC_OPTS) -I $(CELLRV32_INC_PATH) $(APP_INC) $< -o $@
 
 # Compile app *.cpp sources
 %.cpp.o: %.cpp
-	@$(CC) -c $(CC_OPTS) -I $(NEORV32_INC_PATH) $(APP_INC) $< -o $@
+	@$(CC) -c $(CC_OPTS) -I $(CELLRV32_INC_PATH) $(APP_INC) $< -o $@
 
 # Link object files and show memory utilization
 $(APP_ELF): $(OBJ)
@@ -204,14 +176,14 @@ main.bin: $(APP_ELF)
 # -----------------------------------------------------------------------------
 # Application targets: Generate executable formats
 # -----------------------------------------------------------------------------
-# Generate NEORV32 executable image for upload via bootloader
+# Generate CELLRV32 executable image for upload via bootloader
 $(APP_EXE): main.bin $(IMAGE_GEN)
 	@set -e
 	@$(IMAGE_GEN) -app_bin $< $@ $(shell basename $(CURDIR))
 	@echo "Executable ($(APP_EXE)) size in bytes:"
 	@wc -c < $(APP_EXE)
 
-# Generate NEORV32 executable VHDL boot image
+# Generate CELLRV32 executable VHDL boot image
 $(APP_IMG): main.bin $(IMAGE_GEN)
 	@set -e
 	@$(IMAGE_GEN) -app_img $< $@ $(shell basename $(CURDIR))
@@ -219,15 +191,15 @@ $(APP_IMG): main.bin $(IMAGE_GEN)
 # Install VHDL memory initialization file
 install-$(APP_IMG): $(APP_IMG)
 	@set -e
-	@echo "Installing application image to $(NEORV32_RTL_PATH)/$(APP_IMG)"
-	@cp $(APP_IMG) $(NEORV32_RTL_PATH)/.
+	@echo "Installing application image to $(CELLRV32_RTL_PATH)/$(APP_IMG)"
+	@cp $(APP_IMG) $(CELLRV32_RTL_PATH)/.
 
-# Generate NEORV32 RAW executable image in plain hex format
+# Generate CELLRV32 RAW executable image in plain hex format
 $(APP_HEX): main.bin $(IMAGE_GEN)
 	@set -e
 	@$(IMAGE_GEN) -raw_hex $< $@ $(shell basename $(CURDIR))
 
-# Generate NEORV32 RAW executable image in binary format
+# Generate CELLRV32 RAW executable image in binary format
 $(APP_BIN): main.bin $(IMAGE_GEN)
 	@set -e
 	@$(IMAGE_GEN) -raw_bin $< $@ $(shell basename $(CURDIR))
@@ -243,8 +215,8 @@ $(BOOT_IMG): main.bin $(IMAGE_GEN)
 
 install-$(BOOT_IMG): $(BOOT_IMG)
 	@set -e
-	@echo "Installing bootloader image to $(NEORV32_RTL_PATH)/$(BOOT_IMG)"
-	@cp $(BOOT_IMG) $(NEORV32_RTL_PATH)/.
+	@echo "Installing bootloader image to $(CELLRV32_RTL_PATH)/$(BOOT_IMG)"
+	@cp $(BOOT_IMG) $(CELLRV32_RTL_PATH)/.
 
 # Just an alias
 bl_image: $(BOOT_IMG)
@@ -255,11 +227,11 @@ bootloader: bl_image install-$(BOOT_IMG)
 # Check toolchain
 # -----------------------------------------------------------------------------
 check: $(IMAGE_GEN)
-	@echo "---------------- Check: NEORV32_HOME folder ----------------"
-ifneq ($(shell [ -e $(NEORV32_HOME_MARKER) ] && echo 1 || echo 0 ), 1)
-$(error NEORV32_HOME folder not found!)
+	@echo "---------------- Check: CELLRV32_HOME folder ----------------"
+ifneq ($(shell [ -e $(CELLRV32_HOME_MARKER) ] && echo 1 || echo 0 ), 1)
+$(error CELLRV32_HOME folder not found!)
 endif
-	@echo "NEORV32_HOME: $(NEORV32_HOME)"
+	@echo "CELLRV32_HOME: $(CELLRV32_HOME)"
 	@echo "---------------- Check: Shell ----------------"
 	@echo ${SHELL}
 	@readlink -f ${SHELL}
@@ -271,7 +243,7 @@ endif
 	@$(OBJCOPY) -V
 	@echo "---------------- Check: $(SIZE) ----------------"
 	@$(SIZE) -V
-	@echo "---------------- Check: NEORV32 image_gen ----------------"
+	@echo "---------------- Check: CELLRV32 image_gen ----------------"
 	@$(IMAGE_GEN) -help
 	@echo "---------------- Check: Native GCC ----------------"
 	@$(CC_X86) -v
@@ -284,7 +256,7 @@ endif
 # -----------------------------------------------------------------------------
 sim: $(APP_IMG) install
 	@echo "Simulating $(APP_IMG)..."
-	@sh $(NEORV32_SIM_PATH)/simple/questa.sh
+	@sh $(CELLRV32_SIM_PATH)/simple/questa.sh
 
 
 # -----------------------------------------------------------------------------
@@ -313,13 +285,13 @@ info:
 	@echo "Source files:          $(APP_SRC)"
 	@echo "Include folder(s):     $(APP_INC)"
 	@echo "ASM include folder(s): $(ASM_INC)"
-	@echo "---------------- Info: NEORV32 ----------------"
-	@echo "NEORV32 home folder (NEORV32_HOME): $(NEORV32_HOME)"
+	@echo "---------------- Info: CELLRV32 ----------------"
+	@echo "CELLRV32 home folder (CELLRV32_HOME): $(CELLRV32_HOME)"
 	@echo "IMAGE_GEN: $(IMAGE_GEN)"
 	@echo "Core source files:"
 	@echo "$(CORE_SRC)"
 	@echo "Core include folder:"
-	@echo "$(NEORV32_INC_PATH)"
+	@echo "$(CELLRV32_INC_PATH)"
 	@echo "---------------- Info: Objects ----------------"
 	@echo "Project object files:"
 	@echo "$(OBJ)"
@@ -350,7 +322,7 @@ info:
 # Help
 # -----------------------------------------------------------------------------
 help:
-	@echo "<<< NEORV32 SW Application Makefile >>>"
+	@echo "<<< CELLRV32 SW Application Makefile >>>"
 	@echo "Make sure to add the bin folder of RISC-V GCC to your PATH variable."
 	@echo ""
 	@echo "=== Targets ==="
@@ -380,5 +352,5 @@ help:
 	@echo " APP_INC      - C include folder(s) [append only]: \"$(APP_INC)\""
 	@echo " ASM_INC      - ASM include folder(s) [append only]: \"$(ASM_INC)\""
 	@echo " RISCV_PREFIX - Toolchain prefix: \"$(RISCV_PREFIX)\""
-	@echo " NEORV32_HOME - NEORV32 home folder: \"$(NEORV32_HOME)\""
+	@echo " CELLRV32_HOME - CELLRV32 home folder: \"$(CELLRV32_HOME)\""
 	@echo ""
