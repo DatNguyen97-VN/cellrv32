@@ -1,43 +1,36 @@
 // #################################################################################################
-// # << CELLRV32: cellrv32_cfs.h - Custom Functions Subsystem (CFS) HW Driver (stub) >>            #
+// # << CELLRV32: cellrv32_cfs.c - Custom Functions Subsystem (CFS) HW Driver (stub) >>            #
 // # ********************************************************************************************* #
 // # The CELLRV32 Processor - https://github.com/DatNguyen97-VN/cellrv32            (c) Dat Nguyen #
 // #################################################################################################
 
 
 /**********************************************************************//**
- * @file cellrv32_cfs.h
- * @brief Custom Functions Subsystem (CFS) HW driver header file.
+ * @file cellrv32_cfs.c
+ * @brief Custom Functions Subsystem (CFS) HW driver source file.
  *
  * @warning There are no "real" CFS driver functions available here, because these functions are defined by the actual hardware.
- * @warning The CFS designer has to provide the actual driver functions.
+ * @warning Hence, the CFS designer has to provide the actual driver functions.
  *
  * @note These functions should only be used if the CFS was synthesized (IO_CFS_EN = true).
  **************************************************************************/
 
-#ifndef cellrv32_cfs_h
-#define cellrv32_cfs_h
-
-/**********************************************************************//**
- * @name IO Device: Custom Functions Subsystem (CFS)
- **************************************************************************/
-/**@{*/
-/** CFS module prototype */
-typedef volatile struct __attribute__((packed,aligned(4))) {
-  uint32_t REG[64]; /**< offset 4*0..4*63: CFS register 0..63, user-defined */
-} cellrv32_cfs_t;
-
-/** CFS module hardware access (#cellrv32_cfs_t) */
-#define CELLRV32_CFS ((cellrv32_cfs_t*) (CELLRV32_CFS_BASE))
-/**@}*/
+#include "cellrv32.h"
+#include "cellrv32_cfs.h"
 
 
 /**********************************************************************//**
- * @name Prototypes
+ * Check if custom functions subsystem was synthesized.
+ *
+ * @return 0 if CFS was not synthesized, 1 if CFS is available.
  **************************************************************************/
-/**@{*/
-int cellrv32_cfs_available(void);
-/**@}*/
+int cellrv32_cfs_available(void) {
 
+  if (CELLRV32_SYSINFO->SOC & (1 << SYSINFO_SOC_IO_CFS)) {
+    return 1;
+  }
+  else {
+    return 0;
+  }
+}
 
-#endif // cellrv32_cfs_h
