@@ -57,8 +57,8 @@ package cellrv32_package;
   typedef logic [33:0] pmp_addr_if_t [0:15];
   // Internal Memory Types Configuration Types -------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  typedef logic [31:0] mem32_t [0:4095]; // memory with 32-bit entries, 16kb = 4096 cell, 1 cell = 4(B)
-  typedef logic [7:0]  mem8_t; // memory with 8-bit entries
+  //typedef logic [31:0] mem32_t [0 : 32*1024]; // memory with 32-bit entries, 16kb = 4096 cell, 1 cell = 4(B)
+  //typedef logic [7:0]  mem8_t  [0 : 16*1024]; // memory with 8-bit entries
   // Helper Functions --------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   
@@ -78,7 +78,7 @@ package cellrv32_package;
   // Internal Bootloader ROM --
   // Actual bootloader size is determined during runtime via the length of the bootloader initialization image
   localparam logic [31:0] boot_rom_base_c      = 32'hffff0000; // bootloader base address, fixed!
-  localparam int      boot_rom_max_size_c  = 32*1024; // max module's address space size in bytes, fixed!
+  localparam int      boot_rom_max_size_c  = 16*1024; // max module's address space size in bytes, fixed!
 
   // On-Chip Debugger: Debug Module --
   localparam logic [31:0] dm_base_c          = 32'hfffff800; // base address, fixed!
@@ -1056,21 +1056,5 @@ package cellrv32_package;
     end
     return 0;
   endfunction : prior_encoder
-
-  // Function: Initialize mem32_t array from another mem32_t array -----------------------------
-  // -------------------------------------------------------------------------------------------
-  // impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed
-  function mem32_t mem32_init_f(input mem32_t init);
-    logic [31:0] mem_v [0:4095];
-    // make sure remaining memory entries are set to zero
-    //for (int i = 0; i < $size(mem_v); ++i) begin
-    //  mem_v[i] = 32'h00000000;
-    //end
-    // init only in range of source data array
-    for (int idx_v = 0; idx_v < $size(init); ++idx_v) begin
-      mem_v[idx_v] = init[idx_v];
-    end
-    return mem_v;
-  endfunction : mem32_init_f
   
 endpackage : cellrv32_package
