@@ -390,7 +390,7 @@ int main(void) {
     }
 #endif
     else if (c == '?') {
-      PRINT_TEXT("(c) by Stephan Nolting\ngithub.com/stnolting/cellrv32");
+      PRINT_TEXT("(c) by Stephan Nolting\ngithub.com/stnolting/neorv32");
     }
     else { // unknown command
       PRINT_TEXT("Invalid CMD");
