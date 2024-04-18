@@ -1,10 +1,5 @@
 // ##################################################################################################
-// # << NEORV32 - Test Setup using the default UART-Bootloader to upload and run executables >>     #
-// # ********************************************************************************************** #
-// # Check out the processor's online documentation for more referential information:               #
-// #  HQ:         https://github.com/stnolting/neorv32                                              #
-// #  Data Sheet: https://stnolting.github.io/neorv32                                               #
-// #  User Guide: https://stnolting.github.io/neorv32/ug                                            #
+// # << CELLRV32 - Test Setup using the default UART-Bootloader to upload and run executables >>    #
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
@@ -50,7 +45,7 @@ module cellrv32_test_setup_bootloader #(
 
     // The Core of the Problem -------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    neorv32_top #(
+    cellrv32_top #(
         /* General */
         .CLOCK_FREQUENCY              (CLOCK_FREQUENCY),      // clock frequency of clk_i in Hz
         .HW_THREAD_ID                 (0),              // hardware thread id (hartid) (32-bit)

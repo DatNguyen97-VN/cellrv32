@@ -1,6 +1,6 @@
-# make a local copy of original "./../../rtl/test_setups/neorv32_test_setup_bootloader.vhd " file
+# make a local copy of original "./../../rtl/test_setups/cellrv32_test_setup_bootloader.vhd " file
 # and modify the default clock frequency: set to 50MHz
-#set shell_script "cp -f ./../../neorv32/rtl/test_setups/neorv32_test_setup_bootloader.vhd  . && sed -i 's/100000000/50000000/g' neorv32_test_setup_bootloader.vhd "
+#set shell_script "cp -f ./../../cellrv32/rtl/test_setups/cellrv32_test_setup_bootloader.vhd  . && sed -i 's/100000000/50000000/g' cellrv32_test_setup_bootloader.vhd "
 #exec sh -c $shell_script
 
 # Copyright (C) 2020  Intel Corporation. All rights reserved.
@@ -60,18 +60,18 @@ if {$make_assignments} {
   # core VHDL files
   set core_src_VHDL_dir [glob ./../../rtl/core/*.vhd]
   foreach core_src_VHDL_file $core_src_VHDL_dir {
-    set_global_assignment -name VHDL_FILE $core_src_VHDL_file -library neorv32
+    set_global_assignment -name VHDL_FILE $core_src_VHDL_file -library cellrv32
   }
   # core SystemVerilog files
   set core_src_SV_dir [glob ./../../rtl/core/*.sv]
   foreach core_src_SV_file $core_src_SV_dir {
-    set_global_assignment -name SYSTEMVERILOG_FILE $core_src_SV_file -library neorv32
+    set_global_assignment -name SYSTEMVERILOG_FILE $core_src_SV_file -library cellrv32
   }
-  set_global_assignment -name VHDL_FILE ./../../rtl/core/mem/neorv32_dmem.default.vhd -library neorv32
-  set_global_assignment -name VHDL_FILE ./../../rtl/core/mem/neorv32_imem.default.vhd -library neorv32
+  set_global_assignment -name SYSTEMVERILOG_FILE ./../../rtl/core/mem/cellrv32_dmem.sv -library cellrv32
+  set_global_assignment -name SYSTEMVERILOG_FILE ./../../rtl/core/mem/cellrv32_imem.sv -library cellrv32
 
   # top entity: use local modified copy of the original test setup
-  set_global_assignment -name VHDL_FILE "neorv32_test_setup_bootloader.vhd"
+  set_global_assignment -name SYSTEMVERILOG_FILE "cellrv32_test_setup_bootloader.sv"
 
   set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
   set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
