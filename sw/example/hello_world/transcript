@@ -1,0 +1,90 @@
+# vsim -do {run -all;exit} -c test 
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# 
+# //  Questa Sim-64
+# //  Version 10.2c Unknown Platform Jul 19 2013
+# //
+# //  Copyright 1991-2013 Mentor Graphics Corporation
+# //  All Rights Reserved.
+# //
+# //  THIS WORK CONTAINS TRADE SECRET AND PROPRIETARY INFORMATION
+# //  WHICH IS THE PROPERTY OF MENTOR GRAPHICS CORPORATION OR ITS
+# //  LICENSORS AND IS SUBJECT TO LICENSE TERMS.
+# //
+# Loading sv_std.std
+# Loading work.test(fast)
+# run -all 
+# [$display] 20 x = 4, cnt = x, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 20 x = 6, cnt = 0, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 30 x = 6, cnt = 0, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 30 x = 7, cnt = 1, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 40 x = 7, cnt = 1, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 40 x = 6, cnt = 1, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 50 x = 6, cnt = 1, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 50 x = 7, cnt = 2, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 60 x = 7, cnt = 2, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 60 x = 6, cnt = 2, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 70 x = 6, cnt = 2, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 70 x = 7, cnt = 3, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 80 x = 7, cnt = 3, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 80 x = 6, cnt = 3, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 90 x = 6, cnt = 3, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 90 x = 7, cnt = 4, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 100 x = 7, cnt = 4, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 100 x = 6, cnt = 4, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 110 x = 6, cnt = 4, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 110 x = 7, cnt = 5, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 120 x = 7, cnt = 5, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 120 x = 6, cnt = 5, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 130 x = 6, cnt = 5, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 130 x = 7, cnt = 6, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 140 x = 7, cnt = 6, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 140 x = 6, cnt = 6, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 150 x = 6, cnt = 6, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 150 x = 7, cnt = 7, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 160 x = 7, cnt = 7, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 160 x = 6, cnt = 7, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 170 x = 6, cnt = 7, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 170 x = 7, cnt = 8, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 180 x = 7, cnt = 8, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 180 x = 4, cnt = 8, sreg = xxxxxxxx, done = 0
+# 
+# [$display] 190 x = 4, cnt = 8, sreg = xxxxxxxx, done = 0
+# 
+# [$strobe] 190 x = 6, cnt = 0, sreg = xxxxxxxx, done = 0
+# 
+# ** Note: $finish    : test.sv(20)
+#    Time: 200 ns  Iteration: 0  Instance: /test
