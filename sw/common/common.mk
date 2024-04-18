@@ -1,7 +1,35 @@
 #################################################################################################
 # << CELLRV32 - Application Makefile >>                                                         #
 # ********************************************************************************************* #
-# The CELLRV32 Processor - https://github.com//DatNguyen97-VN/cellrv32           (c) Dat Nguyen #
+# BSD 3-Clause License                                                                          #
+#                                                                                               #
+# Copyright (c) 2023, Stephan Nolting. All rights reserved.                                     #
+#                                                                                               #
+# Redistribution and use in source and binary forms, with or without modification, are          #
+# permitted provided that the following conditions are met:                                     #
+#                                                                                               #
+# 1. Redistributions of source code must retain the above copyright notice, this list of        #
+#    conditions and the following disclaimer.                                                   #
+#                                                                                               #
+# 2. Redistributions in binary form must reproduce the above copyright notice, this list of     #
+#    conditions and the following disclaimer in the documentation and/or other materials        #
+#    provided with the distribution.                                                            #
+#                                                                                               #
+# 3. Neither the name of the copyright holder nor the names of its contributors may be used to  #
+#    endorse or promote products derived from this software without specific prior written      #
+#    permission.                                                                                #
+#                                                                                               #
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS   #
+# OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF               #
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE    #
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,     #
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE #
+# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED    #
+# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING     #
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  #
+# OF THE POSSIBILITY OF SUCH DAMAGE.                                                            #
+# ********************************************************************************************* #
+# The NEORV32 Processor - https://github.com/stnolting/neorv32              (c) Stephan Nolting #
 #################################################################################################
 
 
@@ -23,7 +51,8 @@ EFFORT ?= -Os
 RISCV_PREFIX ?= riscv32-unknown-elf-
 
 # CPU architecture and ABI
-MARCH ?= rv32i_zicsr
+MARCH ?= rv32imc_zicsr
+#MARCH ?= rv32i_zicsr
 MABI  ?= ilp32
 
 # User flags for additional configuration (will be added to compiler flags)
@@ -66,8 +95,8 @@ APP_ELF  = main.elf
 APP_HEX  = cellrv32_raw_exe.hex
 APP_BIN  = cellrv32_raw_exe.bin
 APP_ASM  = main.asm
-APP_IMG  = neorv32_application_image.vhd
-BOOT_IMG = neorv32_bootloader_image.vhd
+APP_IMG  = cellrv32_application_image.sv
+BOOT_IMG = cellrv32_bootloader_image.sv
 
 
 # -----------------------------------------------------------------------------
@@ -183,12 +212,12 @@ $(APP_EXE): main.bin $(IMAGE_GEN)
 	@echo "Executable ($(APP_EXE)) size in bytes:"
 	@wc -c < $(APP_EXE)
 
-# Generate CELLRV32 executable VHDL boot image
+# Generate CELLRV32 executable SystemVerilog boot image
 $(APP_IMG): main.bin $(IMAGE_GEN)
 	@set -e
 	@$(IMAGE_GEN) -app_img $< $@ $(shell basename $(CURDIR))
 
-# Install VHDL memory initialization file
+# Install SystemVerilog memory initialization file
 install-$(APP_IMG): $(APP_IMG)
 	@set -e
 	@echo "Installing application image to $(CELLRV32_RTL_PATH)/$(APP_IMG)"
@@ -208,7 +237,7 @@ $(APP_BIN): main.bin $(IMAGE_GEN)
 # -----------------------------------------------------------------------------
 # Bootloader targets
 # -----------------------------------------------------------------------------
-# Create and install bootloader VHDL init image
+# Create and install bootloader SystemVerilog init image
 $(BOOT_IMG): main.bin $(IMAGE_GEN)
 	@set -e
 	@$(IMAGE_GEN) -bld_img $< $(BOOT_IMG) $(shell basename $(CURDIR))
@@ -270,7 +299,7 @@ elf_info: $(APP_ELF)
 # Clean up
 # -----------------------------------------------------------------------------
 clean:
-	@rm -f *.elf *.o *.bin *.out *.asm *.vhd *.hex
+	@rm -f *.elf *.o *.bin *.out *.asm *.vhd *.hex *.sv
 
 clean_all: clean
 	@rm -f $(OBJ) $(IMAGE_GEN)
@@ -334,15 +363,15 @@ help:
 	@echo " exe        - compile and generate <$(APP_EXE)> executable for upload via default bootloader (binary file, with header)"
 	@echo " bin        - compile and generate <$(APP_BIN)> RAW executable file (binary file, no header)"
 	@echo " hex        - compile and generate <$(APP_HEX)> RAW executable file (hex char file, no header)"
-	@echo " image      - compile and generate VHDL IMEM boot image (for application, no header) in local folder"
-	@echo " install    - compile, generate and install VHDL IMEM boot image (for application, no header)"
+	@echo " image      - compile and generate SystemVerilog IMEM boot image (for application, no header) in local folder"
+	@echo " install    - compile, generate and install SystemVerilog IMEM boot image (for application, no header)"
 	@echo " sim        - in-console simulation using default/simple testbench and GHDL"
 	@echo " all        - exe + install + hex + bin + asm"
 	@echo " elf_info   - show ELF layout info"
 	@echo " clean      - clean up project home folder"
 	@echo " clean_all  - clean up whole project, core libraries and image generator"
-	@echo " bl_image   - compile and generate VHDL BOOTROM boot image (for bootloader only, no header) in local folder"
-	@echo " bootloader - compile, generate and install VHDL BOOTROM boot image (for bootloader only, no header)"
+	@echo " bl_image   - compile and generate SystemVerilog BOOTROM boot image (for bootloader only, no header) in local folder"
+	@echo " bootloader - compile, generate and install SystemVerilog BOOTROM boot image (for bootloader only, no header)"
 	@echo ""
 	@echo "=== Variables ==="
 	@echo " USER_FLAGS   - Custom toolchain flags [append only]: \"$(USER_FLAGS)\""
