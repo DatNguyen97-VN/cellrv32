@@ -189,16 +189,15 @@ int main(int argc, char *argv[]) {
   if (option == 2) {
 
     // header
-    sprintf(tmp_string, "-- The CELLRV32 RISC-V Processor: https://github.com/DatNguyen97-VN/cellrv32\n"
-                        "-- Auto-generated memory initialization file (for APPLICATION) from source file <%s/%s>\n"
-                        "-- Size: %lu bytes\n"
-                        "-- MARCH: %s\n"
-                        "-- Built: %s\n"
+    sprintf(tmp_string, "// The CELLRV32 RISC-V Processor: https://github.com/DatNguyen97-VN/cellrv32\n"
+                        "// Auto-generated memory initialization file (for APPLICATION) from source file <%s/%s>\n"
+                        "// Size: %lu bytes (1 cell = 4 byte)\n"
+                        "// MARCH: %s\n"
+                        "// Built: %s\n"
                         "\n"
-                        "-- prototype defined in 'neorv32_package.vhd'\n"
-                        "package body cellrv32_application_image is\n"
+                        "package cellrv32_application_image;\n"
                         "\n"
-                        "constant application_init_image : mem32_t := (\n", argv[4], argv[2], raw_exe_size, string_march, compile_time);
+                        "const logic [31:0] application_init_image [%lu] = '{\n", argv[4], argv[2], raw_exe_size, string_march, compile_time, raw_exe_size/4);
     fputs(tmp_string, output);
 
     // data
@@ -214,7 +213,7 @@ int main(int argc, char *argv[]) {
         tmp |= (uint32_t)(buffer[1] << 8);
         tmp |= (uint32_t)(buffer[2] << 16);
         tmp |= (uint32_t)(buffer[3] << 24);
-        sprintf(tmp_string, "x\"%08x\",\n", (unsigned int)tmp);
+        sprintf(tmp_string, "32'h%08x,\n", (unsigned int)tmp);
         fputs(tmp_string, output);
         buffer[0] = 0;
         buffer[1] = 0;
@@ -233,7 +232,7 @@ int main(int argc, char *argv[]) {
       tmp |= (uint32_t)(buffer[1] << 8);
       tmp |= (uint32_t)(buffer[2] << 16);
       tmp |= (uint32_t)(buffer[3] << 24);
-      sprintf(tmp_string, "x\"%08x\"\n", (unsigned int)tmp);
+      sprintf(tmp_string, "32'h%08x\n", (unsigned int)tmp);
       fputs(tmp_string, output);
       buffer[0] = 0;
       buffer[1] = 0;
@@ -246,9 +245,29 @@ int main(int argc, char *argv[]) {
     }
 
     // end
-    sprintf(tmp_string, ");\n"
+    sprintf(tmp_string, "};\n"
                         "\n"
-                        "end cellrv32_application_image;\n");
+                        "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
+                        "typedef logic [31:0] mem_t   [32*1024];\n"
+                        "typedef logic [31:0] mem32_t [%lu];\n"
+                        "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
+                        "// -------------------------------------------------------------------------------------------\n"
+                        "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
+                        "function mem_t mem32_init_f(input mem32_t init, input integer depth);\n"
+                        "  mem_t mem_v;\n"
+                        "  // make sure remaining memory entries are set to zero\n"
+                        "  mem_v = '{default: '0};\n"
+                        "  //\n"
+                        "  if ($size(init) > depth) begin\n"
+                        "     return mem_v;\n"
+                        "  end\n"
+                        "  // init only in range of source data array\n"
+                        "  for (int idx_v = 0; idx_v < $size(init); ++idx_v) begin\n"
+                        "    mem_v[idx_v] = init[idx_v];\n"
+                        "  end\n"
+                        "  return mem_v;\n"
+                        "endfunction : mem32_init_f\n\n"
+                        "endpackage : cellrv32_application_image\n", raw_exe_size/4);
     fputs(tmp_string, output);
   }
 
@@ -260,16 +279,15 @@ int main(int argc, char *argv[]) {
   if (option == 3) {
 
     // header
-    sprintf(tmp_string, "-- The CELLRV32 RISC-V Processor: https://github.com/DatNguyen97-VN/cellrv32\n"
-                        "-- Auto-generated memory initialization file (for BOOTLOADER) from source file <%s/%s>\n"
-                        "-- Size: %lu bytes\n"
-                        "-- MARCH: %s\n"
-                        "-- Built: %s\n"
+    sprintf(tmp_string, "// The CELLRV32 RISC-V Processor: https://github.com/DatNguyen97-VN/cellrv32\n"
+                        "// Auto-generated memory initialization file (for BOOTLOADER) from source file <%s/%s>\n"
+                        "// Size: %lu bytes ( 1 cell = 4 byte)\n"
+                        "// MARCH: %s\n"
+                        "// Built: %s\n"
                         "\n"
-                        "-- prototype defined in 'neorv32_package.vhd'\n"
-                        "package body cellrv32_bootloader_image is\n"
+                        "package cellrv32_bootloader_image;\n"
                         "\n"
-                        "constant bootloader_init_image : mem32_t := (\n", argv[4], argv[2], raw_exe_size, string_march, compile_time);
+                        "const logic [31:0] bootloader_init_image [%lu] = '{\n", argv[4], argv[2], raw_exe_size, string_march, compile_time, raw_exe_size/4);
     fputs(tmp_string, output);
 
     // data
@@ -285,7 +303,7 @@ int main(int argc, char *argv[]) {
         tmp |= (uint32_t)(buffer[1] << 8);
         tmp |= (uint32_t)(buffer[2] << 16);
         tmp |= (uint32_t)(buffer[3] << 24);
-        sprintf(tmp_string, "x\"%08x\",\n", (unsigned int)tmp);
+        sprintf(tmp_string, "32'h%08x,\n", (unsigned int)tmp);
         fputs(tmp_string, output);
         buffer[0] = 0;
         buffer[1] = 0;
@@ -304,7 +322,7 @@ int main(int argc, char *argv[]) {
       tmp |= (uint32_t)(buffer[1] << 8);
       tmp |= (uint32_t)(buffer[2] << 16);
       tmp |= (uint32_t)(buffer[3] << 24);
-      sprintf(tmp_string, "x\"%08x\"\n", (unsigned int)tmp);
+      sprintf(tmp_string, "32'h%08x\n", (unsigned int)tmp);
       fputs(tmp_string, output);
       buffer[0] = 0;
       buffer[1] = 0;
@@ -317,9 +335,29 @@ int main(int argc, char *argv[]) {
     }
 
     // end
-    sprintf(tmp_string, ");\n"
+    sprintf(tmp_string, "};\n"
                         "\n"
-                        "end cellrv32_bootloader_image;\n");
+                        "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
+                        "typedef logic [31:0] mem_t   [16*1024];\n"
+                        "typedef logic [31:0] mem32_t [%lu];\n"
+                        "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
+                        "// -------------------------------------------------------------------------------------------\n"
+                        "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
+                        "function mem_t mem32_init_f(input mem32_t init, input integer depth);\n"
+                        "  mem_t mem_v;\n"
+                        "  // make sure remaining memory entries are set to zero\n"
+                        "  mem_v = '{default: '0};\n"
+                        "  //\n"
+                        "  if ($size(init) > depth) begin\n"
+                        "     return mem_v;\n"
+                        "  end\n"
+                        "  // init only in range of source data array\n"
+                        "  for (int idx_v = 0; idx_v < $size(init); ++idx_v) begin\n"
+                        "    mem_v[idx_v] = init[idx_v];\n"
+                        "  end\n"
+                        "  return mem_v;\n"
+                        "endfunction : mem32_init_f\n\n"
+                        "endpackage cellrv32_bootloader_image\n", raw_exe_size/4);
     fputs(tmp_string, output);
   }
 
