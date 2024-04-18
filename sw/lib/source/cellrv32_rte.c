@@ -604,7 +604,7 @@ void cellrv32_rte_print_credits(void) {
     return; // cannot output anything if UART0 is not implemented
   }
 
-  cellrv32_uart0_puts("The CELLRV32 RISC-V Processor, github.com/stnolting/cellrv32\n"
+  cellrv32_uart0_puts("The CELLRV32 RISC-V Processor, github.com/stnolting/neorv32\n"
                      "(c) 2023 by Dipl.-Ing. Stephan Nolting, BSD 3-Clause License\n\n");
 }
 
