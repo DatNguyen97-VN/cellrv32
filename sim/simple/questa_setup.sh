@@ -14,12 +14,14 @@ vlib.exe work
 vmap.exe work work
 
 vlog.exe -sv -work cellrv32 \
-         "$CELLV32_LOCAL_RTL/core/cellrv32_package.sv" \
-         "$CELLV32_LOCAL_RTL/core/*.sv"
+         "$CELLV32_LOCAL_RTL"/core/cellrv32_package.sv \
+         "$CELLV32_LOCAL_RTL"/core/cellrv32_application_image.sv \
+         "$CELLV32_LOCAL_RTL"/core/cellrv32_bootloader_image.sv \
+         "$CELLV32_LOCAL_RTL"/core/*.sv \
+         "$CELLV32_LOCAL_RTL"/core/mem/*.sv
          
 vcom.exe -work cellrv32 "$NEOV32_LOCAL_RTL"/core/neorv32_package.vhd \
          "$NEOV32_LOCAL_RTL"/core/*.vhd \
-         "$NEOV32_LOCAL_RTL"/core/mem/*.vhd \
          uart_rx.simple.vhd \
          neorv32_tb.simple.vhd
 
