@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
                         "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
                         "// -------------------------------------------------------------------------------------------\n"
                         "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
-                        "function mem_t mem32_init_f(input mem32_t init, input integer depth);\n"
+                        "function mem_t mem32_init_app_f(input mem32_t init, input integer depth);\n"
                         "  mem_t mem_v;\n"
                         "  // make sure remaining memory entries are set to zero\n"
                         "  mem_v = '{default: '0};\n"
@@ -266,7 +266,7 @@ int main(int argc, char *argv[]) {
                         "    mem_v[idx_v] = init[idx_v];\n"
                         "  end\n"
                         "  return mem_v;\n"
-                        "endfunction : mem32_init_f\n\n"
+                        "endfunction : mem32_init_app_f\n\n"
                         "endpackage : cellrv32_application_image\n", raw_exe_size/4);
     fputs(tmp_string, output);
   }
@@ -343,7 +343,7 @@ int main(int argc, char *argv[]) {
                         "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
                         "// -------------------------------------------------------------------------------------------\n"
                         "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
-                        "function mem_t mem32_init_f(input mem32_t init, input integer depth);\n"
+                        "function mem_t mem32_init_boot_f(input mem32_t init, input integer depth);\n"
                         "  mem_t mem_v;\n"
                         "  // make sure remaining memory entries are set to zero\n"
                         "  mem_v = '{default: '0};\n"
@@ -356,8 +356,8 @@ int main(int argc, char *argv[]) {
                         "    mem_v[idx_v] = init[idx_v];\n"
                         "  end\n"
                         "  return mem_v;\n"
-                        "endfunction : mem32_init_f\n\n"
-                        "endpackage cellrv32_bootloader_image\n", raw_exe_size/4);
+                        "endfunction : mem32_init_boot_f\n\n"
+                        "endpackage : cellrv32_bootloader_image\n", raw_exe_size/4);
     fputs(tmp_string, output);
   }
 

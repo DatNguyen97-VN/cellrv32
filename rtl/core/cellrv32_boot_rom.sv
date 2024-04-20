@@ -38,7 +38,7 @@ module cellrv32_boot_rom #(
     logic [boot_rom_size_index_c-1:0] addr;
 
     /* ROM - initialized with executable code */
-    const logic [31:0] mem_rom [16*1024] = mem32_init_f(bootloader_init_image, boot_rom_size_c/4);
+    const logic [31:0] mem_rom [16*1024] = mem32_init_boot_f(bootloader_init_image, boot_rom_max_size_c/4);
 
     // Sanity Checks -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
