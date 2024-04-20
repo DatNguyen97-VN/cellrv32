@@ -158,7 +158,7 @@ module cellrv32_cpu_alu #(
 
     /* co-processor select / start trigger */
     // -- > "cp_start" is high for one cycle to trigger operation of the according co-processor
-    assign cp_start[5:0] = ctrl_i.alu_cp_trig;
+    assign cp_start = ctrl_i.alu_cp_trig;
 
     /* (iterative) co-processor operation done? */
     // -- > "cp_valid" signal has to be set (for one cycle) one cycle before CP output data (cp_result) is valid

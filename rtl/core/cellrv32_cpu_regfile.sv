@@ -39,8 +39,8 @@ module cellrv32_cpu_regfile #(
     output logic [XLEN-1:0] rs4_o  // operand 3
 );
     /* register file */
-    typedef logic[XLEN-1:0] reg_file_t [31:0];
-    typedef logic[XLEN-1:0] reg_file_emb_t [15:0];
+    typedef logic [XLEN-1:0] reg_file_t [31:0];
+    typedef logic [XLEN-1:0] reg_file_emb_t [15:0];
     reg_file_t reg_file;
     reg_file_emb_t reg_file_emb;
 
