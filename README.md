@@ -41,7 +41,5 @@ informed via _precise and resumable_ hardware exceptions.
 
 |         | Repository | CI Status |
 |:--------|:-----------|:----------|
-| GitHub Pages (docs)          | [cellrv32](https://github.com/DatNguyen97-VN/cellrv32/tree/main)                       | [![GitHub Pages](https://img.shields.io/badge/up-00FF00?style=plastic&logo=github&label=NEORV32.pdf
-)](https://github.com/DatNguyen97-VN/cellrv32/tree/main/doc/datasheet) |
-| Processor (SoC) verification | [cellrv32](https://github.com/stnolting/neorv32)                       | [![Processor](https://img.shields.io/badge/Not%20Start-FF0000?style=plastic&logo=adminer&label=Processor%20Check
-)] |
+| GitHub Pages (docs)          | [cellrv32](https://github.com/DatNguyen97-VN/cellrv32/tree/main)                       | [![GitHub Pages](https://img.shields.io/badge/up-00FF00?style=plastic&logo=github&label=NEORV32.pdf)](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/datasheet/NEORV32.pdf) |
+| Processor (SoC) verification | [cellrv32](https://github.com/stnolting/neorv32)                       | [![Processor](https://img.shields.io/badge/Not%20Start-FF0000?style=plastic&logo=adminer&label=Processor%20Check)] |
