@@ -30,9 +30,9 @@ informed via _precise and resumable_ hardware exceptions.
 
 - [x] all-in-one package: **CPU** + **SoC** + **Software Framework & Tooling**
 - [x] extensive configuration options for adapting the processor to the requirements of the application
-- [] aims to be as small as possible while being as RISC-V-compliant as possible - with a reasonable area-vs-performance trade-off
+- [ ] aims to be as small as possible while being as RISC-V-compliant as possible - with a reasonable area-vs-performance trade-off
 - [x] FPGA friendly (e.g. _all_ internal memories can be mapped to block RAM - including the CPU's register file)
-- [] optimized for high clock frequencies to ease integration / timing closure
+- [ ] optimized for high clock frequencies to ease integration / timing closure
 - [x] from zero to _"hello world!"_ - completely open source and documented
 - [x] easy to use even for FPGA / RISC-V starters – intended to _work out of the box_
 
@@ -42,4 +42,4 @@ informed via _precise and resumable_ hardware exceptions.
 |         | Repository | CI Status |
 |:--------|:-----------|:----------|
 | GitHub Pages (docs)          | [cellrv32](https://github.com/DatNguyen97-VN/cellrv32/tree/main)                       | [![GitHub Pages](https://img.shields.io/badge/up-00FF00?style=plastic&logo=github&label=NEORV32.pdf)](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/datasheet/NEORV32.pdf) |
-| Processor (SoC) verification | [cellrv32](https://github.com/stnolting/neorv32)                       | [![Processor](https://img.shields.io/badge/Not%20Start-FF0000?style=plastic&logo=adminer&label=Processor%20Check)] |
+| Processor (SoC) verification | [cellrv32](https://github.com/stnolting/neorv32)                       | [![Processor](https://img.shields.io/badge/Not%20Start-FF0000?style=plastic&logo=adminer&label=Processor%20Check)] ()|
