@@ -108,7 +108,7 @@ module cellrv32_cpu_control #(
     typedef struct {
         fetch_engine_state_t state;
         fetch_engine_state_t state_prev;
-        logic restart;
+        logic restart;  // reset IPB
         logic unaligned;
         logic [XLEN-1:0] pc;
         logic reset;
@@ -136,8 +136,8 @@ module cellrv32_cpu_control #(
     /* instruction issue engine */
     typedef struct {
         logic align;
-        logic align_set;
-        logic align_clr;
+        logic align_set; // NOT 32-bit-aligned
+        logic align_clr; //     32-bit-aligned
         logic [15:0] ci_i16;
         logic [31:0] ci_i32;
         logic ci_ill;
@@ -635,7 +635,7 @@ module cellrv32_cpu_control #(
      end
     end : branch_check
 
-    // Execute Engine FSM Sync ----------------------------------------------------------------
+    // Execute Engine FSM Sync -------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i or negedge rstn_i) begin : execute_engine_fsm_sync
      if (rstn_i == 1'b0) begin
@@ -2125,10 +2125,8 @@ module cellrv32_cpu_control #(
       csr.pmpaddr_rd = '0;
       csr.pmpcfg_rd  = '0;
       //
-      for (int j = 0; j < 16; ++j) begin
-        pmp_addr_o[j] = '0;
-        pmp_ctrl_o[j] = '0;
-      end
+      pmp_addr_o = '{default:'0};
+      pmp_ctrl_o = '{default:'0};
       // loop
       for (int i = 0; i < 16; ++i) begin
          if (i < PMP_NUM_REGIONS) begin
