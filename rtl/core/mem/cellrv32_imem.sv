@@ -45,7 +45,7 @@ module cellrv32_imem #(
     const int imem_app_size_c = ($size(application_init_image))*4;
 
     /* ROM - initialized with executable code */
-    const logic [31:0] mem_rom [32*1024] = mem32_init_f(application_init_image, IMEM_SIZE/4);
+    const logic [31:0] mem_rom [32*1024] = mem32_init_app_f(application_init_image, IMEM_SIZE/4);
 
     /* read data */
     logic [31:0] mem_rom_rd;
