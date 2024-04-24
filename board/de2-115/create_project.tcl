@@ -57,11 +57,6 @@ if {$make_assignments} {
   set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
   set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
 
-  # core VHDL files
-  set core_src_VHDL_dir [glob ./../../rtl/core/*.vhd]
-  foreach core_src_VHDL_file $core_src_VHDL_dir {
-    set_global_assignment -name VHDL_FILE $core_src_VHDL_file -library cellrv32
-  }
   # core SystemVerilog files
   set core_src_SV_dir [glob ./../../rtl/core/*.sv]
   foreach core_src_SV_file $core_src_SV_dir {
