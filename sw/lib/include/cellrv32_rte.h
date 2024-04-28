@@ -67,6 +67,7 @@ int  cellrv32_rte_handler_uninstall(uint8_t id);
 void cellrv32_rte_print_hw_config(void);
 void cellrv32_rte_print_hw_version(void);
 void cellrv32_rte_print_credits(void);
+void cellrv32_rte_print_icon(void);
 void cellrv32_rte_print_logo(void);
 void cellrv32_rte_print_license(void);
 
