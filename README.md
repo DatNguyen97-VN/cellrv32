@@ -17,8 +17,8 @@
 
 
 The CELLRV32 Processor is a **customizable microcontroller-like system on chip (SoC)** built around the CELRV32
-[RISC-V](https://riscv.org/) CPU and written in **platform-independent SystemVerilog**. The processor is intended as know about specific arrangement of registers, ALUs, finite state machines (FSMs), memories, and other logic building blocks needed to implement an RISC-V and building block from theoretical to combinational and sequential circuits for the internal IP. The project is intended to work _out of the box_ and targets
-FPGA / RISC-V beginners.
+[RISC-V](https://riscv.org/) CPU and written in **platform-independent SystemVerilog**. The processor is intended as know about specific arrangement of registers, ALUs, finite state machines (FSMs), memories, and other logic building blocks (microarchitecture) needed to implement an RISC-V architecture and building blocks from theory of operation to combinational and sequential circuits for the internal IPs. The project is intended to work _out of the box_ and targets
+FPGA / RISC-V beginners and amateurs.
 
 Special focus is paid on **execution safety** to provide defined and predictable behavior at any time.
 Therefore, the CPU ensures that _all_ memory accesses are properly acknowledged and that _all_ invalid/malformed
@@ -39,9 +39,9 @@ informed via _precise and resumable_ hardware exceptions.
 
 ### Project Status
 
-|         | Repository | CI Status |
-|:--------|:-----------|:----------|
-| GitHub Pages (docs)          | [cellrv32](https://github.com/DatNguyen97-VN/cellrv32/tree/main)                       | [![GitHub Pages](https://img.shields.io/badge/up-00FF00?style=plastic&logo=github&label=NEORV32.pdf)](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/datasheet/NEORV32.pdf) |
-| Processor (SoC) verification | [cellrv32](https://github.com/DatNguyen97-VN/cellrv32/tree/main)                       | [![Processor](https://img.shields.io/badge/Not%20Start-FF0000?style=plastic&logo=adminer&label=Processor%20Check)](https://github.com/DatNguyen97-VN/cellrv32/tree/main)|
-| FPGA implementations         | [cellrv32-setups](https://github.com/DatNguyen97-VN/cellrv32/tree/main/board/de2-115)         | [![Implementation](https://img.shields.io/badge/up-00FF00?style=plastic&logo=actix&label=Implementation)](https://github.com/DatNguyen97-VN/cellrv32/tree/main) |
-| Prebuilt GCC toolchains      | [riscv-gcc-prebuilt](https://github.com/stnolting/riscv-gcc-prebuilt) | [![Prebuilt_Toolchains](https://img.shields.io/github/actions/workflow/status/stnolting/riscv-gcc-prebuilt/main.yml?branch=main&longCache=true&style=flat-square&label=Prebuilt%20Toolchains&logo=Github%20Actions&logoColor=fff)](https://github.com/stnolting/riscv-gcc-prebuilt/actions/workflows/main.yml) |
+|         | Repository & Status |
+|:--------|:----------|
+| GitHub Pages (docs)          | [![GitHub Pages](https://img.shields.io/badge/up-00FF00?style=plastic&logo=github&label=NEORV32.pdf)](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/datasheet/NEORV32.pdf) |
+| Processor (SoC) verification | [![Processor](https://img.shields.io/badge/Not%20Start-FF0000?style=plastic&logo=adminer&label=Processor%20Check)](https://github.com/DatNguyen97-VN/cellrv32/tree/main)|
+| FPGA implementations         | [![Implementation](https://img.shields.io/badge/passing-00FF00?style=plastic&logo=amazonec2&logoColor=DC7633&label=Implementation)](https://github.com/DatNguyen97-VN/cellrv32/tree/main) |
+| Prebuilt GCC toolchains      | [![Prebuilt_Toolchains](https://img.shields.io/github/actions/workflow/status/stnolting/riscv-gcc-prebuilt/main.yml?branch=main&longCache=true&style=flat-square&label=Prebuilt%20Toolchains&logo=Github%20Actions&logoColor=fff)](https://github.com/stnolting/riscv-gcc-prebuilt/actions/workflows/main.yml) |
