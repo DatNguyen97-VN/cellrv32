@@ -19,12 +19,14 @@ for uart in 0 1; do
   done
 done
 
+VSIM="${VSIM:-vsim.exe}"
+
 # Start simulation
-QUESTA_RUN_ARGS="${@:---stop-time=20ms}"
+QUESTA_RUN_ARGS="2ms"
 echo "Using simulation runtime args: $QUESTA_RUN_ARGS";
 
 # -voptargs="+acc" option for debug mode to add wave internal signal
-vsim.exe -do "source add_wave_debug.tcl; run 2ms; exit" -l sim_log.log -c -voptargs=+acc cellrv32.cellrv32_tb_simple
+$VSIM -do "source add_wave_debug.tcl; run $QUESTA_RUN_ARGS; exit" -l sim_log.log -c -voptargs=+acc cellrv32.cellrv32_tb_simple
 
 # verify results of processor check: sw/example/processor_check
 cat cellrv32.uart0.sim_mode.text.out | grep "PROCESSOR TEST COMPLETED SUCCESSFULLY!"
