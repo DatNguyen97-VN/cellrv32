@@ -40,6 +40,9 @@ int main() {
 
   // check available hardware extensions and compare with compiler flags
   cellrv32_rte_check_isa(0); // silent = 0 -> show message if isa mismatch
+  
+  // print project icon via UART
+  cellrv32_rte_print_icon();
 
   // print project logo via UART
   cellrv32_rte_print_logo();
