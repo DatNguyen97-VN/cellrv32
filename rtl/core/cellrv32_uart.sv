@@ -492,7 +492,7 @@ module cellrv32_uart #(
                 if ((ctrl.enable == 1'b1) && (ctrl.sim_mode == 1'b1) && 
                     (wren == 1'b1) && (addr == uart_id_rtx_addr_c)) begin // UART simulation mode
                     /* print lowest byte as ASCII char */
-                    char_v = int'(data_i);
+                    char_v = int'(data_i[7:0]);
                     // check out of range
                     if (char_v >= 128) begin
                         char_v = 0;
