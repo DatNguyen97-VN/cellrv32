@@ -326,7 +326,7 @@ module cellrv32_neoled #(
                 // strobe LED data ("RESET" command)
                 S_STROBE : begin
                     // wait for 127 * ctrl.t_total to _ensure_ RESET
-                    if (serial.pulse_cnt == 1'b1) begin
+                    if (serial.pulse_clk == 1'b1) begin
                         /* T_total reached? */
                         if (serial.pulse_cnt == ctrl.t_total) begin
                             serial.pulse_cnt  <= '0;
