@@ -1,45 +1,43 @@
-add wave -group "Test Bench" /cellrv32_tb_simple/*
+# Define the top-level module
+set top_level "/cellrv32_tb_simple"
 
-add wave -group "Top Module" /cellrv32_tb_simple/cellrv32_top_inst/*
+# Gets all signals of entire design
+set signals_string [find signals -r /$top_level/*]
 
-add wave -group "Top Module" /cellrv32_tb_simple/cellrv32_top_inst/resp_bus
+# Loop through the list, modify and add wave signal
+foreach element $signals_string {
+    # Remove the leading '/' and split the string into components
+    set trimmed_string [string trimleft $element "/"]
+    set components [split $trimmed_string "/"]
 
-#create top-level CPU
-add wave -group "CPU" -group "Cpu Control" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_control_inst/*
- 
-add wave -group "CPU" -group "Cpu Control" -group "Cpu Control Decompressor" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_control_inst/cellrv32_cpu_decompressor_inst_true/cellrv32_cpu_decompressor_inst/*
+    # Remove the last element from the list
+    set components [lrange $components 0 end-1]
 
-add wave -group "CPU" -group "Cpu Regfile" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/*
+    # Initialize the modified string
+    set modified_string ""
 
-add wave -group "CPU" -group "Cpu Regfile" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/reg_file
+    # Loop through the list and build the modified string
+    foreach child_element $components {
+        append modified_string " -group \"$child_element\""
+    }
 
-add wave -group "CPU" -group "Cpu Regfile" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/reg_file_emb
+    # Replace [ with \[ and ] with \] in both strings
+    set modified_string [string map {"[" "\\[" "]" "\\]"} $modified_string]
+    set instance_string [string map {"[" "\\[" "]" "\\]"} $element]
 
-add wave -group "CPU" -group "Cpu Alu" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_alu_inst/*
+    # Debug output to check the constructed strings
+    puts "modified_string: $modified_string"
+    puts "instance_string: $instance_string"
 
-add wave -group "CPU" -group "Cpu Bus" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_bus_inst/*
+    # Check if element contains '#'
+    if {[string first "#" $instance_string] == -1} {
+        # Add wave with modified_string settings of element signal
+        puts "Executing eval command: add wave $modified_string $instance_string"
+        eval add wave $modified_string $instance_string
+    } else {
+        puts "Skipping $instance_string due to presence of '#'."
+    }
+}
 
-#create top-level ICACHE
-add wave -group "Icache" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_icache_inst_ON/cellrv32_icache_inst/*
-
-add wave -group "Bus Switch" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_busswitch_inst/*
-
-add wave -group "SDI" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_sdi_inst_ON/cellrv32_sdi_inst/*
-
-add wave -group "Tx_fifo" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_sdi_inst_ON/cellrv32_sdi_inst/tx_fifo_inst/*
-
-add wave -group "Rx_fifo" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_sdi_inst_ON/cellrv32_sdi_inst/rx_fifo_inst/*
-
-add wave -group "SPI" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_spi_inst_ON/cellrv32_spi_inst/*
-
-add wave -group "XIRQ" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_xirq_inst_ON/cellrv32_xirq_inst/*
-
-add wave -group "Sysinfo" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_sysinfo_inst/*
-
-add wave -group "Bus Switch" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_busswitch_inst/*
-
-add wave -group "Icahe" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_icache_inst_ON/cellrv32_icache_inst/*
-
-add wave -group "Imem" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_imem_inst_ON/cellrv32_int_imem_inst/*
-
-add wave -group "Dmem" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_dmem_inst_ON/cellrv32_int_dmem_inst/*
+# Output the completion message
+puts "Added waves for signals in entire design"
