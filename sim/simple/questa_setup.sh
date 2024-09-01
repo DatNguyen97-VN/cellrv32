@@ -24,12 +24,12 @@ $VLOG -sv -work cellrv32 \
          "$CELLV32_LOCAL_RTL"/core/cellrv32_application_image.sv \
          "$CELLV32_LOCAL_RTL"/core/cellrv32_bootloader_image.sv \
          "$CELLV32_LOCAL_RTL"/core/*.sv \
-         "$CELLV32_LOCAL_RTL"/core/mem/*.sv
-         
-$VCOM -work cellrv32 neorv32_package.vhd \
-       uart_rx.simple.vhd \
-       neorv32_tb.simple.vhd
+         "$CELLV32_LOCAL_RTL"/core/mem/*.sv \
+         uart_rx.sv \
+         cellrv32_tb.sv
 
+
+       
 $VOPT cellrv32.cellrv32_top -o optver
          
     
