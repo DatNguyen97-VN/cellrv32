@@ -474,25 +474,19 @@ module cellrv32_uart #(
 
         if (is_simulation_c == 1'b1) begin : simulation_transmitter
             /* simulation output configuration */
-            localparam logic  sim_screen_output_en_c = 1'b1; // output lowest byte as char to simulator console when enabled
-            localparam logic  sim_text_output_en_c   = 1'b1; // output lowest byte as char to text file when enabled
-            localparam logic  sim_data_output_en_c   = 1'b1; // dump 32-bit TX word to file when enabled
             localparam string sim_uart_text_file_c   = cond_sel_string_f(UART_PRIMARY, "cellrv32.uart0.sim_mode.text.out", "cellrv32.uart1.sim_mode.text.out");
             localparam string sim_uart_data_file_c   = cond_sel_string_f(UART_PRIMARY, "cellrv32.uart0.sim_mode.data.out", "cellrv32.uart1.sim_mode.data.out");
             
             int file_uart_text_out = $fopen(sim_uart_text_file_c, "w+");
             int file_uart_data_out = $fopen(sim_uart_data_file_c, "w+");
             int char_v;
-            string line_screen_v =""; // we need several line variables here since "writeline" seems to flush the source variable
-            string line_text_v = "";
-            logic [3:0] line_data_v;
 
             // statements
-            always_comb begin
+            always_ff @(posedge clk_i) begin
                 if ((ctrl.enable == 1'b1) && (ctrl.sim_mode == 1'b1) && 
                     (wren == 1'b1) && (addr == uart_id_rtx_addr_c)) begin // UART simulation mode
                     /* print lowest byte as ASCII char */
-                    char_v = int'(data_i[7:0]);
+                    char_v = data_i[7:0];
                     // check out of range
                     if (char_v >= 128) begin
                         char_v = 0;
@@ -500,37 +494,19 @@ module cellrv32_uart #(
 
                     /* ASCII output */
                     if ((char_v != 10) && (char_v != 13)) begin // skip line breaks - they are issued via "write line"
-                        // data on screen
-                        if (sim_screen_output_en_c == 1'b1) begin
-                            line_screen_v = {line_screen_v, string'(char_v)};
-                        end
-                        // generate output text
-                        if (sim_text_output_en_c == 1'b1) begin
-                            line_text_v = {line_text_v, string'(char_v)};
-                        end
+                        // display on screen
+                        $write("%c", char_v);
+                        // write text to output file
+                        $fwrite(file_uart_text_out, "%c", char_v);
                     end else if (char_v == 10) begin // line break: write to screen and text file
                         // display on screen
-                        if (sim_screen_output_en_c == 1'b1) begin
-                            $display("%s", line_screen_v);
-                            // clear all char
-                            line_screen_v = "";
-                        end
+                        $write("\n");
                         // write text to output file
-                        if (sim_text_output_en_c == 1'b1) begin
-                            $fwrite(file_uart_text_out, "%s", line_text_v);
-                            // next line
-                            $fdisplay(file_uart_text_out);
-                            // clear all char
-                            line_text_v = "";
-                        end
+                        $fwrite(file_uart_text_out, "\n");
                     end
 
                     /* dump raw data as 8 hex chars to file */
-                    if (sim_data_output_en_c) begin
-                        $fwrite(file_uart_data_out, "%h", data_i);
-                        // next line
-                        $fdisplay(file_uart_data_out);
-                    end
+                    $fwrite(file_uart_data_out, "%h\n", data_i);
                 end
             end
         end : simulation_transmitter
