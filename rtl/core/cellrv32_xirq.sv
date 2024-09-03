@@ -97,27 +97,35 @@ module cellrv32_xirq #(
     end
 
     /* read access */
-    always_ff @( posedge clk_i ) begin
-        ack_o  <= rden | wren; // bus handshake
-        data_o <= '0;
-        //
-        if (rden == 1'b1) begin
-            case (addr)
-                xirq_enable_addr_c  : data_o[XIRQ_NUM_CH-1 : 0] <= irq_enable; // channel-enable
-                xirq_pending_addr_c : data_o[XIRQ_NUM_CH-1 : 0] <= irq_buf; // pending IRQs
-                default: begin
-                                      data_o[4:0] <= irq_src; // source IRQ
-                end
-            endcase
-        end        
+    always_ff @( posedge clk_i or negedge rstn_i) begin
+        if (!rstn_i) begin
+            ack_o  <= 1'b0;
+            data_o <= '0;
+        end else begin
+            ack_o  <= rden | wren; // bus handshake
+            if (rden == 1'b1) begin
+                case (addr)
+                    xirq_enable_addr_c  : data_o[XIRQ_NUM_CH-1 : 0] <= irq_enable; // channel-enable
+                    xirq_pending_addr_c : data_o[XIRQ_NUM_CH-1 : 0] <= irq_buf; // pending IRQs
+                    default: begin
+                                          data_o[4:0] <= irq_src; // source IRQ
+                    end
+                endcase
+            end 
+        end
     end
 
     // IRQ Trigger -----------------------------------------------------------------
     // -----------------------------------------------------------------------------
-    always_ff @(posedge clk_i) begin
-        irq_sync  <= xirq_i[XIRQ_NUM_CH-1 : 0];
-        irq_sync2 <= irq_sync;
-    end
+    always_ff @(posedge clk_i or negedge rstn_i) begin : synchronizer
+        if (!rstn_i) begin
+            irq_sync  <= '0;
+            irq_sync2 <= '0;
+        end else begin
+            irq_sync  <= xirq_i[XIRQ_NUM_CH-1 : 0];
+            irq_sync2 <= irq_sync;
+        end
+    end : synchronizer
 
     /* trigger select */
     logic[1:0] sel_v;
