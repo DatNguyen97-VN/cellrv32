@@ -8,6 +8,7 @@
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
   import cellrv32_package::*;
+  `timescale 1ns/1ns
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_tb_simple #(
@@ -54,7 +55,7 @@ module cellrv32_tb_simple #(
     localparam logic int_dmem_c       = ~ ext_dmem_c;
     localparam real  uart0_baud_val_c = real'(f_clock_c) / real'(baud0_rate_c);
     localparam real  uart1_baud_val_c = real'(f_clock_c) / real'(baud1_rate_c);
-    localparam time  t_clock_c        = (1ns) / f_clock_c;
+    localparam time  t_clock_c        = (1s) / f_clock_c;
 
     /* generators */
     logic clk_gen, rst_gen;
@@ -125,13 +126,13 @@ module cellrv32_tb_simple #(
     initial begin
         clk_gen = 1'b0;
         forever begin
-            #5 clk_gen = ~ clk_gen;
+            #(t_clock_c/2) clk_gen = ~ clk_gen;
         end
     end
 
     initial begin
         rst_gen = 1'b0;
-        #60 rst_gen = 1'b1;
+        #(60*(t_clock_c/2)) rst_gen = 1'b1;
     end
     
     // The Core of the Problem -------------------------------------------------------------------
@@ -209,7 +210,7 @@ module cellrv32_tb_simple #(
         .IO_TRNG_EN                   (1'b1),          // implement true random number generator (TRNG)?
         .IO_TRNG_FIFO                 (4),             // TRNG fifo depth, has to be a power of two, min 1
         .IO_CFS_EN                    (1'b1),          // implement custom functions subsystem (CFS)?
-        .IO_CFS_CONFIG                ('b0), // custom CFS configuration generic
+        .IO_CFS_CONFIG                (0),             // custom CFS configuration generic
         .IO_CFS_IN_SIZE               (32),            // size of CFS input conduit in bits
         .IO_CFS_OUT_SIZE              (32),            // size of CFS output conduit in bits
         .IO_NEOLED_EN                 (1'b1),          // implement NeoPixel-compatible smart LED interface (NEOLED)?
@@ -280,7 +281,7 @@ module cellrv32_tb_simple #(
         /* PWM (available if IO_PWM_NUM_CH > 0) */
         .pwm_o          (    ),            // pwm channels
         /* Custom Functions Subsystem IO */
-        .cfs_in_i       ('b0),             // custom CFS inputs
+        .cfs_in_i       (0),             // custom CFS inputs
         .cfs_out_o      (    ),            // custom CFS outputs
         /* NeoPixel-compatible smart LED interface (available if IO_NEOLED_EN = true) */
         .neoled_o       (    ),            // async serial data line
