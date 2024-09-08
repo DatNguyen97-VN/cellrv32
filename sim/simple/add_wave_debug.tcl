@@ -26,16 +26,16 @@ foreach element $signals_string {
     set instance_string [string map {"[" "\\[" "]" "\\]"} $element]
 
     # Debug output to check the constructed strings
-    puts "modified_string: $modified_string"
-    puts "instance_string: $instance_string"
+    #puts "modified_string: $modified_string"
+    #puts "instance_string: $instance_string"
 
     # Check if element contains '#'
     if {[string first "#" $instance_string] == -1} {
         # Add wave with modified_string settings of element signal
-        puts "Executing eval command: add wave $modified_string $instance_string"
+        #puts "Executing eval command: add wave $modified_string $instance_string"
         eval add wave $modified_string $instance_string
     } else {
-        puts "Skipping $instance_string due to presence of '#'."
+        #puts "Skipping $instance_string due to presence of '#'."
     }
 }
 
