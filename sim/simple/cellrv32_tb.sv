@@ -60,9 +60,6 @@ module cellrv32_tb_simple #(
     /* generators */
     logic clk_gen, rst_gen;
 
-    /* text.io */
-    int file_uart0_tx_out = $fopen("cellrv32.testbench_uart0.out", "w+");
-
     /* uart */
     logic uart0_txd, uart1_txd;
     logic uart0_cts_uart1, uart1_cts_uart0, uart0_cts, uart1_cts;

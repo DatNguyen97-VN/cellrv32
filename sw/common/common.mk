@@ -285,8 +285,10 @@ endif
 # -----------------------------------------------------------------------------
 sim: $(APP_IMG) install
 	@echo "Simulating $(APP_IMG)..."
-	@sh $(CELLRV32_SIM_PATH)/simple/questa.sh
-
+	@rm -rf $(CELLRV32_SIM_PATH)/simple/build
+	@mkdir -p $(CELLRV32_SIM_PATH)/simple/build
+	@cp $(CELLRV32_SIM_PATH)/simple/*.sh $(CELLRV32_SIM_PATH)/simple/build
+	@sh $(CELLRV32_SIM_PATH)/simple/build/questa.sh
 
 # -----------------------------------------------------------------------------
 # Show final ELF details (just for debugging)
