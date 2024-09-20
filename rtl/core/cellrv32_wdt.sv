@@ -11,7 +11,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  import cellrv32_package::*;
+  `include "cellrv32_package.svh"
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_wdt (

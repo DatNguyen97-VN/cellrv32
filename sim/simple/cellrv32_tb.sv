@@ -5,10 +5,12 @@
 // # Use the "User Configuration" section to configure the testbench according to your needs.       #
 // # See NEORV32 data sheet for more information.                                                   #
 // # ********************************************************************************************** #
+
+`timescale 1ns/1ns
+
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  import cellrv32_package::*;
-  `timescale 1ns/1ns
+  `include "cellrv32_package.svh"
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_tb_simple #(
