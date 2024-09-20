@@ -2,31 +2,29 @@
 
 set -e
 
-cd $(dirname "$0")
+# Enable alias expansion
+shopt -s expand_aliases
+# Source the setup file of questasim's command
+source /home/tools/.myclr
 
-VLIB=${VLIB:-vlib.exe}
-VMAP=${VMAP:-vmap.exe}
-VLOG=${VLOG:-vlog.exe}
-VCOM=${VCOM:-vcom.exe}
-VOPT=${VOPT:-vopt.exe}
+cd $(dirname "$0")
 
 CELLV32_LOCAL_RTL=${CELLV32_LOCAL_RTL:-../../../rtl}
 
-$VLIB cellrv32 
-$VLIB work
+# Create and map the library
+vlib cellrv32 
+vlib work
+vmap work work 
 
-$VMAP work work 
+# Compile the package and sv files
+vlog  -sv -mfcu -work cellrv32 \
+      +incdir+"$CELLV32_LOCAL_RTL"/rtl/core/packages \
+      "$CELLV32_LOCAL_RTL"/core/*.sv \
+      "$CELLV32_LOCAL_RTL"/core/mem/*.sv \
+      ../*.sv
 
-$VLOG -sv -work cellrv32 \
-         "$CELLV32_LOCAL_RTL"/core/cellrv32_package.sv \
-         "$CELLV32_LOCAL_RTL"/core/cellrv32_application_image.sv \
-         "$CELLV32_LOCAL_RTL"/core/cellrv32_bootloader_image.sv \
-         "$CELLV32_LOCAL_RTL"/core/*.sv \
-         "$CELLV32_LOCAL_RTL"/core/mem/*.sv \
-         ../uart_rx.sv \
-         ../cellrv32_tb.sv
-
-$VOPT cellrv32.cellrv32_top -o optver
+# Optimize design
+vopt cellrv32.cellrv32_top -o optver
          
     
 

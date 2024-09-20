@@ -2,6 +2,11 @@
 
 set -e
 
+# Enable alias expansion
+shopt -s expand_aliases
+# Source the setup file of questasim's command
+source /home/tools/.myclr
+
 cd $(dirname "$0")
 
 #echo "Tip: Compile application with USER_FLAGS+=-DUART[0/1]_SIM_MODE to auto-enable UART[0/1]'s simulation mode (redirect UART output to simulator console)."
@@ -19,14 +24,12 @@ for uart in 0 1; do
   done
 done
 
-VSIM="${VSIM:-vsim.exe}"
-
 # Start simulation
 QUESTA_RUN_ARGS="1ms"
 echo "Using simulation runtime args: $QUESTA_RUN_ARGS";
 
 # -voptargs="+acc" option for debug mode to add wave internal signal
-$VSIM -do "source ../add_wave_debug.tcl; run $QUESTA_RUN_ARGS; exit" \
+vsim -do "source ../add_wave_debug.tcl; run $QUESTA_RUN_ARGS; exit" \
       -c -l sim_log.log \
       -debugDB \
       -voptargs=+acc \
