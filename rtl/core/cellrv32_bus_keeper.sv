@@ -32,8 +32,8 @@ module cellrv32_bus_keeper (
     output logic        err_o       // transfer error
 );
     // IO space: module base address 
-    localparam hi_abb_c = index_size_f(io_size_c) - 1; // high address boundary bit
-    localparam lo_abb_c = index_size_f(buskeeper_size_c); // low address boundary bit
+    localparam hi_abb_c = $clog2(io_size_c); // high address boundary bit
+    localparam lo_abb_c = $clog2(buskeeper_size_c+1); // low address boundary bit
     
     // Control register 
     const int ctrl_err_type_c =  0; // r/-: error type: 0=device error, 1=access timeout
@@ -53,7 +53,7 @@ module cellrv32_bus_keeper (
     logic rden;   // read enable
 
     // timeout counter size 
-    localparam cnt_width_c = index_size_f(max_proc_int_response_time_c);
+    localparam cnt_width_c = $clog2(max_proc_int_response_time_c+1);
 
     // controller
     typedef struct {
@@ -118,7 +118,7 @@ module cellrv32_bus_keeper (
             control.bus_err <= 1'b0;
             // IDLE
             if (control.pending == 1'b0) begin
-                control.timeout <= (cnt_width_c)'(max_proc_int_response_time_c) - 1'b1;
+                control.timeout <= max_proc_int_response_time_c - 1;
                 control.ignore <= 1'b0;
                 if (bus_rden_i || bus_wren_i) begin
                     control.pending <= 1'b1;

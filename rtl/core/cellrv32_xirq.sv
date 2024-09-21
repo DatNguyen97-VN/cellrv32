@@ -111,7 +111,9 @@ module cellrv32_xirq #(
                                           data_o[4:0] <= irq_src; // source IRQ
                     end
                 endcase
-            end 
+            end else begin
+                data_o <= '0;
+            end
         end
     end
 
