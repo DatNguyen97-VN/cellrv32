@@ -2,7 +2,7 @@
 // Auto-generated memory initialization file (for BOOTLOADER) from source file <bootloader/main.bin>
 // Size: 2960 bytes ( 1 cell = 4 byte)
 // MARCH: default
-// Built: 21.09.2024 19:02:24
+// Built: 21.09.2024 19:24:01
 
 
 // Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)
