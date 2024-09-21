@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
   FILE *input, *output;
   unsigned char buffer[4];
-  char tmp_string[1024];
+  char tmp_string[2048];
   uint32_t tmp = 0, size = 0, checksum = 0;
   unsigned int i = 0;
   int option = 0;
@@ -195,9 +195,28 @@ int main(int argc, char *argv[]) {
                         "// MARCH: %s\n"
                         "// Built: %s\n"
                         "\n"
-                        "package cellrv32_application_image;\n"
                         "\n"
-                        "const logic [31:0] application_init_image [%lu] = '{\n", argv[4], argv[2], raw_exe_size, string_march, compile_time, raw_exe_size/4);
+                        "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
+                        "typedef logic [31:0] mem_app_t   [32*1024];\n"
+                        "typedef logic [31:0] mem32_app_t [%lu];\n"
+                        "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
+                        "// -------------------------------------------------------------------------------------------\n"
+                        "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
+                        "function mem_app_t mem32_init_app_f(input mem32_app_t init, input integer depth);\n"
+                        "  mem_app_t mem_v;\n"
+                        "  // make sure remaining memory entries are set to zero\n"
+                        "  mem_v = '{default: '0};\n"
+                        "  //\n"
+                        "  if ($size(init) > depth) begin\n"
+                        "     return mem_v;\n"
+                        "  end\n"
+                        "  // init only in range of source data array\n"
+                        "  for (int idx_v = 0; idx_v < $size(init); ++idx_v) begin\n"
+                        "    mem_v[idx_v] = init[idx_v];\n"
+                        "  end\n"
+                        "  return mem_v;\n"
+                        "endfunction : mem32_init_app_f\n\n"
+                        "const logic [31:0] application_init_image [%lu] = '{\n", argv[4], argv[2], raw_exe_size, string_march, compile_time, raw_exe_size/4, raw_exe_size/4);
     fputs(tmp_string, output);
 
     // data
@@ -245,29 +264,7 @@ int main(int argc, char *argv[]) {
     }
 
     // end
-    sprintf(tmp_string, "};\n"
-                        "\n"
-                        "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
-                        "typedef logic [31:0] mem_t   [32*1024];\n"
-                        "typedef logic [31:0] mem32_t [%lu];\n"
-                        "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
-                        "// -------------------------------------------------------------------------------------------\n"
-                        "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
-                        "function mem_t mem32_init_app_f(input mem32_t init, input integer depth);\n"
-                        "  mem_t mem_v;\n"
-                        "  // make sure remaining memory entries are set to zero\n"
-                        "  mem_v = '{default: '0};\n"
-                        "  //\n"
-                        "  if ($size(init) > depth) begin\n"
-                        "     return mem_v;\n"
-                        "  end\n"
-                        "  // init only in range of source data array\n"
-                        "  for (int idx_v = 0; idx_v < $size(init); ++idx_v) begin\n"
-                        "    mem_v[idx_v] = init[idx_v];\n"
-                        "  end\n"
-                        "  return mem_v;\n"
-                        "endfunction : mem32_init_app_f\n\n"
-                        "endpackage : cellrv32_application_image\n", raw_exe_size/4);
+    sprintf(tmp_string, "};\n\n// End of file");
     fputs(tmp_string, output);
   }
 
@@ -285,9 +282,28 @@ int main(int argc, char *argv[]) {
                         "// MARCH: %s\n"
                         "// Built: %s\n"
                         "\n"
-                        "package cellrv32_bootloader_image;\n"
                         "\n"
-                        "const logic [31:0] bootloader_init_image [%lu] = '{\n", argv[4], argv[2], raw_exe_size, string_march, compile_time, raw_exe_size/4);
+                        "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
+                        "typedef logic [31:0] mem_boot_t   [16*1024];\n"
+                        "typedef logic [31:0] mem32_boot_t [%lu];\n"
+                        "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
+                        "// -------------------------------------------------------------------------------------------\n"
+                        "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
+                        "function mem_boot_t mem32_init_boot_f(input mem32_boot_t init, input integer depth);\n"
+                        "  mem_boot_t mem_v;\n"
+                        "  // make sure remaining memory entries are set to zero\n"
+                        "  mem_v = '{default: '0};\n"
+                        "  //\n"
+                        "  if ($size(init) > depth) begin\n"
+                        "     return mem_v;\n"
+                        "  end\n"
+                        "  // init only in range of source data array\n"
+                        "  for (int idx_v = 0; idx_v < $size(init); ++idx_v) begin\n"
+                        "    mem_v[idx_v] = init[idx_v];\n"
+                        "  end\n"
+                        "  return mem_v;\n"
+                        "endfunction : mem32_init_boot_f\n\n"
+                        "const logic [31:0] bootloader_init_image [%lu] = '{\n", argv[4], argv[2], raw_exe_size, string_march, compile_time, raw_exe_size/4, raw_exe_size/4);
     fputs(tmp_string, output);
 
     // data
@@ -335,29 +351,7 @@ int main(int argc, char *argv[]) {
     }
 
     // end
-    sprintf(tmp_string, "};\n"
-                        "\n"
-                        "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
-                        "typedef logic [31:0] mem_t   [16*1024];\n"
-                        "typedef logic [31:0] mem32_t [%lu];\n"
-                        "// Function: Initialize mem32_t array from another mem32_t array -----------------------------\n"
-                        "// -------------------------------------------------------------------------------------------\n"
-                        "// impure function: returns NOT the same result every time it is evaluated with the same arguments since the source file might have changed\n"
-                        "function mem_t mem32_init_boot_f(input mem32_t init, input integer depth);\n"
-                        "  mem_t mem_v;\n"
-                        "  // make sure remaining memory entries are set to zero\n"
-                        "  mem_v = '{default: '0};\n"
-                        "  //\n"
-                        "  if ($size(init) > depth) begin\n"
-                        "     return mem_v;\n"
-                        "  end\n"
-                        "  // init only in range of source data array\n"
-                        "  for (int idx_v = 0; idx_v < $size(init); ++idx_v) begin\n"
-                        "    mem_v[idx_v] = init[idx_v];\n"
-                        "  end\n"
-                        "  return mem_v;\n"
-                        "endfunction : mem32_init_boot_f\n\n"
-                        "endpackage : cellrv32_bootloader_image\n", raw_exe_size/4);
+    sprintf(tmp_string, "};\n\n//End of file");
     fputs(tmp_string, output);
   }
 
