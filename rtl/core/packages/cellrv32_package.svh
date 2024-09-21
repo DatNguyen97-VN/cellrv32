@@ -1,4 +1,4 @@
-package cellrv32_package;
+
 
 // ****************************************************************************************************************************
 // Architecture Configuration and consts
@@ -1057,4 +1057,4 @@ package cellrv32_package;
     return 0;
   endfunction : prior_encoder
   
-endpackage : cellrv32_package
+
