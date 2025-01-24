@@ -135,7 +135,7 @@ module cellrv32_cpu_decompressor #(
                         if ((ci_instr16_i[12:5] == 8'b00000000) || // canonical illegal C instruction or C.ADDI4SPN with nzuimm = 0
                             (ci_instr16_i[ci_funct3_msb_c : ci_funct3_lsb_c] == 3'b001) || // C.FLS / C.LQ
                             (ci_instr16_i[ci_funct3_msb_c : ci_funct3_lsb_c] == 3'b100) || // reserved
-                            (ci_instr16_i[ci_funct3_msb_c : ci_funct3_lsb_c] == 3'b101)) begin // C.C.FSD / C.SQ
+                            (ci_instr16_i[ci_funct3_msb_c : ci_funct3_lsb_c] == 3'b101)) begin // C.FSD / C.SQ
                             ci_illegal_o = 1'b1;
                         end
                     end
@@ -199,7 +199,7 @@ module cellrv32_cpu_decompressor #(
                         if (ci_instr16_i[ci_rd_5_msb_c : ci_rd_5_lsb_c] == 5'b00010) begin
                             ci_instr32_o[instr_opcode_msb_c : instr_opcode_lsb_c]  = opcode_alui_c;
                             ci_instr32_o[instr_funct3_msb_c : instr_funct3_lsb_c]  = funct3_subadd_c;
-                            ci_instr32_o[instr_rd_msb_c : instr_rd_lsb_c]          = ci_instr16_i[ci_rd_5_msb_c : ci_rd_5_lsb_c];
+                            //ci_instr32_o[instr_rd_msb_c : instr_rd_lsb_c]          = ci_instr16_i[ci_rd_5_msb_c : ci_rd_5_lsb_c];
                             ci_instr32_o[instr_rs1_msb_c : instr_rs1_lsb_c]        = 5'b00010; // stack pointer
                             ci_instr32_o[instr_rd_msb_c : instr_rd_lsb_c]          = 5'b00010; // stack pointer
                             ci_instr32_o[instr_imm12_msb_c : instr_imm12_lsb_c]    = ci_instr16_i[12] ? '1 : 1'b0; // sign extend
@@ -312,6 +312,8 @@ module cellrv32_cpu_decompressor #(
                                         ci_instr32_o[instr_funct7_msb_c : instr_funct7_lsb_c] = 7'b0000000;
                                     end
                                 endcase
+                                // Reserved
+                                ci_illegal_o = ci_instr16_i[12];
                             end
                         endcase
                     end
