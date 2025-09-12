@@ -1,7 +1,8 @@
 [![CELLRV32](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/figures/cellrv32%20logo.png)](https://github.com/DatNguyen97-VN/cellrv32/tree/main)
 
+# :construction: CONSTRUCTING :construction:
 # The CELLRV32 RISC-V Processor
-`Note: this project is referred from [The NEORV32 Processor](https://github.com/stnolting/cellrv32.git) by Stephan Nolting.`
+`Note: this project is referred from [The NEORV32 Processor](https://github.com/stnolting/neorv32.git) by Stephan Nolting.`
 
 1. [Overview](#1-Overview)
    * [Key Features](#Key-Features)
@@ -16,7 +17,7 @@
 ![cellrv32 overview](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/figures/cellrv32%20top.png)
 
 
-The CELLRV32 Processor is a **customizable microcontroller-like system on chip (SoC)** built around the CELRV32
+The CELLRV32 Processor is a **customizable microcontroller-like system on chip (SoC)** built around the CELLRV32
 [RISC-V](https://riscv.org/) CPU and written in **platform-independent SystemVerilog**. The processor is intended as know about specific arrangement of registers, ALUs, finite state machines (FSMs), memories, and other logic building blocks (microarchitecture) needed to implement an RISC-V architecture and building blocks from theory of operation to combinational and sequential circuits for the internal IPs. The project is intended to work _out of the box_ and targets
 FPGA / RISC-V beginners and amateurs.
 
