@@ -10,11 +10,11 @@
 
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_tb_simple #(
-    parameter logic CPU_EXTENSION_RISCV_B        = 1'b1,
+    parameter logic CPU_EXTENSION_RISCV_B        = 1'b0,
     parameter logic CPU_EXTENSION_RISCV_C        = 1'b1,
     parameter logic CPU_EXTENSION_RISCV_E        = 1'b0,
     parameter logic CPU_EXTENSION_RISCV_M        = 1'b1,
@@ -159,7 +159,7 @@ module cellrv32_tb_simple #(
         .CPU_EXTENSION_RISCV_Zmmul    (1'b0),          // implement multiply-only M sub-extension?
         .CPU_EXTENSION_RISCV_Zxcfu    (1'b1),          // implement custom (instr.) functions unit?
         /* Extension Options */
-        .FAST_MUL_EN                  (1'b1),          // use DSPs for M extension's multiplier
+        .FAST_MUL_EN                  (1'b0),          // use DSPs for M extension's multiplier
         .FAST_SHIFT_EN                (1'b1),          // use barrel shifter for shift operations
         .CPU_IPB_ENTRIES              (1),             // entries is instruction prefetch buffer, has to be a power of 2, min 1
         /* Physical Memory Protection (PMP) */
@@ -399,13 +399,13 @@ module cellrv32_tb_simple #(
         if (wb_mem_b.cyc && wb_mem_b.stb && wb_mem_b.we) begin // valid write access
             for (int i = 0; i <= 3; ++i) begin
                 if (wb_mem_b.sel[i] == 1'b1) begin
-                    ext_ram_b[wb_mem_b.addr[index_size_f(ext_mem_b_size_c/4)+1 : 2]][i*8 +: 8] <= wb_mem_b.wdata[i*8 +: 8];
+                    ext_ram_b[wb_mem_b.addr[$clog2(ext_mem_b_size_c/4)+1 : 2]][i*8 +: 8] <= wb_mem_b.wdata[i*8 +: 8];
                 end
             end
         end
 
         /* read access */
-        ext_mem_b.rdata[0] <= ext_ram_b[wb_mem_b.addr[index_size_f(ext_mem_b_size_c/4)+1 : 2]]; // word aligned
+        ext_mem_b.rdata[0] <= ext_ram_b[wb_mem_b.addr[$clog2(ext_mem_b_size_c/4)+1 : 2]]; // word aligned
         
         /* virtual read and ack latency */
         if (ext_mem_b_latency_c > 1) begin
@@ -436,13 +436,13 @@ module cellrv32_tb_simple #(
         if ((wb_mem_c.cyc && wb_mem_c.stb && wb_mem_c.we) == 1'b1) begin // valid write access
             for (int i = 0; i <= 3; ++i) begin
                 if (wb_mem_c.sel[i] == 1'b1) begin
-                    ext_ram_c[wb_mem_c.addr[index_size_f(ext_mem_c_size_c/4)+1 : 2]][i*8 +: 8] <= wb_mem_c.wdata[i*8 +: 8];
+                    ext_ram_c[wb_mem_c.addr[$clog2(ext_mem_c_size_c/4)+1 : 2]][i*8 +: 8] <= wb_mem_c.wdata[i*8 +: 8];
                 end
             end
         end
 
         /* read access */
-        ext_mem_c.rdata[0] <= ext_ram_c[wb_mem_c.addr[index_size_f(ext_mem_c_size_c/4)+1 : 2]]; // word aligned
+        ext_mem_c.rdata[0] <= ext_ram_c[wb_mem_c.addr[$clog2(ext_mem_c_size_c/4)+1 : 2]]; // word aligned
         
         /* virtual read and ack latency */
         if (ext_mem_c_latency_c > 1) begin
