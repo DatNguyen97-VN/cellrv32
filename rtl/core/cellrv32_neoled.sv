@@ -17,7 +17,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_neoled #(
@@ -41,8 +41,8 @@ module cellrv32_neoled #(
     output logic        neoled_o // serial async data line
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(neoled_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(neoled_size_c); // low address boundary bit
 
     /* access control */
     logic        acc_en; // module access enable
@@ -189,7 +189,7 @@ module cellrv32_neoled #(
             data_o[ctrl_strobe_c]                   <= ctrl.strobe;
             data_o[ctrl_clksel2_c : ctrl_clksel0_c] <= ctrl.clk_prsc;
             data_o[ctrl_irq_conf_c]                 <= ctrl.irq_conf | (FIFO_DEPTH == 1); // tie to one if FIFO_DEPTH is 1
-            data_o[ctrl_bufs_3_c  : ctrl_bufs_0_c]  <= 4'(index_size_f(FIFO_DEPTH));
+            data_o[ctrl_bufs_3_c  : ctrl_bufs_0_c]  <= 4'($clog2(FIFO_DEPTH));
             data_o[ctrl_t_tot_4_c : ctrl_t_tot_0_c] <= ctrl.t_total;
             data_o[ctrl_t_0h_4_c  : ctrl_t_0h_0_c]  <= ctrl.t0_high;
             data_o[ctrl_t_1h_4_c  : ctrl_t_1h_0_c]  <= ctrl.t1_high;

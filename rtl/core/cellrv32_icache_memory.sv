@@ -10,7 +10,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_icache_memory #(
@@ -39,8 +39,8 @@ module cellrv32_icache_memory #(
     input  logic        ctrl_invalid_i // make selected block invalid
 );
     /* cache layout */
-    localparam int cache_offset_size_c = index_size_f(ICACHE_BLOCK_SIZE/4); // offset addresses full 32-bit words
-    localparam int cache_index_size_c  = index_size_f(ICACHE_NUM_BLOCKS);
+    localparam int cache_offset_size_c = $clog2(ICACHE_BLOCK_SIZE/4); // offset addresses full 32-bit words
+    localparam int cache_index_size_c  = $clog2(ICACHE_NUM_BLOCKS);
     localparam int cache_tag_size_c    = 32 - (cache_offset_size_c + cache_index_size_c + 2); // 2 additional bits for byte offset
     localparam int cache_entries_c     = ICACHE_NUM_BLOCKS * (ICACHE_BLOCK_SIZE/4); // number of 32-bit entries (per set)
 
@@ -86,7 +86,6 @@ module cellrv32_icache_memory #(
 
     /* access history */
     typedef struct {
-        logic re_ff;
         logic [ICACHE_NUM_BLOCKS-1:0] last_used_set;
         logic to_be_replaced;
     } history_t;
@@ -106,19 +105,18 @@ module cellrv32_icache_memory #(
     // Cache Access History ----------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i ) begin : access_history
-        history.re_ff <= host_re_i;
         // invalidate whole cache
         if (invalidate_i == 1'b1) begin
             history.last_used_set <= '1;
-        end else if ((history.re_ff == 1'b1) && ((|hit) == 1'b1) && (ctrl_en_i == 1'b0)) begin
-            history.last_used_set[cache_index] <= ~hit[0];
+        end else if ((host_re_i == 1'b1) && ((|hit) == 1'b1)) begin
+            history.last_used_set[cache_index] <= hit[0];
         end
         //
         history.to_be_replaced <= history.last_used_set[cache_index];
     end : access_history
 
     /* which set is going to be replaced? -> opposite of last used set = least recently used set */
-    assign set_select = (ICACHE_NUM_SETS == 1) ? 1'b0 : (~history.to_be_replaced);
+    assign set_select = (ICACHE_NUM_SETS == 1) ? 1'b0 : history.to_be_replaced;
     
     // Status flag memory ------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -154,6 +152,7 @@ module cellrv32_icache_memory #(
            else
              tag_mem_s1[cache_index] <= ctrl_acc_addr.tag;
         end
+        /* read access (sync) */
         tag[0] <= tag_mem_s0[cache_index];
         tag[1] <= tag_mem_s1[cache_index];
     end : tag_memory

@@ -8,7 +8,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_twi (
@@ -33,8 +33,8 @@ module cellrv32_twi (
     output logic        irq_o      // transfer done IRQ
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(twi_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(twi_size_c); // low address boundary bit
 
     /* control register */
     localparam int ctrl_en_c     =  0; // r/w: TWI enable

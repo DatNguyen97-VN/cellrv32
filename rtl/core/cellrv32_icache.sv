@@ -6,7 +6,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_icache #(
@@ -34,8 +34,8 @@ module cellrv32_icache #(
     input  logic        bus_err_i     // bus transfer error
 );
     /* cache layout */
-    localparam int cache_offset_size_c = index_size_f(ICACHE_BLOCK_SIZE/4); // offset addresses full 32-bit words
-    localparam int cache_index_size_c  = index_size_f(ICACHE_NUM_BLOCKS);
+    localparam int cache_offset_size_c = $clog2(ICACHE_BLOCK_SIZE/4); // offset addresses full 32-bit words
+    localparam int cache_index_size_c  = $clog2(ICACHE_NUM_BLOCKS);
     localparam int cache_tag_size_c    = 32 - (cache_offset_size_c + cache_index_size_c + 2); // 2 additonal bits for byte offset
     
     /* cache interface */
@@ -152,14 +152,6 @@ module cellrv32_icache #(
                   ctrl.state_nxt  = S_CACHE_CHECK;
                 end
             end
-            /* missing begin..end
-            S_IDLE : begin
-                if (ctrl.clear_buf == 1'b1) // cache control operation?
-                  ctrl.state_nxt = S_CACHE_CLEAR;
-                else if ((host_re_i == 1'b1) || (ctrl.re_buf == 1'b1)) // cache access
-                  ctrl.re_buf_nxt = 1'b0;
-                  ctrl.state_nxt  = S_CACHE_CHECK;
-            end */
             // --------------------------------------------------------------
             // invalidate all cache entries
             S_CACHE_CLEAR : begin

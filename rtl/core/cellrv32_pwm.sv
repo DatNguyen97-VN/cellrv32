@@ -6,7 +6,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_pwm #(
@@ -28,8 +28,8 @@ module cellrv32_pwm #(
     output logic [11:0] pwm_o
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(pwm_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(pwm_size_c); // low address boundary bit
 
     /* Control register bits */
     localparam int ctrl_enable_c    = 0; // r/w: PWM enable

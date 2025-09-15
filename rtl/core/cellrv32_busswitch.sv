@@ -6,12 +6,12 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_busswitch #(
-    parameter PORT_CA_READ_ONLY = 1,
-    parameter PORT_CB_READ_ONLY = 1
+    parameter int PORT_CA_READ_ONLY = 1,
+    parameter int PORT_CB_READ_ONLY = 1
 )(
     // global control //
     input  logic clk_i,                 // global clock, rising edge
@@ -22,7 +22,7 @@ module cellrv32_busswitch #(
     input  logic [31:0] ca_bus_addr_i,  // bus access address
     output logic [31:0] ca_bus_rdata_o, // bus read data
     input  logic [31:0] ca_bus_wdata_i, // bus write data
-    input  logic [3:0]  ca_bus_ben_i,   // byte enable
+    input  logic [03:0] ca_bus_ben_i,   // byte enable
     input  logic ca_bus_we_i,           // write enable
     input  logic ca_bus_re_i,           // read enable
     output logic ca_bus_ack_o,          // bus transfer acknowledge
@@ -33,7 +33,7 @@ module cellrv32_busswitch #(
     input  logic [31:0] cb_bus_addr_i,  // bus access address
     output logic [31:0] cb_bus_rdata_o, // bus read data
     input  logic [31:0] cb_bus_wdata_i, // bus write data
-    input  logic [3:0]  cb_bus_ben_i,   // byte enable
+    input  logic [03:0] cb_bus_ben_i,   // byte enable
     input  logic cb_bus_we_i,           // write enable
     input  logic cb_bus_re_i,           // read enable
     output logic cb_bus_ack_o,          // bus transfer acknowledge
@@ -45,13 +45,13 @@ module cellrv32_busswitch #(
     output logic [31:0] p_bus_addr_o,   // bus access address
     input  logic [31:0] p_bus_rdata_i,  // bus read data
     output logic [31:0] p_bus_wdata_o,  // bus write data
-    output logic [3:0]  p_bus_ben_o,    // byte enable
+    output logic [03:0]  p_bus_ben_o,    // byte enable
     output logic p_bus_we_o,            // write enable
     output logic p_bus_re_o,            // read enable
     input  logic p_bus_ack_i,           // bus transfer acknowledge
     input  logic p_bus_err_i            // bus transfer error
     );
-    
+
     // access request //
     logic ca_rd_req_buf,  ca_wr_req_buf;
     logic cb_rd_req_buf,  cb_wr_req_buf;
@@ -59,10 +59,8 @@ module cellrv32_busswitch #(
     logic cb_req_current, cb_req_pending;
 
     // internal bus lines //
-    logic ca_bus_ack, cb_bus_ack;
-    logic ca_bus_err, cb_bus_err;
     logic p_bus_we,   p_bus_re;
-    
+
     // access arbiter //
     typedef enum logic [3:0] {IDLE, A_BUSY, A_RETIRE, B_BUSY, B_RETIRE} arbiter_state_t;
     typedef struct {
@@ -86,11 +84,11 @@ module cellrv32_busswitch #(
         end else begin
             arbiter.state <= arbiter.state_nxt;
             // port A requests //
-            ca_rd_req_buf <= (ca_rd_req_buf | ca_bus_re_i) & (~(ca_bus_err | ca_bus_ack));
-            ca_wr_req_buf <= (ca_wr_req_buf | ca_bus_we_i) & (~(ca_bus_err | ca_bus_ack)) & (PORT_CA_READ_ONLY == 1'b0);
+            ca_rd_req_buf <= (ca_rd_req_buf | ca_bus_re_i) & (~(ca_bus_err_o | ca_bus_ack_o));
+            ca_wr_req_buf <= (ca_wr_req_buf | ca_bus_we_i) & (~(ca_bus_err_o | ca_bus_ack_o)) & (PORT_CA_READ_ONLY == 1'b0);
             // port B requests //
-            cb_rd_req_buf <= (cb_rd_req_buf | cb_bus_re_i) & (~(cb_bus_err | cb_bus_ack));
-            cb_wr_req_buf <= (cb_wr_req_buf | cb_bus_we_i) & (~(cb_bus_err | cb_bus_ack)) & (PORT_CB_READ_ONLY == 1'b0);
+            cb_rd_req_buf <= (cb_rd_req_buf | cb_bus_re_i) & (~(cb_bus_err_o | cb_bus_ack_o));
+            cb_wr_req_buf <= (cb_wr_req_buf | cb_bus_we_i) & (~(cb_bus_err_o | cb_bus_ack_o)) & (PORT_CB_READ_ONLY == 1'b0);
         end
     end : arbiter_sync
 
@@ -155,7 +153,7 @@ module cellrv32_busswitch #(
                     end else begin
                         arbiter.state_nxt = IDLE;
                     end
-                end 
+                end
             end
             // retire port B pending access
             B_RETIRE : begin
@@ -192,17 +190,13 @@ module cellrv32_busswitch #(
 
     assign p_bus_src_o = arbiter.bus_sel;
 
-    assign ca_bus_rdata_o = p_bus_rdata_i;
-    assign cb_bus_rdata_o = p_bus_rdata_i;
+    assign ca_bus_rdata_o = (arbiter.bus_sel == 1'b0) ? p_bus_rdata_i : '0;
+    assign cb_bus_rdata_o = (arbiter.bus_sel == 1'b1) ? p_bus_rdata_i : '0;
 
-    assign ca_bus_ack     = (arbiter.bus_sel == 1'b0) ? p_bus_ack_i : 1'b0;
-    assign cb_bus_ack     = (arbiter.bus_sel == 1'b1) ? p_bus_ack_i : 1'b0;
-    assign ca_bus_ack_o   = ca_bus_ack;
-    assign cb_bus_ack_o   = cb_bus_ack; 
+    assign ca_bus_ack_o = (arbiter.bus_sel == 1'b0) ? p_bus_ack_i : 1'b0;
+    assign cb_bus_ack_o = (arbiter.bus_sel == 1'b1) ? p_bus_ack_i : 1'b0;
 
-    assign ca_bus_err     = (arbiter.bus_sel == 1'b0) ? p_bus_err_i : 1'b0;
-    assign cb_bus_err     = (arbiter.bus_sel == 1'b1) ? p_bus_err_i : 1'b0;
-    assign ca_bus_err_o   = ca_bus_err;
-    assign cb_bus_err_o   = cb_bus_err; 
-    
+    assign ca_bus_err_o = (arbiter.bus_sel == 1'b0) ? p_bus_err_i : 1'b0;
+    assign cb_bus_err_o = (arbiter.bus_sel == 1'b1) ? p_bus_err_i : 1'b0;
+
 endmodule

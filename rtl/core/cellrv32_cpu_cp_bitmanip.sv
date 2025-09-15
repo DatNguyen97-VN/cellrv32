@@ -12,7 +12,7 @@
 // # ***********************************************************************************************#
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_cp_bitmanip #(
@@ -28,7 +28,7 @@ module cellrv32_cpu_cp_bitmanip #(
     input logic [1:0]             cmp_i,   // comparator status
     input logic [XLEN-1:0]        rs1_i,   // rf source 1
     input logic [XLEN-1:0]        rs2_i,   // rf source 2
-    input logic [index_size_f(XLEN)-1:0] shamt_i, // shift amount
+    input logic [$clog2(XLEN)-1:0] shamt_i, // shift amount
     /* result and status */
     output logic [XLEN-1:0]       res_o,   // operation result
     output logic                  valid_o  // data output valid
@@ -94,23 +94,23 @@ module cellrv32_cpu_cp_bitmanip #(
   /* operand buffers */
   logic [XLEN-1:0]        rs1_reg;
   logic [XLEN-1:0]        rs2_reg;
-  logic [index_size_f(XLEN)-1:0] sha_reg;
+  logic [$clog2(XLEN)-1:0] sha_reg;
   logic                   less_reg;
 
   /* serial shifter */
   typedef struct {
     logic start;  
     logic run;     
-    logic [index_size_f(XLEN):0] bcnt; // bit counter    
-    logic [index_size_f(XLEN):0] cnt;  // iteration counter  
-    logic [index_size_f(XLEN):0] cnt_max; 
+    logic [$clog2(XLEN):0] bcnt; // bit counter    
+    logic [$clog2(XLEN):0] cnt;  // iteration counter  
+    logic [$clog2(XLEN):0] cnt_max; 
     logic [XLEN-1:0] sreg;    
   } shifter_t;
 
   shifter_t shifter;
 
   /* barrel shifter */
-  typedef logic [XLEN-1:0] bs_level_t [index_size_f(XLEN):0];
+  typedef logic [XLEN-1:0] bs_level_t [$clog2(XLEN):0];
   bs_level_t bs_level;
 
   /* operation results */
@@ -128,7 +128,7 @@ module cellrv32_cpu_cp_bitmanip #(
     logic                 start;
     logic                 busy;
     logic [XLEN-1:0]      rs2;
-    logic [index_size_f(XLEN):0] cnt;
+    logic [$clog2(XLEN):0] cnt;
     logic [2*XLEN-1:0]    prod;
   } clmultiplier_t;
   clmultiplier_t clmul;
@@ -322,9 +322,9 @@ module cellrv32_cpu_cp_bitmanip #(
         if (FAST_SHIFT_EN == 1'b1) begin : parallel_shifter
             /* barrel shifter array */
             // input level: convert left shifts to right shifts
-            assign bs_level[index_size_f(XLEN)] = (cmd_buf[op_rol_c == 1'b1]) // is left shift?, if right is reverse bit order of input operand.
+            assign bs_level[$clog2(XLEN)] = (cmd_buf[op_rol_c == 1'b1]) // is left shift?, if right is reverse bit order of input operand.
                                                   ? bit_rev_f(rs1_reg) : rs1_reg;
-            for (i = index_size_f(XLEN)-1; i >= 0; --i) begin : shifter_array
+            for (i = $clog2(XLEN)-1; i >= 0; --i) begin : shifter_array
                 assign bs_level[i][XLEN-1 : XLEN-(2**i)] = (sha_reg[i] == 1'b1) ? bs_level[i+1][(2**i)-1 : 0]  : bs_level[i+1][XLEN-1 : XLEN-(2**i)];
                 assign bs_level[i][(XLEN-(2**i))-1 : 0]  = (sha_reg[i] == 1'b1) ? bs_level[i+1][XLEN-1 : 2**i] : bs_level[i+1][(XLEN-(2**i))-1 : 0];
             end : shifter_array
@@ -333,12 +333,12 @@ module cellrv32_cpu_cp_bitmanip #(
             assign shifter.sreg = bs_level[0]; // rol/ror[i]
 
             /* population count */
-            assign shifter.bcnt = (index_size_f(XLEN)+1)'(popcount_f(rs1_reg)); // CPOP
+            assign shifter.bcnt = ($clog2(XLEN)+1)'(popcount_f(rs1_reg)); // CPOP
 
             /* count leading/trailing zeros */
             assign shifter.cnt  = (cmd_buf[op_clz_c] == 1'b1) ? 
-                                    (index_size_f(XLEN)+1)'(leading_zeros_f(rs1_reg)) // CLZ
-                                  : (index_size_f(XLEN)+1)'(leading_zeros_f(bit_rev_f(rs1_reg))); // CTZ
+                                    ($clog2(XLEN)+1)'(leading_zeros_f(rs1_reg)) // CLZ
+                                  : ($clog2(XLEN)+1)'(leading_zeros_f(bit_rev_f(rs1_reg))); // CTZ
 
             assign shifter.run  = 1'b0; // we are done already!
         end : parallel_shifter
@@ -422,19 +422,17 @@ module cellrv32_cpu_cp_bitmanip #(
   assign res_int[op_sexth_c][15:0]      = rs1_reg[15:0]; // sign-extend half-word
   assign res_int[op_zexth_c][XLEN-1:16] = '0;
   assign res_int[op_zexth_c][15:0]      = rs1_reg[15:0]; // zero-extend half-word
-  
+
   /* rotate right/left */
   assign res_int[op_ror_c] = shifter.sreg;
   assign res_int[op_rol_c] = bit_rev_f(shifter.sreg); // reverse to compensate internal right-only shifts
-  
+
   /* or-combine.byte */
+  genvar k;
   generate
-    begin : or_combine_gen
-    genvar i;
-        for (i = 0; i < (XLEN/8); ++i) begin :sub_byte_loop
-            assign res_int[op_orcb_c][i*8+7 : i*8] = ((|rs1_reg[i*8+7 : i*8]) == 1'b1) ? '1 : '0;
+        for (k = 0; k < (XLEN/8); ++k) begin :sub_byte_loop
+            assign res_int[op_orcb_c][k*8+7 : k*8] = ((|rs1_reg[k*8+7 : k*8]) == 1'b1) ? '1 : '0;
         end : sub_byte_loop
-    end : or_combine_gen
   endgenerate
 
   /* reversal.8 (byte swap) */

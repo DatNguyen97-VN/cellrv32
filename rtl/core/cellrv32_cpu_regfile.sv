@@ -15,17 +15,18 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_regfile #(
-    parameter XLEN                  = 32, // data path width
-    parameter CPU_EXTENSION_RISCV_E = 1,  // implement embedded RF extension?
-    parameter RS3_EN                = 1,  // enable 3rd read port
-    parameter RS4_EN                = 1   // enable 4th read port
+    parameter int XLEN                  = 32, // data path width
+    parameter int CPU_EXTENSION_RISCV_E = 1,  // implement embedded RF extension?
+    parameter int RS3_EN                = 1,  // enable 3rd read port
+    parameter int RS4_EN                = 1   // enable 4th read port
 ) (
     /* global control */
     input logic      clk_i,  // global clock, rising edge
+    input logic      rstn_i, // global reset, low-active, async
     input ctrl_bus_t ctrl_i, // main control bus
     /* data input */
     input logic [XLEN-1:0] alu_i, // ALU result
@@ -52,7 +53,7 @@ module cellrv32_cpu_regfile #(
     logic  [4:0] opb_addr; // rs2 address
     logic  [4:0] opc_addr; // rs3 address
     logic  [4:0] opd_addr; // rs4 address
-    
+
     // Data Write-Back Select --------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_comb begin : wb_select
@@ -62,11 +63,11 @@ module cellrv32_cpu_regfile #(
             rf_mux_csr_c : rf_wdata = csr_i; // CSR read data
             rf_mux_npc_c : rf_wdata = pc2_i; // next PC (branch return/link address)
             default: begin
-                           rf_wdata = alu_i; // don't care 
+                           rf_wdata = alu_i; // don't care
             end
         endcase
     end : wb_select
-    
+
     // Register File Access ----------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* access addresses */
@@ -80,14 +81,16 @@ module cellrv32_cpu_regfile #(
     /* write enable */
     assign rd_zero = (ctrl_i.rf_rd == 5'b00000) ? 1'b1 : 1'b0;
     assign rf_we   = (ctrl_i.rf_wb_en & (~rd_zero)) | ctrl_i.rf_zero_we; // do not write to x0 unless explicitly forced
-    
+
     // RV32I Register File with 32 Entries -------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     generate
         if (CPU_EXTENSION_RISCV_E == 0) begin : reg_file_rv32i
             // sync read and write
-            always_ff @( posedge clk_i ) begin : rf_access
-                if (rf_we == 1'b1) begin
+            always_ff @( posedge clk_i or negedge rstn_i ) begin : rf_access
+                if (rstn_i == 1'b0) begin
+                    reg_file <= '{default: '0}; // reset register file
+                end else if (rf_we == 1'b1) begin
                     reg_file[opa_addr[4:0]] <= rf_wdata;
                 end
                 //

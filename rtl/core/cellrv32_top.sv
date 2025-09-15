@@ -8,18 +8,18 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////                                        
-//                                                                                                                                       //                                        
-//                     ██████╗███████╗██╗     ██╗     ██████╗ ██╗   ██╗██████╗ ██████╗     ████████╗ ██████╗ ██████╗                     //                                                        
-//                    ██╔════╝██╔════╝██║     ██║     ██╔══██╗██║   ██║╚════██╗╚════██╗    ╚══██╔══╝██╔═══██╗██╔══██╗                    //       
-//                    ██║     █████╗  ██║     ██║     ██████╔╝██║   ██║ █████╔╝ █████╔╝       ██║   ██║   ██║██████╔╝                    //                                               
-//                    ██║     ██╔══╝  ██║     ██║     ██╔══██╗╚██╗ ██╔╝ ╚═══██╗██╔═══╝        ██║   ██║   ██║██╔═══╝                     //                                                     
-//                    ╚██████╗███████╗███████╗███████╗██║  ██║ ╚████╔╝ ██████╔╝███████╗       ██║   ╚██████╔╝██║                         //                                                     
-//                     ╚═════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═════╝ ╚══════╝       ╚═╝    ╚═════╝ ╚═╝                         //                                                   
-//                                                                                                                                       //                              
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//                                                                                                                                       //
+//                     ██████╗███████╗██╗     ██╗     ██████╗ ██╗   ██╗██████╗ ██████╗     ████████╗ ██████╗ ██████╗                     //
+//                    ██╔════╝██╔════╝██║     ██║     ██╔══██╗██║   ██║╚════██╗╚════██╗    ╚══██╔══╝██╔═══██╗██╔══██╗                    //
+//                    ██║     █████╗  ██║     ██║     ██████╔╝██║   ██║ █████╔╝ █████╔╝       ██║   ██║   ██║██████╔╝                    //
+//                    ██║     ██╔══╝  ██║     ██║     ██╔══██╗╚██╗ ██╔╝ ╚═══██╗██╔═══╝        ██║   ██║   ██║██╔═══╝                     //
+//                    ╚██████╗███████╗███████╗███████╗██║  ██║ ╚████╔╝ ██████╔╝███████╗       ██║   ╚██████╔╝██║                         //
+//                     ╚═════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═════╝ ╚══════╝       ╚═╝    ╚═════╝ ╚═╝                         //
+//                                                                                                                                       //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 module cellrv32_top #(
@@ -209,8 +209,8 @@ module cellrv32_top #(
     localparam logic [31:0] cpu_boot_addr_c = INT_BOOTLOADER_EN ? boot_rom_base_c : ispace_base_c;
 
     /* alignment check for internal memories */
-    localparam logic [index_size_f(MEM_INT_IMEM_SIZE)-1 : 0] imem_align_check_c = '0;
-    localparam logic [index_size_f(MEM_INT_DMEM_SIZE)-1 : 0] dmem_align_check_c = '0;
+    localparam logic [$clog2(MEM_INT_IMEM_SIZE)-1 : 0] imem_align_check_c = '0;
+    localparam logic [$clog2(MEM_INT_DMEM_SIZE)-1 : 0] dmem_align_check_c = '0;
 
     /* reset generator */
     logic [3:0] rstn_ext_sreg;
@@ -321,7 +321,7 @@ module cellrv32_top #(
            RESP_MTIME, RESP_UART0, RESP_UART1, RESP_SPI, RESP_TWI, RESP_PWM, RESP_WDT,
            RESP_TRNG, RESP_CFS, RESP_NEOLED, RESP_SYSINFO, RESP_OCD, RESP_XIRQ, RESP_GPTMR,
            RESP_XIP_CT, RESP_XIP_ACC, RESP_ONEWIRE, RESP_SDI } resp_bus_id;
-    
+
     /* module response bus */
     resp_bus_entry_t resp_bus [24]; // number of device ID is 24
     // initiate default value of all element in resp_bus array
@@ -406,9 +406,9 @@ module cellrv32_top #(
         $error("CELLRV32 PROCESSOR CONFIG ERROR! Instruction memory space base address must be 32-bit-aligned.");
         assert (dspace_base_c[1:0] == 2'b00) else
         $error("CELLRV32 PROCESSOR CONFIG ERROR! Data memory space base address must be 32-bit-aligned.");
-        assert ((ispace_base_c[index_size_f(MEM_INT_IMEM_SIZE)-1 : 0] == imem_align_check_c) || (MEM_INT_IMEM_EN != 1'b1)) else
+        assert (((dspace_base_c & ((1 << $clog2(MEM_INT_IMEM_SIZE)) - 1)) == imem_align_check_c) || (MEM_INT_IMEM_EN != 1'b1)) else
         $error("CELLRV32 PROCESSOR CONFIG ERROR! Instruction memory space base address has to be aligned to IMEM size.");
-        assert ((dspace_base_c[index_size_f(MEM_INT_DMEM_SIZE)-1 : 0] == dmem_align_check_c) || (MEM_INT_DMEM_EN != 1'b1)) else
+        assert (((dspace_base_c & ((1 << $clog2(MEM_INT_DMEM_SIZE)) - 1)) == dmem_align_check_c) || (MEM_INT_DMEM_EN != 1'b1)) else
         $error("CELLRV32 PROCESSOR CONFIG ERROR! Data memory space base address has to be aligned to DMEM size.");
         //
         assert (ispace_base_c == 32'h00000000) else
@@ -626,14 +626,14 @@ module cellrv32_top #(
     assign fast_irq[15] = 1'b0;         // LOWEST PRIORITY - reserved
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //                                                                                                                                                          //                 
+    //                                                                                                                                                          //
     //            ██╗███╗   ██╗███████╗████████╗██████╗ ██╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗     ██████╗ █████╗  ██████╗██╗  ██╗███████╗            //
     //            ██║████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██║   ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║    ██╔════╝██╔══██╗██╔════╝██║  ██║██╔════╝            //
     //            ██║██╔██╗ ██║███████╗   ██║   ██████╔╝██║   ██║██║        ██║   ██║██║   ██║██╔██╗ ██║    ██║     ███████║██║     ███████║█████╗              //
     //            ██║██║╚██╗██║╚════██║   ██║   ██╔══██╗██║   ██║██║        ██║   ██║██║   ██║██║╚██╗██║    ██║     ██╔══██║██║     ██╔══██║██╔══╝              //
     //            ██║██║ ╚████║███████║   ██║   ██║  ██║╚██████╔╝╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║    ╚██████╗██║  ██║╚██████╗██║  ██║███████╗            //
     //            ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝            //
-    //                                                                                                                                                          //              
+    //                                                                                                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // CPU Instruction Cache ---------------------------------------------------------------------
@@ -685,20 +685,20 @@ module cellrv32_top #(
     /* yet unused */
     assign i_cache.fence = 1'b0;
     assign i_cache.src   = 1'b0;
-    
+
     // CPU Data Cache ----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     // <to be define>
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //                                                                                                                         //                      
+    //                                                                                                                         //
     //                       ██████╗ ██╗   ██╗███████╗    ███████╗██╗    ██╗██╗████████╗ ██████╗██╗  ██╗                       //
     //                       ██╔══██╗██║   ██║██╔════╝    ██╔════╝██║    ██║██║╚══██╔══╝██╔════╝██║  ██║                       //
     //                       ██████╔╝██║   ██║███████╗    ███████╗██║ █╗ ██║██║   ██║   ██║     ███████║                       //
     //                       ██╔══██╗██║   ██║╚════██║    ╚════██║██║███╗██║██║   ██║   ██║     ██╔══██║                       //
     //                       ██████╔╝╚██████╔╝███████║    ███████║╚███╔███╔╝██║   ██║   ╚██████╗██║  ██║                       //
     //                       ╚═════╝  ╚═════╝ ╚══════╝    ╚══════╝ ╚══╝╚══╝ ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝                       //
-    //                                                                                                                         //                          
+    //                                                                                                                         //
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // CPU Bus Switch ----------------------------------------------------------------------------
@@ -726,7 +726,7 @@ module cellrv32_top #(
         .cb_bus_cached_i (i_cache.cached), // set if cached transfer
         .cb_bus_addr_i   (i_cache.addr),   // bus access address
         .cb_bus_rdata_o  (i_cache.rdata),  // bus read data
-        .cb_bus_wdata_i  ('b0),
+        .cb_bus_wdata_i  ('0),
         .cb_bus_ben_i    (4'b0000),
         .cb_bus_we_i     (1'b0),
         .cb_bus_re_i     (i_cache.re),     // read enable
@@ -751,23 +751,16 @@ module cellrv32_top #(
 
     /* bus response */
     always_comb begin : bus_response
-        logic [31:0] rdata_v;
-        logic        ack_v;
-        logic        err_v;
-        //
-        rdata_v = '0;
-        ack_v   = 1'b0;
-        err_v   = 1'b0;
+        p_bus.rdata = '0;   // processor bus: CPU transfer data input
+        p_bus.ack   = 1'b0; // processor bus: CPU transfer ACK input
+        p_bus.err   = 1'b0; // processor bus: CPU transfer data bus error input
         // OR all response signals: only the module that has actually
         // been accessed is allowed to *set* its bus output signals
         for (int i = 0; i < $size(resp_bus); ++i) begin
-            rdata_v = rdata_v | resp_bus[i].rdata; // read data
-            ack_v   = ack_v   | resp_bus[i].ack;   // acknowledge
-            err_v   = err_v   | resp_bus[i].err;   // error
-        end
-        p_bus.rdata = rdata_v; // processor bus: CPU transfer data input
-        p_bus.ack   = ack_v;   // processor bus: CPU transfer ACK input
-        p_bus.err   = err_v;   // processor bus: CPU transfer data bus error input
+            p_bus.rdata |= resp_bus[i].rdata; // read data
+            p_bus.ack   |= resp_bus[i].ack;   // acknowledge
+            p_bus.err   |= resp_bus[i].err;   // error
+        end   
     end : bus_response
 
     // Bus Keeper (BUSKEEPER) --------------------------------------------------------------------
@@ -835,7 +828,7 @@ module cellrv32_top #(
         if ((MEM_INT_DMEM_EN == 1'b1) && (MEM_INT_DMEM_SIZE > 0)) begin : cellrv32_int_dmem_inst_ON
             cellrv32_dmem #(
               .DMEM_BASE (dmem_base_c),      // memory base address
-              .DMEM_SIZE (MEM_INT_DMEM_SIZE) // processor-internal data memory size in bytes  
+              .DMEM_SIZE (MEM_INT_DMEM_SIZE) // processor-internal data memory size in bytes
             ) cellrv32_int_dmem_inst (
                 .clk_i  (clk_i),                     // global clock line
                 .rden_i (p_bus.re),                  // read enable
@@ -844,10 +837,9 @@ module cellrv32_top #(
                 .addr_i (p_bus.addr),                // address
                 .data_i (p_bus.wdata),               // data in
                 .data_o (resp_bus[RESP_DMEM].rdata), // data out
-                .ack_o  (resp_bus[RESP_DMEM].ack)    // transfer acknowledge
+                .ack_o  (resp_bus[RESP_DMEM].ack),    // transfer acknowledge
+                .err_o  (resp_bus[RESP_DMEM].err)     // transfer error
             );
-            // no access error possible
-            assign resp_bus[RESP_DMEM].err = 1'b0; 
         end : cellrv32_int_dmem_inst_ON
     endgenerate
 
@@ -1010,7 +1002,7 @@ module cellrv32_top #(
 
     // IO Access? --------------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
-    assign io_acc  = (p_bus.addr[31 : index_size_f(io_size_c)] == io_base_c[31 : index_size_f(io_size_c)]) ? 1'b1 : 1'b0;
+    assign io_acc  = (p_bus.addr[31 : $clog2(io_size_c)] == io_base_c[31 : $clog2(io_size_c)]) ? 1'b1 : 1'b0;
     assign io_rden = ((io_acc == 1'b1) && (p_bus.re == 1'b1) && (p_bus.src == 1'b0))    ? 1'b1 : 1'b0; // PMA: read access only from data interface
     assign io_wren = ((io_acc == 1'b1) && (p_bus.we == 1'b1) && (p_bus.ben == 4'b1111)) ? 1'b1 : 1'b0; // PMA: full-word write accesses only (reduces HW complexity)
     

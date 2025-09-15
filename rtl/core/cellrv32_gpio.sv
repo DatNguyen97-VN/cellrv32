@@ -3,7 +3,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_gpio #(
@@ -23,8 +23,8 @@ module cellrv32_gpio #(
     output logic [63:0] gpio_o
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(gpio_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(gpio_size_c); // low address boundary bit
 
     /* access control */
     logic        acc_en; // module access enable

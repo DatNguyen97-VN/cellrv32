@@ -3,7 +3,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_spi #(
@@ -30,8 +30,8 @@ module cellrv32_spi #(
     output logic        irq_o      // transmission done interrupt
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(spi_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(spi_size_c); // low address boundary bit
 
     /* control register */
     localparam int ctrl_en_c      =  0; // r/w: spi enable
@@ -190,7 +190,7 @@ module cellrv32_spi #(
                 data_o[ctrl_irq_tx_empty_c] <= ctrl.irq_tx_empty;
                 data_o[ctrl_irq_tx_nhalf_c] <= ctrl.irq_tx_nhalf;
                 //
-                data_o[ctrl_fifo_size3_c : ctrl_fifo_size0_c] <= 4'(index_size_f(IO_SPI_FIFO));
+                data_o[ctrl_fifo_size3_c : ctrl_fifo_size0_c] <= 4'($clog2(IO_SPI_FIFO));
                 //
                 data_o[ctrl_busy_c] <= rtx_engine.busy | tx_fifo.avail;
             end else begin // data register (spi_rtx_addr_c)

@@ -3,7 +3,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_fifo #(
@@ -30,11 +30,11 @@ module cellrv32_fifo #(
     /* FIFO */
     typedef logic [FIFO_DEPTH-1:0][FIFO_WIDTH-1:0] fifo_data_t;
     //
-    typedef struct {
+    typedef struct packed {
         logic we; // write enable
         logic re; // read enable
-        logic [index_size_f(FIFO_DEPTH):0] w_pnt; // write pointer
-        logic [index_size_f(FIFO_DEPTH):0] r_pnt; // read pointer
+        logic [$clog2(FIFO_DEPTH):0] w_pnt; // write pointer
+        logic [$clog2(FIFO_DEPTH):0] r_pnt; // read pointer
         fifo_data_t data; // fifo memory
         logic [FIFO_WIDTH-1:0] buffer; // if single-entry FIFO
         logic match;
@@ -48,12 +48,12 @@ module cellrv32_fifo #(
 
     /* misc */
     logic [FIFO_WIDTH-1:0] rdata;
-    logic [index_size_f(FIFO_DEPTH):0] level_diff;
+    logic [$clog2(FIFO_DEPTH):0] level_diff;
 
     // Sanity Checks -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     initial begin
-        assert (!(FIFO_DEPTH == 0)) 
+        assert (!(FIFO_DEPTH == 0))
         else   $error("CELLRV32 CONFIG ERROR: FIFO depth has to be > 0.");
         //
         assert (!(is_power_of_two_f(FIFO_DEPTH) == 1'b0))
@@ -64,7 +64,7 @@ module cellrv32_fifo #(
     // -------------------------------------------------------------------------------------------
     assign fifo.re = (FIFO_SAFE == 0) ? re_i : (re_i & fifo.avail); // SAFE = read only if data available
     assign fifo.we = (FIFO_SAFE == 0) ? we_i : (we_i & fifo.free); // SAFE = write only if space left
-    
+
     // FIFO Pointers -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i or negedge rstn_i ) begin : fifo_pointers
@@ -97,7 +97,7 @@ module cellrv32_fifo #(
             assign fifo.empty = ((fifo.r_pnt[$bits(fifo.r_pnt)-1]  == fifo.w_pnt[$bits(fifo.w_pnt)-1]) && (fifo.match == 1'b1)) ? 1'b1 : 1'b0;
         end : check_large
     endgenerate
-    
+
     // check_small
     generate
         if (FIFO_DEPTH <= 1) begin : check_small
@@ -133,8 +133,10 @@ module cellrv32_fifo #(
     /* "real" FIFO memory (several entries) */
     generate
         if (FIFO_DEPTH > 1) begin : fifo_memory
-            always_ff @( posedge clk_i ) begin : fifo_write
-                if (fifo.we == 1'b1) begin
+            always_ff @(posedge clk_i or negedge rstn_i) begin : fifo_write
+                if (rstn_i == 1'b0) begin
+                    fifo.data <= '0;
+                end else if (fifo.we == 1'b1) begin
                     fifo.data[fifo.w_pnt[$bits(fifo.w_pnt)-2 : 0]] <= wdata_i;
                 end
             end : fifo_write
@@ -146,8 +148,10 @@ module cellrv32_fifo #(
     /* simple register/buffer (single entry) */
     generate
         if (FIFO_DEPTH == 1) begin : fifo_buffer
-            always_ff @( posedge clk_i ) begin : fifo_write
-                if (fifo.we == 1'b1) begin
+            always_ff @(posedge clk_i or negedge rstn_i) begin : fifo_write
+                if (rstn_i == 1'b0) begin
+                    fifo.buffer <= '0;
+                end else if (fifo.we == 1'b1) begin
                     fifo.buffer <= wdata_i;
                 end
             end : fifo_write

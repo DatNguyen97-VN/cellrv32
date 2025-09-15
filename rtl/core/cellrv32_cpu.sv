@@ -3,15 +3,15 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu #(
     /* General */
-    parameter int     HW_THREAD_ID = 0,          // hardware thread id (32-bit)
-    parameter logic[31:0] CPU_BOOT_ADDR = '0,       // cpu boot address
-    parameter logic[31:0] CPU_DEBUG_PARK_ADDR = '0, // cpu debug mode parking loop entry address
-    parameter logic[31:0] CPU_DEBUG_EXC_ADDR = '0,  // cpu debug mode exception entry address
+    parameter int   HW_THREAD_ID        = 0, // hardware thread id (32-bit)
+    parameter int   CPU_BOOT_ADDR       = 0, // cpu boot address
+    parameter int   CPU_DEBUG_PARK_ADDR = 0, // cpu debug mode parking loop entry address
+    parameter int   CPU_DEBUG_EXC_ADDR  = 0, // cpu debug mode exception entry address
     /* RISC-V CPU Extensions */
     parameter logic CPU_EXTENSION_RISCV_B = 1'b0,        // implement bit-manipulation extension?
     parameter logic CPU_EXTENSION_RISCV_C = 1'b0,        // implement compressed extension?
@@ -56,7 +56,7 @@ module cellrv32_cpu #(
     output logic [31:0] d_bus_addr_o , // bus access address
     input  logic [31:0] d_bus_rdata_i, // bus read data
     output logic [31:0] d_bus_wdata_o, // bus write data
-    output logic [3:0]  d_bus_ben_o,   // byte enable
+    output logic [03:0] d_bus_ben_o,   // byte enable
     output logic d_bus_we_o,           // write request
     output logic d_bus_re_o,           // read request
     input  logic d_bus_ack_i,          // bus transfer acknowledge
@@ -84,7 +84,7 @@ module cellrv32_cpu #(
     /* local constant: instruction prefetch buffer depth */
     localparam logic   ipb_override_c = (CPU_EXTENSION_RISCV_C == 1) & (CPU_IPB_ENTRIES < 2); // override IPB size: set to 2?
     localparam int ipb_depth_c    = cond_sel_natural_f(ipb_override_c, 2, CPU_IPB_ENTRIES);
-    
+
     /* local signals */
     ctrl_bus_t ctrl; // main control bus
     logic [XLEN-1:0] imm;     // immediate
@@ -122,7 +122,7 @@ module cellrv32_cpu #(
         /* say hello */
         assert (1'b0)
         else $info("The CELLRV32 RISC-V Processor (Version 0x%h) - https://github.com/DatNguyen97-VN/cellrv32", hw_version_c);
-        
+
         // -------------------------------------------------------------------------------------------
         /* CPU ISA configuration */
         assert (1'b0)
@@ -142,7 +142,7 @@ module cellrv32_cpu #(
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zxcfu,    "_Zxcfu", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Sdext,    "_Sdext", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Sdtrig,   "_Sdtrig", ""));
-        
+
         // -------------------------------------------------------------------------------------------
         /* simulation notifier */
         assert (is_simulation_c != 1'b1)
@@ -150,12 +150,12 @@ module cellrv32_cpu #(
         //
         assert (is_simulation_c != 1'b1)
         else $info("CELLRV32 CPU NOTE: Assuming this is real hardware.");
-        
+
         // -------------------------------------------------------------------------------------------
         /* native data width check (work in progress!) */
         assert (XLEN == 32)
         else $error("CELLRV32 CPU CONFIG ERROR! <XLEN> native data path width has to be 32 (bit).");
-        
+
         // -------------------------------------------------------------------------------------------
         /* CPU boot address */
         assert (CPU_BOOT_ADDR[1:0] == 2'b00)
@@ -225,13 +225,13 @@ module cellrv32_cpu #(
         //
         assert (!((CPU_EXTENSION_RISCV_Sdext == 1) && (CPU_EXTENSION_RISCV_Zifencei == 0)))
         else $error("CELLRV32 CPU CONFIG ERROR! Debug mode requires <CPU_EXTENSION_RISCV_Zifencei> extension to be enabled.");
-        
+
         // -------------------------------------------------------------------------------------------
         /* fast multiplication option */
         assert (!(FAST_MUL_EN == 1'b1))
         else $info("CELLRV32 CPU CONFIG NOTE: <FAST_MUL_EN> enabled. Trying to infer DSP blocks for multiplications.");
-        
-         // -------------------------------------------------------------------------------------------
+
+        // -------------------------------------------------------------------------------------------
         /* fast shift option */
         assert (!(FAST_SHIFT_EN == 1'b1))
         else $info("CELLRV32 CPU CONFIG NOTE: <FAST_SHIFT_EN> enabled. Implementing full-parallel logic / barrel shifters.");
@@ -337,6 +337,7 @@ module cellrv32_cpu #(
     ) cellrv32_cpu_regfile_inst (
         /* global control */
         .clk_i  (clk_i),    // global clock, rising edge
+        .rstn_i (rstn_i),   // global reset, low-active, async
         .ctrl_i (ctrl),     // main control bus
         /* data input */
         .alu_i (alu_res),   // ALU result
@@ -349,7 +350,7 @@ module cellrv32_cpu #(
         .rs3_o (rs3),       // operand 3
         .rs4_o (rs4)        // operand 4
     );
-    
+
     // ALU ---------------------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     cellrv32_cpu_alu #(
@@ -374,7 +375,7 @@ module cellrv32_cpu #(
         .rs2_i       (rs2),       // rf source 2
         .rs3_i       (rs3),       // rf source 3
         .rs4_i       (rs4),       // rf source 4
-        .pc_i        ( curr_pc),  // current PC
+        .pc_i        (curr_pc),   // current PC
         .imm_i       (imm),       // immediate
         /* data output */
         .cmp_o       (alu_cmp),   // comparator status

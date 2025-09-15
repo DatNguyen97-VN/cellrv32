@@ -6,7 +6,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 
@@ -21,7 +21,7 @@ module cellrv32_cpu_cp_shifter #(
     input  logic start_i,                          // trigger operation
     /* data input */
     input  logic [XLEN-1:0] rs1_i,                 // rf source 1
-    input  logic [index_size_f(XLEN)-1:0] shamt_i,                  // shift amount
+    input  logic [$clog2(XLEN)-1:0] shamt_i,                  // shift amount
     /* result and status */
     output logic [XLEN-1:0] res_o,                 // operation result
     output logic valid_o                           // data output valid
@@ -32,7 +32,7 @@ module cellrv32_cpu_cp_shifter #(
         logic busy;    
         logic busy_ff; 
         logic done;    
-        logic [index_size_f(XLEN)-1:0] cnt;     
+        logic [$clog2(XLEN)-1:0] cnt;     
         logic [XLEN-1:0] sreg;    
     } shifter_t;
     shifter_t shifter;
@@ -91,11 +91,11 @@ module cellrv32_cpu_cp_shifter #(
         if (FAST_SHIFT_EN == 1'b1) begin : barrel_shifter
             /* shifter core */
                // input layer: convert left shifts to right shifts by reversing
-               assign bs_level[index_size_f(XLEN)] = (ctrl_i.ir_funct3[2] == 1'b0) ? // is left shift?
+               assign bs_level[$clog2(XLEN)] = (ctrl_i.ir_funct3[2] == 1'b0) ? // is left shift?
                                                      bit_rev_f(rs1_i) // reverse bit order of input operand
                                                      : rs1_i;
                // shifter array (right-shifts only)
-               for (i = index_size_f(XLEN)-1; i >= 0; i--) begin : shifter_array
+               for (i = $clog2(XLEN)-1; i >= 0; i--) begin : shifter_array
                 assign bs_level[i][XLEN-1 : XLEN-(2**i)] = (shamt_i[i] == 1'b1) ? {(2**i){(bs_level[i+1][XLEN-1] & ctrl_i.ir_funct12[10])}} : bs_level[i+1][XLEN-1 : XLEN-(2**i)];
                 assign bs_level[i][(XLEN-(2**i))-1 : 0]  = (shamt_i[i] == 1'b1) ?  bs_level[i+1][XLEN-1 : 2**i] : bs_level[i+1][(XLEN-(2**i))-1 : 0];
                end : shifter_array

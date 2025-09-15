@@ -10,7 +10,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_xirq #(
@@ -33,8 +33,8 @@ module cellrv32_xirq #(
     output logic        cpu_irq_o
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(xirq_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(xirq_size_c); // low address boundary bit
 
     /* access control */
     logic        acc_en; // module access enable
@@ -155,7 +155,7 @@ module cellrv32_xirq #(
     end
 
     /* priority encoder */
-    assign irq_src_nxt[index_size_f(XIRQ_NUM_CH)-1:0] = index_size_f(XIRQ_NUM_CH)'(prior_encoder(XIRQ_NUM_CH, irq_buf));
+    assign irq_src_nxt[$clog2(XIRQ_NUM_CH)-1:0] = $clog2(XIRQ_NUM_CH)'(prior_encoder(XIRQ_NUM_CH, irq_buf));
 
     /* anyone firing? */
     assign irq_fire = (|irq_buf) ? 1'b1 : 1'b0;

@@ -13,7 +13,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_control #(
@@ -108,7 +108,7 @@ module cellrv32_cpu_control #(
     typedef struct {
         fetch_engine_state_t state;
         fetch_engine_state_t state_prev;
-        logic restart;  // reset IPB
+        logic restart;
         logic unaligned;
         logic [XLEN-1:0] pc;
         logic reset;
@@ -136,8 +136,8 @@ module cellrv32_cpu_control #(
     /* instruction issue engine */
     typedef struct {
         logic align;
-        logic align_set; // NOT 32-bit-aligned
-        logic align_clr; //     32-bit-aligned
+        logic align_set;
+        logic align_clr;
         logic [15:0] ci_i16;
         logic [31:0] ci_i32;
         logic ci_ill;
@@ -162,7 +162,7 @@ module cellrv32_cpu_control #(
     decode_aux_t decode_aux;
 
     /* instruction execution engine */
-    // make sure reset state is the first item in the list (discussion #415)
+    // make sure reset state is the first item in the list
     typedef enum logic[3:0] { BRANCHED, DISPATCH, TRAP_ENTER, 
                              TRAP_EXIT, TRAP_EXECUTE, EXECUTE, 
                              ALU_WAIT, BRANCH, SYSTEM, MEM_REQ,
@@ -227,7 +227,7 @@ module cellrv32_cpu_control #(
     /* RISC-V control and status registers (CSRs) */
     typedef logic [0:PMP_NUM_REGIONS-1][7:0]                  pmpcfg_t;
     typedef logic [0:3][XLEN-1:0]                             pmpcfg_rd_t;
-    typedef logic [0 : PMP_NUM_REGIONS-1][XLEN-3:index_size_f(PMP_MIN_GRANULARITY)-2] pmpaddr_t;
+    typedef logic [0 : PMP_NUM_REGIONS-1][XLEN-3:$clog2(PMP_MIN_GRANULARITY)-2] pmpaddr_t;
     typedef logic [0:15][XLEN-1:0]                            pmpaddr_rd_t;
     typedef logic [0:HPM_NUM_CNTS-1][hpmcnt_event_size_c-1:0] mhpmevent_t;
     typedef logic [0:28][XLEN-1:0]                            mhpmevent_rd_t;
@@ -622,7 +622,7 @@ module cellrv32_cpu_control #(
      endcase
     end : imm_gen
 
-    /* save some bits here - the two LSBs are always "11" for 32-bit instructions */
+    /* the two LSBs are always "11" for 32-bit instructions */
     assign imm_opcode = {execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c+2], 2'b11};
 
     // Branch Condition Check --------------------------------------------------------------------
@@ -1180,9 +1180,9 @@ module cellrv32_cpu_control #(
          MEM_WAIT : begin
              ctrl_nxt.rf_mux = rf_mux_mem_c; // memory read data
              /* wait for memory response */
-             if ((trap_ctrl.exc_buf[exc_laccess_c ]  || trap_ctrl.exc_buf[exc_saccess_c] || // bus access error
-                  trap_ctrl.exc_buf[exc_lalign_c  ]  || trap_ctrl.exc_buf[exc_salign_c ] || // alignment error
-                  trap_ctrl.exc_buf[exc_iillegal_c]) == 1'b1) begin // illegal instruction
+             if (trap_ctrl.exc_buf[exc_laccess_c ]  || trap_ctrl.exc_buf[exc_saccess_c] || // bus access error
+                 trap_ctrl.exc_buf[exc_lalign_c  ]  || trap_ctrl.exc_buf[exc_salign_c ] || // alignment error
+                 trap_ctrl.exc_buf[exc_iillegal_c]) begin // illegal instruction
                  execute_engine.state_nxt = DISPATCH; // abort!
              end else if (bus_d_wait_i == 1'b0) begin // wait for bus to finish transaction
                  if (execute_engine.i_reg[instr_opcode_msb_c-1] == 1'b0) begin // load
@@ -1552,21 +1552,21 @@ module cellrv32_cpu_control #(
           // with highest priority will be used to update the MCAUSE CSR.
           // ----------------------------------------------------------------------
  
-           /* misaligned load/store/instruction address */
+          /* misaligned load/store/instruction address */
           trap_ctrl.exc_buf[exc_lalign_c] <= (trap_ctrl.exc_buf[exc_lalign_c] | ma_load_i)          & (~trap_ctrl.env_start_ack);
           trap_ctrl.exc_buf[exc_salign_c] <= (trap_ctrl.exc_buf[exc_salign_c] | ma_store_i)         & (~trap_ctrl.env_start_ack);
           trap_ctrl.exc_buf[exc_ialign_c] <= (trap_ctrl.exc_buf[exc_ialign_c] | trap_ctrl.instr_ma) & (~trap_ctrl.env_start_ack);
  
-           /* load/store/instruction bus access error */
+          /* load/store/instruction bus access error */
           trap_ctrl.exc_buf[exc_laccess_c] <= (trap_ctrl.exc_buf[exc_laccess_c] | be_load_i)          & (~trap_ctrl.env_start_ack);
           trap_ctrl.exc_buf[exc_saccess_c] <= (trap_ctrl.exc_buf[exc_saccess_c] | be_store_i)         & (~trap_ctrl.env_start_ack);
           trap_ctrl.exc_buf[exc_iaccess_c] <= (trap_ctrl.exc_buf[exc_iaccess_c] | trap_ctrl.instr_be) & (~trap_ctrl.env_start_ack);
  
-           /* illegal instruction & environment call */
+          /* illegal instruction & environment call */
           trap_ctrl.exc_buf[exc_envcall_c]  <= (trap_ctrl.exc_buf[exc_envcall_c ] | trap_ctrl.env_call) & (~trap_ctrl.env_start_ack);
           trap_ctrl.exc_buf[exc_iillegal_c] <= (trap_ctrl.exc_buf[exc_iillegal_c] | trap_ctrl.instr_il) & (~trap_ctrl.env_start_ack);
  
-           /* break point */
+          /* break point */
           if (CPU_EXTENSION_RISCV_Sdext == 1) begin
               trap_ctrl.exc_buf[exc_break_c] <= (~trap_ctrl.env_start_ack) & (trap_ctrl.exc_buf[exc_break_c] |
                                                 (hw_trigger_fire & (~csr.tdata1_action)) | // trigger module fires and enter-debug is disabled
@@ -1590,10 +1590,10 @@ module cellrv32_cpu_control #(
           // explicitly cleared via the MIP CSR.
           // ----------------------------------------------------------------------
  
-           /* RISC-V machine interrupts */
+          /* RISC-V machine interrupts */
           trap_ctrl.irq_pnd[irq_msi_irq_c] <= msw_irq_i;
-          trap_ctrl.irq_pnd[irq_mei_irq_c] <= mext_irq_i;
           trap_ctrl.irq_pnd[irq_mti_irq_c] <= mtime_irq_i;
+          trap_ctrl.irq_pnd[irq_mei_irq_c] <= mext_irq_i;
           
           /* CELLRV32-specific fast interrupts */
           for (int i = 0; i <= 15; ++i) begin
@@ -1709,7 +1709,7 @@ module cellrv32_cpu_control #(
                          (trap_ctrl.irq_buf[irq_mei_irq_c]   == 1'b1) ? trap_mei_c : // machine external interrupt (MEI)
                          (trap_ctrl.irq_buf[irq_msi_irq_c]   == 1'b1) ? trap_msi_c : // machine SW interrupt (MSI)
                          (trap_ctrl.irq_buf[irq_mti_irq_c]   == 1'b1) ? trap_mti_c : // machine timer interrupt (MTI)
-                         trap_mti_c; // don't care
+                         6'b000000; // don't care
     end : trap_encoder
 
     // ****************************************************************************************************************************
@@ -1889,11 +1889,11 @@ module cellrv32_cpu_control #(
                              if (i < PMP_NUM_REGIONS-1) begin
                                  if ((csr.addr[3:0] == i) && (csr.pmpcfg[i][7] == 1'b0) && // unlocked access
                                     ((csr.pmpcfg[i+1][7] == 1'b0) || (csr.pmpcfg[i+1][3] == 1'b0))) begin // pmpcfg(i+1) not "LOCKED TOR" [TOR-mode only!]
-                                     csr.pmpaddr[i] <= csr.wdata[XLEN-3 : index_size_f(PMP_MIN_GRANULARITY)-2];
+                                     csr.pmpaddr[i] <= csr.wdata[XLEN-3 : $clog2(PMP_MIN_GRANULARITY)-2];
                                  end
                              end else begin // very last entry
                                  if ((csr.addr[3:0] == i) && (csr.pmpcfg[i][7] == 1'b0)) begin // unlocked access
-                                     csr.pmpaddr[i] <= csr.wdata[XLEN-3 : index_size_f(PMP_MIN_GRANULARITY)-2];
+                                     csr.pmpaddr[i] <= csr.wdata[XLEN-3 : $clog2(PMP_MIN_GRANULARITY)-2];
                                  end
                              end
                          end
@@ -2125,14 +2125,14 @@ module cellrv32_cpu_control #(
       csr.pmpaddr_rd = '0;
       csr.pmpcfg_rd  = '0;
       //
-      pmp_addr_o = '{default:'0};
-      pmp_ctrl_o = '{default:'0};
+      pmp_addr_o = '{default: '0};
+      pmp_ctrl_o = '{default: '0};
       // loop
       for (int i = 0; i < 16; ++i) begin
          if (i < PMP_NUM_REGIONS) begin
-            pmp_addr_o[i][XLEN-1 : index_size_f(PMP_MIN_GRANULARITY)] = csr.pmpaddr[i];
+            pmp_addr_o[i][XLEN-1 : $clog2(PMP_MIN_GRANULARITY)] = csr.pmpaddr[i];
             pmp_ctrl_o[i] = csr.pmpcfg[i];
-            csr.pmpaddr_rd[i][XLEN-3 : index_size_f(PMP_MIN_GRANULARITY)-2] = csr.pmpaddr[i];
+            csr.pmpaddr_rd[i][XLEN-3 : $clog2(PMP_MIN_GRANULARITY)-2] = csr.pmpaddr[i];
             csr.pmpcfg_rd[i/4][8*(i % 4) +: 8] = csr.pmpcfg[i];
          end
       end

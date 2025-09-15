@@ -5,7 +5,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_bus #(
@@ -45,17 +45,17 @@ module cellrv32_cpu_bus #(
     output logic d_bus_fence_o, // fence operation
     output logic d_bus_priv_o   // current effective privilege level
 );
-    
+
     /* PMP configuration register bits */
-    localparam pmp_cfg_r_c  = 0; // read permit
-    localparam pmp_cfg_w_c  = 1; // write permit
-    localparam pmp_cfg_x_c  = 2; // execute permit
-    localparam pmp_cfg_al_c = 3; // mode bit low
-    localparam pmp_cfg_ah_c = 4; // mode bit high
-    localparam pmp_cfg_l_c  = 7; // locked entry
+    localparam int pmp_cfg_r_c  = 0; // read permit
+    localparam int pmp_cfg_w_c  = 1; // write permit
+    localparam int pmp_cfg_x_c  = 2; // execute permit
+    localparam int pmp_cfg_al_c = 3; // mode bit low
+    localparam int pmp_cfg_ah_c = 4; // mode bit high
+    localparam int pmp_cfg_l_c  = 7; // locked entry
 
     /* PMP minimal granularity */
-    localparam pmp_lsb_c = index_size_f(PMP_MIN_GRANULARITY); // min = 2
+    localparam int pmp_lsb_c = $clog2(PMP_MIN_GRANULARITY); // min = 2
 
     /* misc */
     logic  data_sign;      // signed load
@@ -176,15 +176,11 @@ module cellrv32_cpu_bus #(
     /* RV32 */
     generate
         if (XLEN == 32) begin : mem_di_reg_rv32
-            // declare local variable
-            logic [1:0] tmp_v;
-            //
             always_ff @( posedge clk_i ) begin : mem_di_reg
                 unique case (ctrl_i.ir_funct3[1:0])
                     // byte
                     2'b00 : begin
-                        tmp_v = mar[1:0];
-                        unique case (tmp_v)
+                        unique case (mar[1:0])
                             // byte 0
                             2'b00 : begin
                                 rdata_o[07:00] <= d_bus_rdata_i[07:00];
@@ -249,7 +245,7 @@ module cellrv32_cpu_bus #(
             //
             if (arbiter.pend == 1'b0) begin // idle
                 if (ctrl_i.bus_req == 1'b1) begin // start bus access
-                    arbiter.pend <= 1'b1; 
+                    arbiter.pend <= 1'b1;
                 end
                 arbiter.err <= 1'b0;
             end else begin //  bus access in progress
@@ -281,7 +277,7 @@ module cellrv32_cpu_bus #(
     assign d_bus_re_o    = ctrl_i.bus_req & (~ctrl_i.ir_opcode[5]) & (~misaligned) & (~arbiter.pmp_r_err);
     assign d_bus_fence_o = ctrl_i.bus_fence;
     assign d_bus_priv_o  = ctrl_i.bus_priv;
-    
+
     // RISC-V Physical Memory Protection (PMP) ---------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* check address */
@@ -326,7 +322,7 @@ module cellrv32_cpu_bus #(
     always_comb begin : pmp_check_permission
         for (int r = 0; r < PMP_NUM_REGIONS; ++r) begin
             /* instruction fetch access */
-            if (ctrl_i.cpu_priv == priv_mode_m_c) begin // M mode: always allow if lock bit not set, otherwise check permission
+            if (ctrl_i.cpu_priv == priv_mode_m_c) begin // Instruction fetch access: M mode always allows if lock bit not set, otherwise check permission
                 pmp.perm_ex[r] = (~pmp_ctrl_i[r][pmp_cfg_l_c]) | pmp_ctrl_i[r][pmp_cfg_x_c];
             end else begin // U mode: always check permission
                 pmp.perm_ex[r] = pmp_ctrl_i[r][pmp_cfg_x_c];
@@ -394,5 +390,5 @@ module cellrv32_cpu_bus #(
 
     /* instruction fetch PMP fault */
     assign i_pmp_fault_o = if_pmp_fault;
-    
+
 endmodule

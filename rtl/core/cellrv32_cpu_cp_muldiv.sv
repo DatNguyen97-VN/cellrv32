@@ -1,13 +1,13 @@
 // #################################################################################################
 // # << CELLRV32 - CPU Co-Processor: int Multiplier/Divider Unit (RISC-V "M" Extension) >>      #
 // # ********************************************************************************************* #
-// # Multiplier core (signed/unsigned) uses serial add-and-shift algorithm. Multiplications can be #
+// # Multiplier core (signed/unsigned) uses serial booth's radix-4 algorithm. Multiplications can be #
 // # mapped to DSP blocks (faster!) when FAST_MUL_EN = true. Divider core (unsigned-only; pre and  #
 // # post sign-compensation logic) uses serial restoring serial algorithm.                         #
 // # ********************************************************************************************* #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_cp_muldiv #(
@@ -19,13 +19,13 @@ module cellrv32_cpu_cp_muldiv #(
     input  logic            clk_i,   // global clock, rising edge
     input  logic            rstn_i,  // global reset, low-active, async
     input  ctrl_bus_t       ctrl_i,  // main control bus
-    input  logic             start_i,              // trigger operation
+    input  logic            start_i, // trigger operation
     /* data input */
-    input  logic [XLEN-1:0]  rs1_i,                // rf source 1
-    input  logic [XLEN-1:0]  rs2_i,                // rf source 2
+    input  logic [XLEN-1:0]  rs1_i,  // rf source 1
+    input  logic [XLEN-1:0]  rs2_i,  // rf source 2
     /* result and status */
-    output logic [XLEN-1:0]  res_o,                // operation result
-    output logic             valid_o               // data output valid
+    output logic [XLEN-1:0]  res_o,  // operation result
+    output logic             valid_o // data output valid
 );
     
     /* operations */
@@ -42,7 +42,7 @@ module cellrv32_cpu_cp_muldiv #(
     typedef enum logic[1:0] { S_IDLE, S_BUSY, S_DONE } state_t;
     typedef struct {
         state_t state;         
-        logic [index_size_f(XLEN)-1:0] cnt; // iteration counter          
+        logic [$clog2(XLEN)-1:0] cnt; // iteration counter          
         logic [2:0] cp_op; // operation to execute         
         logic [2:0] cp_op_ff;      
         logic op; // 0 = mul, 1 = div            
@@ -65,14 +65,20 @@ module cellrv32_cpu_cp_muldiv #(
     } div_t;
     div_t div;
 
+    localparam int STEPS = XLEN/2;         // number of Booth radix-4 steps
+
     /* multiplier core */
     typedef struct {
-        logic                     start;  // start new multiplication  
-        logic [2*XLEN-1:0]        prod;   // product   
-        logic [XLEN:0]            add;    // addition step    
-        logic                     p_sext; // product sign-extension
-        logic signed [XLEN:0]     dsp_x;  // input for using DSPs
-        logic signed [XLEN:0]     dsp_y;  // input for using DSPs
+        // State registers
+        logic [2*XLEN-1:0]        M_ext;   // sign-extended multiplicand
+        logic [XLEN+2:0]          Qext;    // 2-bits signed + multiplier + appended 0
+        logic [$clog2(STEPS):0]   step;    // step counter
+        logic [2*XLEN-1:0]        base;    // base partial product, shifted pp
+        logic                     running; // is running?
+        logic [2*XLEN-1:0]        prod;    // final product
+        logic                     start;   // start new multiplication
+        logic signed [XLEN:0]     dsp_x;   // input for using DSPs
+        logic signed [XLEN:0]     dsp_y;   // input for using DSPs
         logic signed [2*XLEN+1:0] dsp_z;  
     } mul_t;
     mul_t mul;
@@ -94,7 +100,7 @@ module cellrv32_cpu_cp_muldiv #(
             unique case (ctrl.state)
                 S_IDLE : begin // wait for start signal
                     ctrl.cp_op_ff <= ctrl.cp_op;
-                    ctrl.cnt      <= index_size_f(XLEN)'(XLEN-2); // iterative cycle counter
+                    ctrl.cnt      <= ctrl.op ? $clog2(XLEN)'(XLEN-2) : $clog2(XLEN)'(XLEN/2-1); // iterative cycle counter
                     //  trigger new operation
                     if (start_i == 1'b1) begin
                         if (DIVISION_EN == 1'b1) begin
@@ -111,7 +117,7 @@ module cellrv32_cpu_cp_muldiv #(
                             else
                                 ctrl.rs2_abs <= rs2_i;
                         end
-                    /* is fast multiplication? */
+                        /* is fast multiplication? */
                         if ((ctrl.op == 1'b0) && (FAST_MUL_EN == 1'b1))
                             ctrl.state <= S_DONE;
                         else 
@@ -139,7 +145,7 @@ module cellrv32_cpu_cp_muldiv #(
 
     /* co-processor operation */
     assign ctrl.cp_op = ctrl_i.ir_funct3;
-    assign ctrl.op    = (ctrl_i.ir_funct3[2] == 1'b1) ? 1'b1 : 1'b0;
+    assign ctrl.op    = ctrl_i.ir_funct3[2];
     
     /* input operands treated as signed? */
     assign ctrl.rs1_is_signed = ((ctrl.cp_op == cp_op_mulh_c) || (ctrl.cp_op == cp_op_mulhsu_c) ||
@@ -182,38 +188,58 @@ module cellrv32_cpu_cp_muldiv #(
     // -------------------------------------------------------------------------------------------
     generate
         if (FAST_MUL_EN == 1'b0) begin : multiplier_core_serial
-            /* shift-and-add algorithm */
-            always_ff @( posedge clk_i ) begin : multiplier_core
-                 if (mul.start == 1'b1) begin // start new multiplication
-                     mul.prod[63:32] <= '0;
-                     mul.prod[31:0]  <= rs1_i;
-                 end else if ((ctrl.state == S_BUSY) || (ctrl.state == S_DONE)) begin // processing step or sign-finalization step
-                     mul.prod[63:31] <= mul.add[32:0];
-                     mul.prod[30:0]  <= mul.prod[31:1];
-                 end
-            end : multiplier_core
+            /* serial booth's radix-4 algorithm */
+            always_ff @(posedge clk_i or negedge rstn_i) begin : multiplier_core_serial_booth
+                if (!rstn_i) begin
+                    // Reset all registers
+                    mul.prod    <= '0;
+                    mul.M_ext   <= '0;
+                    mul.Qext    <= '0;
+                    mul.step    <= 0;
+                    mul.running <= 1'b0;
+                end else begin
+                    if (mul.start && !mul.running) begin
+                        // Initialize new multiplication
+                        mul.M_ext   <= {{(XLEN){rs1_i[XLEN-1] & ctrl.rs1_is_signed}}, rs1_i};
+                        mul.Qext    <= {{2{rs2_i[XLEN-1] & ctrl.rs2_is_signed}}, rs2_i, 1'b0};
+                        mul.prod    <= '0;
+                        mul.step    <= 0;
+                        mul.running <= 1'b1;
+                    end else if (mul.running) begin   
+                        // Last step?
+                        if (ctrl.state == S_DONE) begin
+                            mul.running <= 1'b0;
+                        end else begin
+                            mul.step <= mul.step + 1;
+                        end
+                        // Shift the partial product and accumulate
+                        mul.prod <= mul.prod + (mul.base << {mul.step[$bits(mul.step)-1:0], 1'b0});
+                    end
+                end
+            end : multiplier_core_serial_booth
 
-            /* multiply with 0/1 via addition */
-            always_comb begin : mul_update
-                if (mul.prod[0] == 1'b1) // multiply with 1
-                    if ((ctrl.state == S_DONE) && (ctrl.rs1_is_signed == 1'b1)) // for signed operations only: take care of negative weighted MSB -> multiply with -1
-                        mul.add = unsigned'({mul.p_sext, mul.prod[63:32]}) - unsigned'({(rs2_i[$bits(rs2_i)-1] & ctrl.rs2_is_signed), rs2_i});
-                    else // multiply with +1
-                        mul.add = unsigned'({mul.p_sext, mul.prod[63:32]}) + unsigned'({(rs2_i[$bits(rs2_i)-1] & ctrl.rs2_is_signed), rs2_i});
-                else // multiply with 0
-                    mul.add = {mul.p_sext, mul.prod[63:32]};
-            end : mul_update
-
-            /* product sign extension bit */
-            assign mul.p_sext = mul.prod[$bits(mul.prod)-1] & ctrl.rs2_is_signed;
+            // Booth recoding: look at 3 bits of multiplier
+            always_comb begin : booth_recoding
+                unique case (mul.Qext[2*mul.step +: 3])
+                    3'b000, 3'b111: mul.base = '0;                // 0
+                    3'b001, 3'b010: mul.base = mul.M_ext;         // +M
+                    3'b011:         mul.base = mul.M_ext << 1;    // +2M
+                    3'b100:         mul.base = -(mul.M_ext << 1); // -2M
+                    3'b101, 3'b110: mul.base = -mul.M_ext;        // -M
+                    default:        mul.base = '0;                // 0
+                endcase           
+            end : booth_recoding
         end : multiplier_core_serial
     endgenerate
 
     /* no serial multiplier */
     generate
         if (FAST_MUL_EN == 1'b1) begin : multiplier_core_serial_none
-             assign mul.add    = '0;
-             assign mul.p_sext = 1'b0;
+             assign mul.base    = '0;
+             assign mul.M_ext   = '0;
+             assign mul.Qext    = '0;
+             assign mul.step    = '0;
+             assign mul.running = 1'b0;
         end : multiplier_core_serial_none
     endgenerate
 

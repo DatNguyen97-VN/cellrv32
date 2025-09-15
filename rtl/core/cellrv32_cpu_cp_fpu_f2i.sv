@@ -3,7 +3,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_cp_fpu_f2i #(
@@ -141,10 +141,14 @@ module cellrv32_cpu_cp_fpu_f2i #(
                 end
                 // --------------------------------------------------------------
                 S_NORMALIZE_BUSY : begin // running normalization cycle
-                    if ((|sreg.mant[$bits(sreg.mant)-3:0]) == 1'b1)
-                        sreg.ext_s <= 1'b1; // sticky bit
-
                     if ((|ctrl.cnt[$bits(ctrl.cnt)-2:0]) == 1'b0) begin
+                        // guard bit
+                        sreg.ext_g <= sreg.mant[$bits(sreg.mant)-1];
+                        // round bit
+                        sreg.ext_r <= sreg.mant[$bits(sreg.mant)-2];
+                        // sticky bit is set if any of the bits below the guard and round bit is set
+                        sreg.ext_s <= |sreg.mant[$bits(sreg.mant)-3:0];
+                        //
                         if (ctrl.unsign == 1'b0) // signed conversion
                             ctrl.over <= ctrl.over | sreg.int_data[$bits(sreg.int_data)-1]; // update overrun flag again to check for numerical overflow into sign bit
                         ctrl.state <= S_ROUND;
@@ -153,6 +157,7 @@ module cellrv32_cpu_cp_fpu_f2i #(
                         sreg.int_data <= {sreg.int_data[$bits(sreg.int_data)-2:0], sreg.mant[$bits(sreg.mant)-1]};
                         sreg.mant     <= {sreg.mant[$bits(sreg.mant)-2:0], 1'b0};
                         ctrl.over     <= ctrl.over | sreg.int_data[$bits(sreg.int_data)-1];
+                        {sreg.ext_g, sreg.ext_r, sreg.ext_s} <= 3'b000; // reset guard, round and sticky bits
                     end
                 end
                 // --------------------------------------------------------------
@@ -223,11 +228,11 @@ module cellrv32_cpu_cp_fpu_f2i #(
     always_comb begin : rounding_unit_ctrl
         /* defaults */
         round.en  <= 1'b0;
-        round.sub <= 1'b0;
 
         /* rounding mode */
         unique case (rmode_i[2:0])
-            3'b000 : begin // round to nearest, ties to even
+            // round to nearest, ties to even
+            3'b000 : begin 
                 if (sreg.ext_g == 1'b0)
                    round.en <= 1'b0; // round down (do nothing)
                 else
@@ -235,38 +240,37 @@ module cellrv32_cpu_cp_fpu_f2i #(
                       round.en <= sreg.int_data[0]; // round up if LSB of int is set
                    else
                       round.en <= 1'b1; // round up
-                round.sub <= 1'b0; // increment
             end
-            3'b001 : // round towards zero
+            // round towards zero
+            3'b001 : 
                      round.en <= 1'b0; // no rounding -> just truncate
             3'b010 : begin // round down (towards -infinity)
-                     round.en  <= sreg.ext_g | sreg.ext_r | sreg.ext_s;
-                     round.sub <= 1'b1; // decrement
+                     // if the number is negative then round up towards -inf else truncate
+                     if (sign_i == 1'b1) begin
+                        round.en  <= sreg.ext_g | sreg.ext_r | sreg.ext_s;
+                     end
             end
-            3'b011 : begin // round up (towards +infinity)
-                     round.en  <= sreg.ext_g | sreg.ext_r | sreg.ext_s;
-                     round.sub <= 1'b0; // increment    
+            // round up (towards +infinity)
+            3'b011 : begin 
+                     // if the number is positive then round up towards +inf else truncate
+                     if (sign_i == 1'b0) begin
+                        round.en  <= sreg.ext_g | sreg.ext_r | sreg.ext_s;
+                     end
             end
-            3'b100 : // round to nearest, ties to max magnitude
-                     round.en <= 1'b0; // FIXME / TODO
+            // round to nearest, ties to max magnitude
+            3'b100 : round.en <= sreg.ext_g; // if guard bit is 1 then round up else we can just truncate
             default: // undefined
                      round.en <= 1'b0;
         endcase
     end : rounding_unit_ctrl
 
-    /* rounding: guard and round bits */
-    assign sreg.ext_g = sreg.mant[$bits(sreg.mant)-1];
-    assign sreg.ext_r = sreg.mant[$bits(sreg.mant)-2];
-
-    /* incrementer/decrementer */
+    /* incrementer */
     logic [32:0] tmp_v; // including overflow
     always_comb begin : rounding_unit_add
         tmp_v = {1'b0, sreg.int_data};
         if (round.en == 1'b1)
-            if (round.sub == 1'b0) // increment
-                round.output_data = tmp_v + 1;
-            else // decrement
-                round.output_data = tmp_v - 1;
+            // increment
+            round.output_data = tmp_v + 1;
         else // do nothing
             round.output_data = tmp_v;
     end : rounding_unit_add

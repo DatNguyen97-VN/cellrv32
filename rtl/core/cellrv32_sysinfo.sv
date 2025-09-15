@@ -6,7 +6,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_sysinfo #(
@@ -60,8 +60,8 @@ module cellrv32_sysinfo #(
     output logic        err_o   // transfer error
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1;    // high address boundary bit
-    localparam int lo_abb_c = index_size_f(sysinfo_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1;    // high address boundary bit
+    localparam int lo_abb_c = $clog2(sysinfo_size_c); // low address boundary bit
 
     /* access control */
     logic       acc_en; // module access enable
@@ -78,7 +78,7 @@ module cellrv32_sysinfo #(
     assign acc_en = (addr_i[hi_abb_c : lo_abb_c] == sysinfo_base_c[hi_abb_c : lo_abb_c]) ? 1'b1 : 1'b0;
     assign rden   = acc_en & rden_i; // read access
     assign wren   = acc_en & wren_i; // write access
-    assign addr   = addr_i[index_size_f(sysinfo_size_c)-1 : 2];
+    assign addr   = addr_i[$clog2(sysinfo_size_c)-1 : 2];
 
     // Construct Info ROM ------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -122,9 +122,9 @@ module cellrv32_sysinfo #(
     assign sysinfo[2][31] = IO_ONEWIRE_EN;       // 1-wire interface (ONEWIRE) implemented?
 
     /* SYSINFO(3): Cache configuration */
-    assign sysinfo[3][03 : 00] = (ICACHE_EN == 1'b1) ? 4'(index_size_f(ICACHE_BLOCK_SIZE))    : '0; // i-cache: log2(block_size_in_bytes)
-    assign sysinfo[3][07 : 04] = (ICACHE_EN == 1'b1) ? 4'(index_size_f(ICACHE_NUM_BLOCKS))    : '0; // i-cache: log2(number_of_block)
-    assign sysinfo[3][11 : 08] = (ICACHE_EN == 1'b1) ? 4'(index_size_f(ICACHE_ASSOCIATIVITY)) : '0; // i-cache: log2(associativity)
+    assign sysinfo[3][03 : 00] = (ICACHE_EN == 1'b1) ? 4'($clog2(ICACHE_BLOCK_SIZE))    : '0; // i-cache: log2(block_size_in_bytes)
+    assign sysinfo[3][07 : 04] = (ICACHE_EN == 1'b1) ? 4'($clog2(ICACHE_NUM_BLOCKS))    : '0; // i-cache: log2(number_of_block)
+    assign sysinfo[3][11 : 08] = (ICACHE_EN == 1'b1) ? 4'($clog2(ICACHE_ASSOCIATIVITY)) : '0; // i-cache: log2(associativity)
     assign sysinfo[3][15 : 12] =  ((ICACHE_ASSOCIATIVITY > 1) && (ICACHE_EN == 1'b1)) ? 4'b0001 : '0; // i-cache: replacement strategy (LRU only (yet))
     //
     assign sysinfo[3][19 : 16] = '0; // reserved - d-cache: log2(block_size)

@@ -7,7 +7,7 @@
 // # ********************************************************************************************************#
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_bus_keeper (
@@ -72,8 +72,8 @@ module cellrv32_bus_keeper (
         assert (max_proc_int_response_time_c >= 2) else $error("CELLRV32 PROCESSOR CONFIG ERROR! Processor-internal bus timeout <max_proc_int_response_time_c> has to >= 2.");
     end
 
-    // Host Access ----------------------------------------------------------------------------
-    // -------------------------------------------------------------------------------------------
+    // Host Access ------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
     // access control
     assign acc_en = (addr_i[hi_abb_c:lo_abb_c] == buskeeper_base_c[hi_abb_c:lo_abb_c]) ? 1'b1 : 1'b0;
     assign wren = acc_en & wren_i;
@@ -90,7 +90,7 @@ module cellrv32_bus_keeper (
                 err_type <= control.err_type;
             end else if (wren || rden) begin // clear on read or write access
                 err_flag <= 1'b0;
-            end 
+            end
         end
     end
 

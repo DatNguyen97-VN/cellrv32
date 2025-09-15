@@ -28,7 +28,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_uart #(
@@ -65,8 +65,8 @@ module cellrv32_uart #(
     localparam logic[31:0] uart_id_rtx_addr_c  = UART_PRIMARY ? uart0_rtx_addr_c  : uart1_rtx_addr_c;
 
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(uart_id_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(uart_id_size_c); // low address boundary bit
 
     /* control register bits */
     localparam int ctrl_en_c            =  0; // r/w: UART enable
@@ -369,7 +369,7 @@ module cellrv32_uart #(
                     tx_engine.bitcnt  <= tx_engine.bitcnt - 1'b1;
                     tx_engine.sreg    <= {1'b1, tx_engine.sreg[$bits(tx_engine.sreg)-1 : 1]};
                   end else
-                    tx_engine.baudcnt <= tx_engine.baudcnt - 1'b1;
+                    tx_engine.baudcnt <= tx_engine.baudcnt - 1'b1; 
                 end
                 //
                 // all bits send?
@@ -388,7 +388,7 @@ module cellrv32_uart #(
     end : trans_engine
 
     /* transmitter busy */
-    assign tx_engine.busy = ((tx_engine.state[1:0] == 2'b00)) ? 1'b0 : 1'b1;
+    assign tx_engine.busy = |tx_engine.state[1:0];
 
     /* serial data output */
     assign uart_txd_o = (tx_engine.state == 3'b111) ? tx_engine.sreg[0] : 1'b1; // data is sent LSB-first

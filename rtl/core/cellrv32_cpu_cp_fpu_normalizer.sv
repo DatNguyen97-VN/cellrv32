@@ -1,11 +1,11 @@
 // ##################################################################################################
 // # << CELLRV32 - Single-Precision Floating-Point Unit: Normalizer and Rounding Unit >>            #
 // # ***********************************************************************************************#
-// # This unit also performs int-to-float conversions.                                          #
+// # This unit also performs int-to-float conversions.                                              #
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_cp_fpu_normalizer (
@@ -163,11 +163,7 @@ module cellrv32_cpu_cp_fpu_normalizer (
                     sreg.ext_g <= mantissa_i[22];
                     sreg.ext_r <= mantissa_i[21];
                     //
-                    if ((|mantissa_i[20:0]) == 1'b1) begin
-                         sreg.ext_s <= 1'b1;
-                    end else begin
-                         sreg.ext_s <= 1'b0;
-                    end
+                    sreg.ext_s <= |mantissa_i[20:0]; // sticky bit
                     // check for special cases
                     if ((ctrl.class_data[fp_class_snan_c]       || ctrl.class_data[fp_class_qnan_c]       || // NaN
                          ctrl.class_data[fp_class_neg_zero_c]   || ctrl.class_data[fp_class_pos_zero_c]   || // zero
@@ -183,12 +179,8 @@ module cellrv32_cpu_cp_fpu_normalizer (
                 end
                 // --------------------------------------------------------------
                 // prepare shift direction (for "normal" normalization only)
-                S_PREPARE_SHIFT : begin 
-                    if (sreg.zero == 1'b0) begin // number < 1.0
-                        sreg.dir <= 1'b0; // shift right
-                    end else begin
-                        sreg.dir <= 1'b1; // shift left
-                    end
+                S_PREPARE_SHIFT : begin
+                    sreg.dir <= sreg.zero; // if number is less than 1.0 then shift left, else shift right
                     ctrl.state <= S_NORMALIZE_BUSY;
                 end
                 // --------------------------------------------------------------
@@ -321,53 +313,49 @@ module cellrv32_cpu_cp_fpu_normalizer (
     always_comb begin : rounding_unit_ctrl
        /* defaults */
        round.en  = 1'b0;
-       round.sub = 1'b0;
        /* rounding mode */ 
        unique case (rmode_i[2:0])
         // round to nearest, ties to even
         3'b000 : begin
-            if (sreg.ext_g == 1'b0) begin
-                round.en = 1'b0; // round down (do nothing)
-            end else begin
-                if ((sreg.ext_r == 1'b0) && (sreg.ext_s == 1'b0)) begin // tie!
+            if (sreg.ext_g == 1'b1) begin
+                if ((sreg.ext_r == 1'b0) && (sreg.ext_s == 1'b0)) begin
                     round.en = sreg.lower[0]; // round up if LSB of mantissa is set
                 end else begin
                     round.en = 1'b1; // round up
                 end
             end
-            round.sub = 1'b0; // increment
         end
         // round towards zero
         3'b001 : round.en = 1'b0; // no rounding -> just truncate
         // round down (towards -infinity)
-        3'b010 : begin
-            round.en  = sreg.ext_g | sreg.ext_r | sreg.ext_s;
-            round.sub = 1'b1; // decrement
+        3'b010 : begin 
+            // if the number is negative then round up towards -inf else truncate
+            if (ctrl.res_sgn == 1'b1) begin
+                round.en  = sreg.ext_g | sreg.ext_r | sreg.ext_s;
+            end
         end
         // round up (towards +infinity)
         3'b011 : begin
-            round.en  = sreg.ext_g | sreg.ext_r | sreg.ext_s;
-            round.sub = 1'b0; // increment
+            // if the number is positive then round up towards +inf else truncate
+            if (ctrl.res_sgn == 1'b0) begin
+                round.en  = sreg.ext_g | sreg.ext_r | sreg.ext_s;
+            end
         end
         // round to nearest, ties to max magnitude
-        3'b100 : round.en = 1'b0; // FIXME / TODO
+        3'b100 : round.en <= sreg.ext_g; // if guard bit is 1 then round up else we can just truncate
         default: begin // undefined
             round.en = 1'b0;
         end
        endcase
     end : rounding_unit_ctrl
     
-    /* incrementer/decrementer */
+    /* incrementer */
     logic [24:0] tmp_v;
     always_comb begin : rounding_unit_add
         tmp_v = {1'b0, sreg.upper[0], sreg.lower};
         //
         if (round.en == 1'b1) begin
-            if (round.sub == 1'b0) begin // increment
-                round.output_data = tmp_v + 1'b1;
-            end else begin // decrement
-                round.output_data = tmp_v - 1'b1;
-            end
+            round.output_data = tmp_v + 1'b1;
         end else begin // do nothing
             round.output_data = tmp_v;
         end

@@ -19,7 +19,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_debug_dm (
@@ -153,7 +153,7 @@ module cellrv32_debug_dm (
 
     /* IO space: module base address */
     localparam int hi_abb_c = 31; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(dm_size_c); // low address boundary bit
+    localparam int lo_abb_c = $clog2(dm_size_c); // low address boundary bit
 
     /* status and control register - bits */
     /* for write access we only care about the actual BYTE WRITE ACCESSES! */

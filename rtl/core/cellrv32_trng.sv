@@ -7,7 +7,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_trng #(
@@ -43,8 +43,8 @@ module cellrv32_trng #(
     localparam int ctrl_valid_c    = 31; // r/-: Output data valid
 
     /* IO space: module base address */
-    localparam hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam lo_abb_c = index_size_f(trng_size_c); // low address boundary bit
+    localparam hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam lo_abb_c = $clog2(trng_size_c); // low address boundary bit
 
     /* access control */
     logic acc_en; // module access enable

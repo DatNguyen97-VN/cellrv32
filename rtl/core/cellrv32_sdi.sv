@@ -6,7 +6,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_sdi #(
@@ -30,8 +30,8 @@ module cellrv32_sdi #(
     output logic        irq_o
 );
     /* IO space: module base address */
-    localparam int hi_abb_c = index_size_f(io_size_c)-1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(sdi_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c)-1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(sdi_size_c); // low address boundary bit
 
     /* control register */
     localparam int ctrl_en_c           =  0; // r/w: SDI enable
@@ -163,7 +163,7 @@ module cellrv32_sdi #(
             if (addr == sdi_ctrl_addr_c) begin // control register
                 data_o[ctrl_en_c] <= ctrl.enable;
                 //
-                data_o[ctrl_fifo_size3_c : ctrl_fifo_size0_c] <= (ctrl_fifo_size3_c - ctrl_fifo_size0_c + 1)'(index_size_f(RTX_FIFO));
+                data_o[ctrl_fifo_size3_c : ctrl_fifo_size0_c] <= (ctrl_fifo_size3_c - ctrl_fifo_size0_c + 1)'($clog2(RTX_FIFO));
                 //
                 data_o[ctrl_irq_rx_avail_c] <= ctrl.irq_rx_avail;
                 data_o[ctrl_irq_rx_half_c]  <= ctrl.irq_rx_half;

@@ -16,7 +16,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_wishbone #(
@@ -86,7 +86,7 @@ module cellrv32_wishbone #(
         logic        ack;
         logic        err;
         logic        tmo;
-        logic [index_size_f(BUS_TIMEOUT) : 0] timeout;
+        logic [$clog2(BUS_TIMEOUT) : 0] timeout;
         logic        src;
         logic        priv;
     } ctrl_t;
@@ -121,8 +121,8 @@ module cellrv32_wishbone #(
     // Access Control ----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* access to processor-internal IMEM or DMEM? */
-    assign int_imem_acc = ((addr_i[31 : index_size_f(MEM_INT_IMEM_SIZE)] == imem_base_c[31 : index_size_f(MEM_INT_IMEM_SIZE)]) && (MEM_INT_IMEM_EN == 1'b1)) ? 1'b1 : 1'b0;
-    assign int_dmem_acc = ((addr_i[31 : index_size_f(MEM_INT_DMEM_SIZE)] == dmem_base_c[31 : index_size_f(MEM_INT_DMEM_SIZE)]) && (MEM_INT_DMEM_EN == 1'b1)) ? 1'b1 : 1'b0;
+    assign int_imem_acc = ((addr_i[31 : $clog2(MEM_INT_IMEM_SIZE)] == imem_base_c[31 : $clog2(MEM_INT_IMEM_SIZE)]) && (MEM_INT_IMEM_EN == 1'b1)) ? 1'b1 : 1'b0;
+    assign int_dmem_acc = ((addr_i[31 : $clog2(MEM_INT_DMEM_SIZE)] == dmem_base_c[31 : $clog2(MEM_INT_DMEM_SIZE)]) && (MEM_INT_DMEM_EN == 1'b1)) ? 1'b1 : 1'b0;
     /* access to processor-internal BOOTROM or IO devices? */
     assign int_boot_acc = (addr_i[31:16] == boot_rom_base_c[31:16]) ? 1'b1 : 1'b0; // hacky!
     /* XIP access? */
@@ -154,7 +154,7 @@ module cellrv32_wishbone #(
             ctrl.ack      <= 1'b0;
             ctrl.err      <= 1'b0;
             ctrl.tmo      <= 1'b0;
-            ctrl.timeout  <= (index_size_f(BUS_TIMEOUT)+1)'(BUS_TIMEOUT);
+            ctrl.timeout  <= ($clog2(BUS_TIMEOUT)+1)'(BUS_TIMEOUT);
 
             /* state machine */
             if (ctrl.state == 1'b0) begin
