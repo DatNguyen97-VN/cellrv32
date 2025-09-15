@@ -336,7 +336,7 @@ help:
 	@echo " hex        - compile and generate <$(APP_HEX)> RAW executable file (hex char file, no header)"
 	@echo " image      - compile and generate SystemVerilog IMEM boot image (for application, no header) in local folder"
 	@echo " install    - compile, generate and install SystemVerilog IMEM boot image (for application, no header)"
-	@echo " sim        - in-console simulation using default/simple testbench and GHDL"
+	@echo " sim        - in-console simulation using default/simple testbench and QuestaSim"
 	@echo " all        - exe + install + hex + bin + asm"
 	@echo " elf_info   - show ELF layout info"
 	@echo " clean      - clean up project home folder"
