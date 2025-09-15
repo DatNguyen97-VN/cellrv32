@@ -3,7 +3,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_dmem #(
@@ -17,17 +17,18 @@ module cellrv32_dmem #(
     input  logic [31:0] addr_i, // address
     input  logic [31:0] data_i, // data in
     output logic [31:0] data_o, // data out
-    output logic        ack_o   // transfer acknowledge
+    output logic        ack_o,  // transfer acknowledge
+    output logic        err_o   // transfer error
 );
     /* IO space: module base address */
     localparam int hi_abb_c = 31; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(DMEM_SIZE); // low address boundary bit
+    localparam int lo_abb_c = $clog2(DMEM_SIZE); // low address boundary bit
 
     /* local signals */
     logic                                   acc_en;
     logic [31:0]                            rdata;
     logic                                   rden;
-    logic [index_size_f(DMEM_SIZE/4)-1 : 0] addr;
+    logic [$clog2(DMEM_SIZE/4)-1 : 0] addr;
 
     /* -------------------------------------------------------------------------------------------------------------- */
     /* The memory (RAM) is built from 4 individual byte-wide memories b0..b3, since some synthesis tools have         */
@@ -42,7 +43,7 @@ module cellrv32_dmem #(
 
     /* read data */
     logic [7:0] mem_ram_b0_rd, mem_ram_b1_rd, mem_ram_b2_rd, mem_ram_b3_rd;
-    
+
     // Sanity Checks -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     initial begin
@@ -53,8 +54,8 @@ module cellrv32_dmem #(
     // Access Control ----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     assign acc_en = (addr_i[hi_abb_c : lo_abb_c] == DMEM_BASE[hi_abb_c : lo_abb_c]) ? 1'b1 : 1'b0;
-    assign addr   = addr_i[index_size_f(DMEM_SIZE/4)+1 : 2]; // word aligned
-    
+    assign addr   = addr_i[$clog2(DMEM_SIZE/4)+1 : 2]; // word aligned
+
     // Memory Access -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i ) begin : mem_access
@@ -62,22 +63,22 @@ module cellrv32_dmem #(
         // is intended to be defined implicitly via the if-WRITE-else-READ construct
         if (acc_en == 1'b1) begin // reduce switching activity when not accessed
           // byte 0
-          if ((wren_i == 1'b1) && (ben_i[0] == 1'b1))  
+          if ((wren_i == 1'b1) && (ben_i[0] == 1'b1))
             mem_ram_b0[addr] <= data_i[07:00];
           else
             mem_ram_b0_rd <= mem_ram_b0[addr];
           // byte 1
-          if ((wren_i == 1'b1) && (ben_i[1] == 1'b1))  
+          if ((wren_i == 1'b1) && (ben_i[1] == 1'b1))
             mem_ram_b1[addr] <= data_i[15:08];
           else
             mem_ram_b1_rd <= mem_ram_b1[addr];
           // byte 2
-          if ((wren_i == 1'b1) && (ben_i[2] == 1'b1))  
+          if ((wren_i == 1'b1) && (ben_i[2] == 1'b1))
             mem_ram_b2[addr] <= data_i[23:16];
           else
             mem_ram_b2_rd <= mem_ram_b2[addr];
           // byte 3
-          if ((wren_i == 1'b1) && (ben_i[3] == 1'b1))  
+          if ((wren_i == 1'b1) && (ben_i[3] == 1'b1))
             mem_ram_b3[addr] <= data_i[31:24];
           else
             mem_ram_b3_rd <= mem_ram_b3[addr];
@@ -88,7 +89,8 @@ module cellrv32_dmem #(
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i ) begin : bus_feedback
         rden  <= acc_en & rden_i;
-        ack_o <= acc_en & (rden_i | wren_i);
+        ack_o <= acc_en &  (rden_i | wren_i);
+        err_o <= acc_en & ~(rden_i | wren_i); // error on write or read access within acc_en not simultaneously
     end : bus_feedback
 
     /* pack */
