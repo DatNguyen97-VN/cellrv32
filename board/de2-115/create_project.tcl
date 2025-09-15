@@ -58,10 +58,18 @@ if {$make_assignments} {
   set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
 
   # core SystemVerilog files
+  set core_inc_SVH_dir [glob ./../../rtl/core/packages/*.svh]
+  foreach core_inc_SVH_file $core_inc_SVH_dir {
+    set_global_assignment -name SYSTEMVERILOG_FILE $core_inc_SVH_file -library cellrv32
+  }
+  #
   set core_src_SV_dir [glob ./../../rtl/core/*.sv]
   foreach core_src_SV_file $core_src_SV_dir {
     set_global_assignment -name SYSTEMVERILOG_FILE $core_src_SV_file -library cellrv32
   }
+  #
+  set_global_assignment -name VERILOG_MACRO _QUARTUS_IGNORE_INCLUDES
+  
   set_global_assignment -name SYSTEMVERILOG_FILE ./../../rtl/core/mem/cellrv32_dmem.sv -library cellrv32
   set_global_assignment -name SYSTEMVERILOG_FILE ./../../rtl/core/mem/cellrv32_imem.sv -library cellrv32
 
