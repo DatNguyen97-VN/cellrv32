@@ -10,7 +10,7 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
-  `include "cellrv32_package.svh"
+  import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cfs #(
@@ -43,8 +43,8 @@ module cellrv32_cfs #(
     // IO space: module base address --
     // WARNING: Do not modify the CFS base address or the CFS' occupied address
     // space as this might cause access collisions with other processor modules.
-    localparam int hi_abb_c = index_size_f(io_size_c) - 1; // high address boundary bit
-    localparam int lo_abb_c = index_size_f(cfs_size_c); // low address boundary bit
+    localparam int hi_abb_c = $clog2(io_size_c) - 1; // high address boundary bit
+    localparam int lo_abb_c = $clog2(cfs_size_c); // low address boundary bit
 
     /* access control */
     logic acc_en; // module access enable
