@@ -1,4 +1,5 @@
-
+package cellrv32_package;
+  // ****************************************************************************************************************************
 
 // ****************************************************************************************************************************
 // Architecture Configuration and consts
@@ -15,7 +16,7 @@
   localparam logic [31:0] dspace_base_c = 32'h80000000; // default data memory address space base address
 
   // if register x0 is implemented as a *physical register* it has to be explicitly set to zero by the CPU hardware --
-  const logic reset_x0_c = 1'b1; // has to be 'true' for the default register file rtl description (BRAM-based)
+  const logic reset_x0_c = 1'b0; // has to be 'true' for the default register file rtl description (BRAM-based)
 
   // "response time window" for processor-internal modules --
   // = cycles after which an *unacknowledged* internal bus access will timeout and trigger a bus fault exception
@@ -25,7 +26,7 @@
   localparam int cp_timeout_c = 7; // default = 7 (= 128 cycles)
 
   // JTAG tap - identifier --
-  localparam logic [3:0]  jtag_tap_idcode_version_c = 4'h0; // version
+  localparam logic [03:0] jtag_tap_idcode_version_c = 4'h0; // version
   localparam logic [15:0] jtag_tap_idcode_partid_c  = 16'hcafe; // part number
   localparam logic [10:0] jtag_tap_idcode_manid_c   = 11'b00000000000; // manufacturer id
 
@@ -36,7 +37,11 @@
 
   // Check if we're inside the Matrix ----------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  localparam logic is_simulation_c = 1'b1; // seems like we're on real hardware
+`ifndef _QUARTUS_IGNORE_INCLUDES
+  localparam logic is_simulation_c = 1'b1; // this MIGHT be a simulation
+`else // _QUARTUS_IGNORE_INCLUDES
+  localparam logic is_simulation_c = 1'b0; // seems like we're on real hardware
+`endif
 // pragma translate_off
 // synthesis translate_off
 // synthesis synthesis_off
@@ -53,7 +58,7 @@
 
   // Internal Interface Types ------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  typedef logic [7:0]  pmp_ctrl_if_t [0:15];
+  typedef logic [07:0] pmp_ctrl_if_t [0:15];
   typedef logic [33:0] pmp_addr_if_t [0:15];
   // Internal Memory Types Configuration Types -------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -61,7 +66,7 @@
   //typedef logic [7:0]  mem8_t  [0 : 16*1024]; // memory with 8-bit entries
   // Helper Functions --------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  
+
 // ****************************************************************************************************************************
 // Processor Address Space Layout
 // ****************************************************************************************************************************
@@ -77,12 +82,12 @@
 
   // Internal Bootloader ROM --
   // Actual bootloader size is determined during runtime via the length of the bootloader initialization image
-  localparam logic [31:0] boot_rom_base_c      = 32'hffff0000; // bootloader base address, fixed!
-  localparam int      boot_rom_max_size_c  = 16*1024; // max module's address space size in bytes, fixed!
+  parameter logic [31:0] boot_rom_base_c      = 32'hffff0000; // bootloader base address, fixed!
+  parameter int          boot_rom_max_size_c  = 16*1024; // max module's address space size in bytes, fixed!
 
   // On-Chip Debugger: Debug Module --
   localparam logic [31:0] dm_base_c          = 32'hfffff800; // base address, fixed!
-  localparam int      dm_size_c          = 4*16*4; // debug ROM address space size in bytes, fixed
+  localparam int          dm_size_c          = 4*16*4; // debug ROM address space size in bytes, fixed
   localparam logic [31:0] dm_code_base_c     = 32'hfffff800;
   localparam logic [31:0] dm_pbuf_base_c     = 32'hfffff840;
   localparam logic [31:0] dm_data_base_c     = 32'hfffff880;
@@ -98,7 +103,7 @@
 
   // Custom Functions Subsystem (CFS) --
   const logic [31:0] cfs_base_c           = 32'hfffffe00; // base address
-  const int      cfs_size_c           = 64*4; // module's address space in bytes
+  const int          cfs_size_c           = 64*4; // module's address space in bytes
   const logic [31:0] cfs_reg0_addr_c      = 32'hfffffe00;
   const logic [31:0] cfs_reg1_addr_c      = 32'hfffffe04;
   const logic [31:0] cfs_reg2_addr_c      = 32'hfffffe08;
@@ -166,7 +171,7 @@
 
   // Serial Data Interface (SDI) --
   localparam logic [31:0] sdi_base_c           = 32'hffffff00; // base address
-  localparam int      sdi_size_c           = 2*4; // module's address space size in bytes
+  localparam int          sdi_size_c           = 2*4; // module's address space size in bytes
   localparam logic [31:0] sdi_ctrl_addr_c      = 32'hffffff00;
   localparam logic [31:0] sdi_rtx_addr_c       = 32'hffffff04;
 
@@ -214,7 +219,7 @@
 
   // Bus Access Monitor (BUSKEEPER) --
   const logic [31:0] buskeeper_base_c  = 32'hffffff78; // base address
-  localparam         buskeeper_size_c  = 2*4; // module's address space size in bytes
+  localparam  int    buskeeper_size_c  = 2*4; // module's address space size in bytes
 
   // External Interrupt Controller (XIRQ) --
   localparam logic [31:0] xirq_base_c          = 32'hffffff80; // base address
@@ -304,28 +309,28 @@
 
   // RISC-V 32-Bit Instruction Word Layout --------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  localparam instr_opcode_lsb_c  =  0; // opcode bit 0
-  localparam instr_opcode_msb_c  =  6; // opcode bit 6
-  localparam instr_rd_lsb_c      =  7; // destination register address bit 0
-  localparam instr_rd_msb_c      = 11; // destination register address bit 4
-  localparam instr_funct3_lsb_c  = 12; // funct3 bit 0
-  localparam instr_funct3_msb_c  = 14; // funct3 bit 2
-  localparam instr_rs1_lsb_c     = 15; // source register 1 address bit 0
-  localparam instr_rs1_msb_c     = 19; // source register 1 address bit 4
-  localparam instr_rs2_lsb_c     = 20; // source register 2 address bit 0
-  localparam instr_rs2_msb_c     = 24; // source register 2 address bit 4
-  localparam instr_rs3_lsb_c     = 27; // source register 3 address bit 0
-  localparam instr_rs3_msb_c     = 31; // source register 3 address bit 4
-  localparam instr_funct7_lsb_c  = 25; // funct7 bit 0
-  localparam instr_funct7_msb_c  = 31; // funct7 bit 6
-  localparam instr_funct12_lsb_c = 20; // funct12 bit 0
-  localparam instr_funct12_msb_c = 31; // funct12 bit 11
-  localparam instr_imm12_lsb_c   = 20; // immediate12 bit 0
-  localparam instr_imm12_msb_c   = 31; // immediate12 bit 11
-  localparam instr_imm20_lsb_c   = 12; // immediate20 bit 0
-  localparam instr_imm20_msb_c   = 31; // immediate20 bit 21
-  localparam instr_funct5_lsb_c  = 27; // funct5 select bit 0
-  localparam instr_funct5_msb_c  = 31; // funct5 select bit 4
+  localparam int instr_opcode_lsb_c  =  0; // opcode bit 0
+  localparam int instr_opcode_msb_c  =  6; // opcode bit 6
+  localparam int instr_rd_lsb_c      =  7; // destination register address bit 0
+  localparam int instr_rd_msb_c      = 11; // destination register address bit 4
+  localparam int instr_funct3_lsb_c  = 12; // funct3 bit 0
+  localparam int instr_funct3_msb_c  = 14; // funct3 bit 2
+  localparam int instr_rs1_lsb_c     = 15; // source register 1 address bit 0
+  localparam int instr_rs1_msb_c     = 19; // source register 1 address bit 4
+  localparam int instr_rs2_lsb_c     = 20; // source register 2 address bit 0
+  localparam int instr_rs2_msb_c     = 24; // source register 2 address bit 4
+  localparam int instr_rs3_lsb_c     = 27; // source register 3 address bit 0
+  localparam int instr_rs3_msb_c     = 31; // source register 3 address bit 4
+  localparam int instr_funct7_lsb_c  = 25; // funct7 bit 0
+  localparam int instr_funct7_msb_c  = 31; // funct7 bit 6
+  localparam int instr_funct12_lsb_c = 20; // funct12 bit 0
+  localparam int instr_funct12_msb_c = 31; // funct12 bit 11
+  localparam int instr_imm12_lsb_c   = 20; // immediate12 bit 0
+  localparam int instr_imm12_msb_c   = 31; // immediate12 bit 11
+  localparam int instr_imm20_lsb_c   = 12; // immediate20 bit 0
+  localparam int instr_imm20_msb_c   = 31; // immediate20 bit 21
+  localparam int instr_funct5_lsb_c  = 27; // funct5 select bit 0
+  localparam int instr_funct5_msb_c  = 31; // funct5 select bit 4
 
   // RISC-V Opcodes -------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -381,7 +386,7 @@
   const logic [2:0] funct3_xor_c    = 3'b100; // xor
   const logic [2:0] funct3_sr_c     = 3'b101; // shift right via funct7
   const logic [2:0] funct3_or_c     = 3'b110; // or
-  const logic [2:0] funct3_and_c    = 3'b111; // and 
+  const logic [2:0] funct3_and_c    = 3'b111; // and
   // system/csr --
   const logic [2:0] funct3_env_c    = 3'b000; // ecall, ebreak, mret, wfi, ...
   const logic [2:0] funct3_csrrw_c  = 3'b001; // csr r/w
@@ -725,36 +730,36 @@
      logic        cpu_trap;      // set when CPU is entering trap exec
      logic        cpu_debug;     // set when CPU is in debug mode
    } ctrl_bus_t;
-  
+
   // control bus reset initializer --
    const ctrl_bus_t ctrl_bus_zero_c = '{
-     rf_wb_en     : 'b0,
-     rf_rs1       : 'b0,
-     rf_rs2       : 'b0,
-     rf_rs3       : 'b0,
-     rf_rd        : 'b0,
-     rf_mux       : 'b0,
-     rf_zero_we   : 'b0,
-     alu_op       : 'b0,
-     alu_opa_mux  : 'b0,
-     alu_opb_mux  : 'b0,
-     alu_unsigned : 'b0,
-     alu_frm      : 'b0,
-     alu_cp_trig  : 'b0,
-     bus_req      : 'b0,
-     bus_mo_we    : 'b0,
-     bus_fence    : 'b0,
-     bus_fencei   : 'b0,
-     bus_priv     : 'b0,
-     ir_funct3    : 'b0,
-     ir_funct12   : 'b0,
-     ir_opcode    : 'b0,
-     cpu_priv     : 'b0,
-     cpu_sleep    : 'b0,
-     cpu_trap     : 'b0,
-     cpu_debug    : 'b0
+     rf_wb_en     : '0,
+     rf_rs1       : '0,
+     rf_rs2       : '0,
+     rf_rs3       : '0,
+     rf_rd        : '0,
+     rf_mux       : '0,
+     rf_zero_we   : '0,
+     alu_op       : '0,
+     alu_opa_mux  : '0,
+     alu_opb_mux  : '0,
+     alu_unsigned : '0,
+     alu_frm      : '0,
+     alu_cp_trig  : '0,
+     bus_req      : '0,
+     bus_mo_we    : '0,
+     bus_fence    : '0,
+     bus_fencei   : '0,
+     bus_priv     : '0,
+     ir_funct3    : '0,
+     ir_funct12   : '0,
+     ir_opcode    : '0,
+     cpu_priv     : '0,
+     cpu_sleep    : '0,
+     cpu_trap     : '0,
+     cpu_debug    : '0
    };
-  
+
 
   // Comparator Bus -------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -904,7 +909,22 @@
   // ****************************************************************************************************************************
   // Functions
   // ****************************************************************************************************************************
-  
+
+  // Function: compute propagate and generate signals for prefix adder tree --------------------
+  // -------------------------------------------------------------------------------------------
+  function logic [31:0] pro_and_gen_f (input logic [15:0] pleft,
+                                       input logic [15:0] pright,
+                                       input logic [15:0] gleft,
+                                       input logic [15:0] gright);
+    logic [15:0] pnext;
+    logic [15:0] gnext;
+    // generate
+    pnext = pleft & pright;
+    gnext = (pleft & gright) | gleft;
+    //
+    return {pnext, gnext};
+  endfunction
+
   // Function: Convert binary to gray ----------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   function logic [31:0] bin_to_gray_f (input logic [31:0] bin_num);
@@ -916,7 +936,7 @@
     end
     return tmp_v;
   endfunction : bin_to_gray_f
-  
+
   // Function: Convert gray to binary ----------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   function logic [31:0] gray_to_bin_f (input logic [31:0] gray_num);
@@ -928,7 +948,7 @@
     end
     return tmp_v;
   endfunction : gray_to_bin_f
-  
+
   // Function: Bit reversal --------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   function logic [31:0] bit_rev_f (input logic [31:0] bin_num);
@@ -955,23 +975,14 @@
 
   // Function: Conditional select string -------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function string cond_sel_string_f(input logic cond, 
-                                    input string val_t, 
+  function string cond_sel_string_f(input logic cond,
+                                    input string val_t,
                                     input string val_f);
     // select value
     if (cond == 1'b1) return val_t;
     else              return val_f;
   endfunction : cond_sel_string_f
-  
-  // Function: Minimal required number of bits to represent <input> numbers --------------------
-  // -------------------------------------------------------------------------------------------
-  function int index_size_f(input int num);
-    for (int i = 0; i < num; ++i) begin
-      if (2**i >= num) return i;
-    end
-    return 0;
-  endfunction : index_size_f
-  
+
   // Function: Population count (number of set bits) -------------------------------------------
   // -------------------------------------------------------------------------------------------
   function int popcount_f(input logic[31:0] bin_num);
@@ -1004,14 +1015,14 @@
 
   // Function: Conditional select int ------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function int cond_sel_int_f(input logic cond, 
-                                  input int val_t, 
+  function int cond_sel_int_f(input logic cond,
+                                  input int val_t,
                                   input int val_f);
     // select value
     if (cond == 1'b1) return val_t;
     else              return val_f;
   endfunction : cond_sel_int_f
-  
+
   // Function: Test if input number is a power of two ------------------------------------------
   // -------------------------------------------------------------------------------------------
   function logic is_power_of_two_f(input int num);
@@ -1047,7 +1058,7 @@
 
   // Function: priority Encoder-----------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function int prior_encoder(input int LEN, 
+  function int prior_encoder(input int LEN,
                              input logic[31:0] en);
     for (int i = 0; i < LEN; ++i) begin
       if (en[i] == 1'b1) begin
@@ -1056,5 +1067,6 @@
     end
     return 0;
   endfunction : prior_encoder
-  
+
+endpackage : cellrv32_package
 
