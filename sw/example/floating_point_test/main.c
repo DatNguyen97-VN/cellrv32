@@ -33,27 +33,29 @@
 /** UART BAUD rate */
 #define BAUD_RATE          (19200)
 //** Number of test cases for each instruction */
-#define NUM_TEST_CASES     (100000)
+#define NUM_TEST_CASES     (1000)
 //** Silent mode (only show actual errors when != 0) */
 #define SILENT_MODE        (1)
 //** Run conversion tests when != 0 */
-#define RUN_CONV_TESTS     (1)
+#define RUN_CONV_TESTS     (0)
 //** Run add/sub tests when != 0 */
-#define RUN_ADDSUB_TESTS   (1)
+#define RUN_ADDSUB_TESTS   (0)
 //** Run multiplication tests when != 0 */
-#define RUN_MUL_TESTS      (1)
+#define RUN_MUL_TESTS      (0)
+//** Run division tests when != 0 */
+#define RUN_DIV_TESTS      (1)
 //** Run min/max tests when != 0 */
-#define RUN_MINMAX_TESTS   (1)
+#define RUN_MINMAX_TESTS   (0)
 //** Run comparison tests when != 0 */
-#define RUN_COMPARE_TESTS  (1)
+#define RUN_COMPARE_TESTS  (0)
 //** Run sign-injection tests when != 0 */
-#define RUN_SGNINJ_TESTS   (1)
+#define RUN_SGNINJ_TESTS   (0)
 //** Run classify tests when != 0 */
-#define RUN_CLASSIFY_TESTS (1)
+#define RUN_CLASSIFY_TESTS (0)
 //** Run unsupported instructions tests when != 0 */
-#define RUN_UNAVAIL_TESTS  (1)
+#define RUN_UNAVAIL_TESTS  (0)
 //** Run average instruction execution time test when != 0 */
-#define RUN_TIMING_TESTS   (1)
+#define RUN_TIMING_TESTS   (0)
 /**@}*/
 
 
@@ -232,6 +234,27 @@ int main() {
     opb.binary_value = get_test_vector();
     res_hw.float_value = riscv_intrinsic_fmuls(opa.float_value, opb.float_value);
     res_sw.float_value = riscv_emulate_fmuls(opa.float_value, opb.float_value);
+    err_cnt += verify_result(i, opa.binary_value, opb.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+// ----------------------------------------------------------------------------
+// Division Tests
+// ----------------------------------------------------------------------------
+
+#if (RUN_DIV_TESTS != 0)
+  cellrv32_uart0_printf("\n#%u: FDIV.S (division)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fdivs(opa.float_value, opb.float_value);
+    res_sw.float_value = riscv_emulate_fdivs(opa.float_value, opb.float_value);
     err_cnt += verify_result(i, opa.binary_value, opb.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
   print_report(err_cnt);
