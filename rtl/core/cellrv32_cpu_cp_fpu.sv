@@ -42,14 +42,14 @@ module cellrv32_cpu_cp_fpu #(
 );
     
     /* FPU core functions */
-    const logic [2:0] op_class_c  = 3'b000;
-    const logic [2:0] op_comp_c   = 3'b001;
-    const logic [2:0] op_i2f_c    = 3'b010;
-    const logic [2:0] op_f2i_c    = 3'b011;
-    const logic [2:0] op_sgnj_c   = 3'b100;
-    const logic [2:0] op_minmax_c = 3'b101;
-    const logic [2:0] op_addsub_c = 3'b110;
-    const logic [2:0] op_mul_c    = 3'b111;
+    const logic [3:0] op_class_c  = 4'b0000;
+    const logic [3:0] op_comp_c   = 4'b0001;
+    const logic [3:0] op_i2f_c    = 4'b0010;
+    const logic [3:0] op_f2i_c    = 4'b0011;
+    const logic [3:0] op_sgnj_c   = 4'b0100;
+    const logic [3:0] op_minmax_c = 4'b0101;
+    const logic [3:0] op_addsub_c = 4'b0110;
+    const logic [3:0] op_mul_c    = 4'b0111;
     const logic [3:0] op_div_c    = 4'b1000;
     const logic [3:0] op_sqrt_c   = 4'b1001;
     const logic [3:0] op_madd_c   = 4'b1010;
@@ -67,11 +67,12 @@ module cellrv32_cpu_cp_fpu #(
         logic instr_minmax;
         logic instr_addsub;
         logic instr_mul;   
-        logic [2:0] funct;
+        logic instr_div;   
+        logic [3:0] funct;
     } cmd_t;
     //
     cmd_t cmd;
-    logic [2:0] funct_ff;
+    logic [3:0] funct_ff;
 
     /* co-processor control engine */
     typedef enum logic { S_IDLE, S_BUSY } ctrl_state_t;
@@ -119,7 +120,8 @@ module cellrv32_cpu_cp_fpu #(
     fu_interface_t fu_min_max;     
     fu_interface_t fu_conv_f2i;    
     fu_interface_t fu_addsub;      
-    fu_interface_t fu_mul;         
+    fu_interface_t fu_mul;    
+    fu_interface_t fu_div;     
     logic          fu_core_done; // FU operation completed
 
     /* int-to-float */
@@ -151,6 +153,29 @@ module cellrv32_cpu_cp_fpu #(
     } multiplier_t;
     //
     multiplier_t multiplier;
+
+    /* division unit */
+    typedef enum logic[1:0] { DIV_IDLE, DIV_PRE_BUSY, DIV_BUSY, DIV_DONE } div_state_t;
+    //
+    typedef struct packed {
+        logic [23:0] opa;       // mantissa A plus hidden one
+        logic [23:0] opb;       // mantissa B plus hidden one
+        logic [38:0] rem;       // 23-bits mantissa remainder/divisor + 16-bits GRS
+        logic [25:0] rem_buf;   // 1-bit sign + 1-bit extend + 24-bits mantissa and hidden: remainder buffer for restoring division algorithm
+        logic        quotient;  // quotient bit
+        logic        sign;      // resulting sign
+        logic [09:0] exp_res;   // resulting exponent incl 2x overflow/underflow bit
+        //
+        div_state_t  state;     // state machine
+        //
+        logic [09:0] res_class; // resulting number class
+        logic [04:0] flags;     // exception flags
+        //
+        logic [05:0] latency;   // unit latency
+        logic        done;
+    } division_t;
+    //
+    division_t division;
 
     /* adder/subtractor unit */
     typedef struct {
@@ -215,6 +240,7 @@ module cellrv32_cpu_cp_fpu #(
     assign cmd.instr_minmax = (ctrl_i.ir_funct12[11:7] == 5'b00101) ? 1'b1 : 1'b0;
     assign cmd.instr_addsub = (ctrl_i.ir_funct12[11:8] == 4'b0000)  ? 1'b1 : 1'b0;
     assign cmd.instr_mul    = (ctrl_i.ir_funct12[11:7] == 5'b00010) ? 1'b1 : 1'b0;
+    assign cmd.instr_div    = (ctrl_i.ir_funct12[11:7] == 5'b00011) ? 1'b1 : 1'b0;
 
     /* binary re-encoding */
     assign cmd.funct = (cmd.instr_mul    == 1'b1) ? op_mul_c    :
@@ -224,6 +250,7 @@ module cellrv32_cpu_cp_fpu #(
                        (cmd.instr_f2i    == 1'b1) ? op_f2i_c    :
                        (cmd.instr_i2f    == 1'b1) ? op_i2f_c    :
                        (cmd.instr_comp   == 1'b1) ? op_comp_c   :
+                       (cmd.instr_div    == 1'b1) ? op_div_c    :
                        op_class_c; // when (cmd.instr_class  = '1')
     
     // Input Operands: Check for subnormal numbers (flush to zero) -------------------------------
@@ -318,7 +345,7 @@ module cellrv32_cpu_cp_fpu #(
                         fpu_operands.frm <= {1'b0, ctrl_i.ir_funct3[1:0]};
                     end
                     //
-                    if (start_i == 1'b1) begin
+                    if (start_i) begin
                         /* operand data */
                         fpu_operands.rs1       <= op_data[0];
                         fpu_operands.rs1_class <= op_class[0];
@@ -358,6 +385,7 @@ module cellrv32_cpu_cp_fpu #(
     assign fu_conv_f2i.start    = ctrl_engine.start & cmd.instr_f2i;
     assign fu_addsub.start      = ctrl_engine.start & cmd.instr_addsub;
     assign fu_mul.start         = ctrl_engine.start & cmd.instr_mul;
+    assign fu_div.start         = ctrl_engine.start & cmd.instr_div;
 
     // ****************************************************************************************************************************
     // FPU Core - Functional Units
@@ -522,8 +550,8 @@ module cellrv32_cpu_cp_fpu #(
         // this process only computes the absolute input value
         // the actual conversion is done by the normalizer
         if ((ctrl_i.ir_funct12[0] == 1'b0) && (rs1_i[31] == 1'b1)) begin // convert signed int
-            fu_conv_i2f.result <= (0 - rs1_i);
-            fu_conv_i2f.sign   <= rs1_i[31]; // original sign
+            fu_conv_i2f.result <= (0 - rs1_i); // absolute value
+            fu_conv_i2f.sign   <= rs1_i[31];   // original sign
         end else begin // convert unsigned int
             fu_conv_i2f.result <= rs1_i;
             fu_conv_i2f.sign   <= 1'b0;
@@ -585,7 +613,7 @@ module cellrv32_cpu_cp_fpu #(
     /* result class */
     // -------------------------------------------------------------------------------------------
     //
-    always_ff @( posedge clk_i ) begin : multiplier_class_core
+    always_comb begin : multiplier_class_core
         // declare local variable
         logic a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v;
         logic a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v;
@@ -593,29 +621,29 @@ module cellrv32_cpu_cp_fpu #(
         logic a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v;
         logic a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v;
         /* minions */
-        a_pos_norm_v <= fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v <= fpu_operands.rs2_class[fp_class_pos_norm_c];
-        a_neg_norm_v <= fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v <= fpu_operands.rs2_class[fp_class_neg_norm_c];
-        a_pos_subn_v <= fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v <= fpu_operands.rs2_class[fp_class_pos_denorm_c];
-        a_neg_subn_v <= fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v <= fpu_operands.rs2_class[fp_class_neg_denorm_c];
-        a_pos_zero_v <= fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v <= fpu_operands.rs2_class[fp_class_pos_zero_c];
-        a_neg_zero_v <= fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v <= fpu_operands.rs2_class[fp_class_neg_zero_c];
-        a_pos_inf_v  <= fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  <= fpu_operands.rs2_class[fp_class_pos_inf_c];
-        a_neg_inf_v  <= fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  <= fpu_operands.rs2_class[fp_class_neg_inf_c];
-        a_snan_v     <= fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     <= fpu_operands.rs2_class[fp_class_snan_c];
-        a_qnan_v     <= fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     <= fpu_operands.rs2_class[fp_class_qnan_c];
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v = fpu_operands.rs2_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v = fpu_operands.rs2_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v = fpu_operands.rs2_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v = fpu_operands.rs2_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v = fpu_operands.rs2_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v = fpu_operands.rs2_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  = fpu_operands.rs2_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  = fpu_operands.rs2_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     = fpu_operands.rs2_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     = fpu_operands.rs2_class[fp_class_qnan_c];
 
         /* +normal */
-        multiplier.res_class[fp_class_pos_norm_c] <=
+        multiplier.res_class[fp_class_pos_norm_c] =
           (a_pos_norm_v & b_pos_norm_v) | // +norm * +norm
           (a_neg_norm_v & b_neg_norm_v);  // -norm * -norm
 
         /* -normal */
-        multiplier.res_class[fp_class_neg_norm_c] <=
+        multiplier.res_class[fp_class_neg_norm_c] =
           (a_pos_norm_v | b_neg_norm_v) | // +norm * -norm
           (a_neg_norm_v | b_pos_norm_v);  // -norm * +norm
 
         /* +infinity */
-        multiplier.res_class[fp_class_pos_inf_c] <=
+        multiplier.res_class[fp_class_pos_inf_c] =
           (a_pos_inf_v  & b_pos_inf_v)  | // +inf    * +inf
           (a_neg_inf_v  & b_neg_inf_v)  | // -inf    * -inf
           (a_pos_norm_v & b_pos_inf_v)  | // +norm   * +inf
@@ -623,10 +651,10 @@ module cellrv32_cpu_cp_fpu #(
           (a_neg_norm_v & b_neg_inf_v)  | // -norm   * -inf
           (a_neg_inf_v  & b_neg_norm_v) | // -inf    * -norm
           (a_neg_subn_v & b_neg_inf_v)  | // -denorm * -inf
-          (a_neg_inf_v  & b_neg_subn_v);   // -inf    * -denorm
+          (a_neg_inf_v  & b_neg_subn_v);  // -inf    * -denorm
 
         /* -infinity */
-        multiplier.res_class[fp_class_neg_inf_c] <=
+        multiplier.res_class[fp_class_neg_inf_c] =
           (a_pos_inf_v  & b_neg_inf_v)  | // +inf    * -inf
           (a_neg_inf_v  & b_pos_inf_v)  | // -inf    * +inf
           (a_pos_norm_v & b_neg_inf_v)  | // +norm   * -inf
@@ -639,7 +667,7 @@ module cellrv32_cpu_cp_fpu #(
           (a_pos_inf_v  & b_neg_subn_v);  // +inf    * -de-norm
 
         /* +zero */
-        multiplier.res_class[fp_class_pos_zero_c] <=
+        multiplier.res_class[fp_class_pos_zero_c] =
           (a_pos_zero_v & b_pos_zero_v) | // +zero   * +zero
           (a_pos_zero_v & b_pos_norm_v) | // +zero   * +norm
           (a_pos_zero_v & b_pos_subn_v) | // +zero   * +denorm
@@ -649,10 +677,10 @@ module cellrv32_cpu_cp_fpu #(
           (a_pos_norm_v & b_pos_zero_v) | // +norm   * +zero
           (a_pos_subn_v & b_pos_zero_v) | // +denorm * +zero
           (a_neg_norm_v & b_neg_zero_v) | // -norm   * -zero
-          (a_neg_subn_v & b_neg_zero_v);   // -denorm * -zero
+          (a_neg_subn_v & b_neg_zero_v);  // -denorm * -zero
 
         /* -zero */
-        multiplier.res_class[fp_class_neg_zero_c] <=
+        multiplier.res_class[fp_class_neg_zero_c] =
           (a_pos_zero_v & b_neg_zero_v) | // +zero   * -zero
           (a_pos_zero_v & b_neg_norm_v) | // +zero   * -norm
           (a_pos_zero_v & b_neg_subn_v) | // +zero   * -denorm
@@ -662,26 +690,255 @@ module cellrv32_cpu_cp_fpu #(
           (a_neg_norm_v & b_pos_zero_v) | // -norm   * +zero
           (a_neg_subn_v & b_pos_zero_v) | // -denorm * +zero
           (a_pos_norm_v & b_neg_zero_v) | // +norm   * -zero
-          (a_pos_subn_v & b_neg_zero_v);   // +denorm * -zero
+          (a_pos_subn_v & b_neg_zero_v);  // +denorm * -zero
 
         /* sNaN */
-        multiplier.res_class[fp_class_snan_c] <= (a_snan_v | b_snan_v); // any input is sNaN
+        multiplier.res_class[fp_class_snan_c] = (a_snan_v | b_snan_v); // any input is sNaN
 
         /* qNaN */
-        multiplier.res_class[fp_class_qnan_c] <=
+        multiplier.res_class[fp_class_qnan_c] =
           (a_snan_v | b_snan_v) | // any input is sNaN
           (a_qnan_v | b_qnan_v) | // nay input is qNaN
           ((a_pos_inf_v  | a_neg_inf_v)  & (b_pos_zero_v | b_neg_zero_v)) | // +/-inf * +/-zero
           ((a_pos_zero_v | a_neg_zero_v) & (b_pos_inf_v  | b_neg_inf_v));    // +/-zero * +/-inf
 
         /* subnormal result */
-        multiplier.res_class[fp_class_pos_denorm_c] <= 1'b0; // is evaluated by the normalizer
-        multiplier.res_class[fp_class_neg_denorm_c] <= 1'b0; // is evaluated by the normalizer
+        multiplier.res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        multiplier.res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
     end : multiplier_class_core
 
     /* unused */
     assign fu_mul.result = '0;
     assign fu_mul.flags  = '0;
+
+    // Division Core (FDIV) ----------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    logic [09:00] division_res_class;
+    //
+    always_ff @( posedge clk_i or negedge rstn_i ) begin : division_core
+        if (!rstn_i) begin
+            division <= '0;
+        end else begin
+            // --------------------------------------
+            // division logic
+            // --------------------------------------
+            unique case (division.state)
+                // ===========================================
+                // idle state, waiting for start
+                // ===========================================
+                DIV_IDLE: begin
+                    if (fu_div.start) begin
+                        // operand load
+                        division.opa     <= {1'b1, fpu_operands.rs1[22:0]}; // append hidden one
+                        division.opb     <= {1'b1, fpu_operands.rs2[22:0]}; // append hidden one
+                        // exponent computation
+                        division.exp_res <= {2'b00, fpu_operands.rs1[30:23]} - {2'b00, fpu_operands.rs2[30:23]} + 10'd127;
+                        // sign computation
+                        division.sign    <= fpu_operands.rs1[31] ^ fpu_operands.rs2[31];
+                        // state transition
+                        if (fpu_operands.rs2_class[fp_class_pos_zero_c] | fpu_operands.rs2_class[fp_class_neg_zero_c] |       // division by zero
+                            ((fpu_operands.rs1_class[fp_class_pos_zero_c]  | fpu_operands.rs1_class[fp_class_neg_zero_c]) &
+                             (fpu_operands.rs2_class[fp_class_pos_zero_c ] | fpu_operands.rs2_class[fp_class_neg_zero_c ])) | // div(+/-zero, +/-zero)
+                            ((fpu_operands.rs1_class[fp_class_pos_inf_c ] | fpu_operands.rs1_class[fp_class_neg_inf_c ]) &
+                             (fpu_operands.rs2_class[fp_class_pos_inf_c] | fpu_operands.rs2_class[fp_class_neg_inf_c]))       // div(+/-inf, +/-inf
+                        ) begin
+                            division.state    <= DIV_DONE;
+                        end else if (fpu_operands.rs1[22:0] < fpu_operands.rs2[22:0]) begin
+                            division.quotient <= 1'b0;
+                            division.rem_buf <= 2*{1'b1, fpu_operands.rs1[22:0]} - {1'b1, fpu_operands.rs2[22:0]};
+                            division.state    <= DIV_BUSY;
+                        end else if (fpu_operands.rs1[22:0] == fpu_operands.rs2[22:0]) begin
+                            division.quotient <= 1'b1; // exact 1.0 result
+                            division.rem      <= '0;
+                            division.state    <= DIV_DONE;
+                        end else begin
+                            division.quotient <= 1'b1;
+                            division.rem_buf  <= {1'b1, fpu_operands.rs1[22:0]} - {1'b1, fpu_operands.rs2[22:0]};
+                            division.state    <= DIV_PRE_BUSY;
+                        end
+                    end 
+                    //
+                    division.done <= 1'b0;
+                end
+                // ===========================================
+                // generate initial remainder
+                // ===========================================
+                DIV_PRE_BUSY: begin
+                    // first step of the restoring division algorithm
+                    division.rem_buf <= 2*division.rem_buf - division.opb;
+                    division.state   <= DIV_BUSY;
+                end
+                // ===========================================
+                // Restoring division algorithm
+                // ===========================================
+                // Input: Dividend N, Divisor D and word length n.
+                // Output: Quotient Q and Remainder R.
+                // 1: Initialization r0 = N.
+                // 2: ri = 2 ∗ ri−1 − D
+                // 3: for i ← 1 to (n − 1) do
+                // 4: if ri ≥ 0 then
+                // 5: Q(i) = 1
+                // 6: else if ri < 0 then
+                // 7: Q(i) = 0
+                // 8: ri = ri + D
+                // 9: end if
+                // 10: end for
+                DIV_BUSY: begin
+                    if (division.rem_buf[$bits(division.rem_buf)-1]) begin
+                        division.rem     <= {division.rem[$bits(division.rem)-2:0], 1'b0};
+                        division.rem_buf <= 2*division.rem_buf + division.opb;
+                    end else begin
+                        division.rem     <= {division.rem[$bits(division.rem)-2:0], 1'b1};
+                        division.rem_buf <= 2*division.rem_buf - division.opb;
+                    end
+                    // increment bit counter
+                    // after 23-bits mantissa and 16-bits G/R/S we are done
+                    // total latency: 39 cycles
+                    if (division.latency == 6'd38) begin
+                        division.latency <= '0;
+                        division.state   <= DIV_DONE;
+                    end else begin
+                        division.latency <= division.latency + 1;
+                    end
+                end
+                // ===========================================
+                // operation done, compute flags and result class
+                // ===========================================
+                DIV_DONE: begin
+                    // exception flags
+                    if (division.exp_res[$bits(division.exp_res)-1]) begin // underflow (exp_res is "negative")
+                        division.flags[fp_exc_of_c] <= 1'b0;
+                        division.flags[fp_exc_uf_c] <= 1'b1;
+                    end else if (division.exp_res[$bits(division.exp_res)-2]) begin // overflow
+                        division.flags[fp_exc_of_c] <= 1'b1;
+                        division.flags[fp_exc_uf_c] <= 1'b0;
+                    end else begin
+                        division.flags[fp_exc_of_c] <= 1'b0;
+                        division.flags[fp_exc_uf_c] <= 1'b0;
+                    end
+                    // division by zero
+                    division.flags[fp_exc_dz_c] <= ~(fpu_operands.rs1_class[fp_class_pos_zero_c] | fpu_operands.rs1_class[fp_class_neg_zero_c]) & (fpu_operands.rs2_class[fp_class_pos_zero_c] | fpu_operands.rs2_class[fp_class_neg_zero_c]);
+                    division.flags[fp_exc_nx_c] <= 1'b0; // inexcat: not possible here
+                    // invalid operation
+                    division.flags[fp_exc_nv_c] <=
+                    ((fpu_operands.rs1_class[fp_class_pos_zero_c]  | fpu_operands.rs1_class[fp_class_neg_zero_c]) &
+                     (fpu_operands.rs2_class[fp_class_pos_zero_c ] | fpu_operands.rs2_class[fp_class_neg_zero_c ])) | // div(+/-zero, +/-zero)
+                    ((fpu_operands.rs1_class[fp_class_pos_inf_c ] | fpu_operands.rs1_class[fp_class_neg_inf_c ]) &
+                     (fpu_operands.rs2_class[fp_class_pos_inf_c] | fpu_operands.rs2_class[fp_class_neg_inf_c])); // div(+/-inf, +/-inf)
+                    // classify result as normal/denorm/inf/zero/NaN
+                    division.res_class <= division_res_class;
+                    // done
+                    division.done  <= 1'b1;
+                    division.state <= DIV_IDLE;
+                end
+                // ===========================================
+                // undefined state
+                // ===========================================
+                default: begin
+                    division.state <= DIV_IDLE; // undefined state, go to idle
+                end
+            endcase
+        end
+    end : division_core
+
+    /* result class */
+    // -------------------------------------------------------------------------------------------
+    //
+    always_comb begin : division_class_core
+        // declare local variable
+        logic a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v;
+        logic a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v;
+        logic a_pos_zero_v, a_neg_zero_v, b_pos_zero_v, b_neg_zero_v;
+        logic a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v;
+        logic a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v;
+        
+        /* minions */
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v = fpu_operands.rs2_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v = fpu_operands.rs2_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v = fpu_operands.rs2_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v = fpu_operands.rs2_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v = fpu_operands.rs2_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v = fpu_operands.rs2_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  = fpu_operands.rs2_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  = fpu_operands.rs2_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     = fpu_operands.rs2_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     = fpu_operands.rs2_class[fp_class_qnan_c];
+
+        /* +normal */
+        division_res_class[fp_class_pos_norm_c] =
+          (a_pos_norm_v & b_pos_norm_v) | // +norm / +norm
+          (a_neg_norm_v & b_neg_norm_v);  // -norm / -norm
+
+        /* -normal */
+        division_res_class[fp_class_neg_norm_c] =
+          (a_pos_norm_v & b_neg_norm_v) | // +norm / -norm
+          (a_neg_norm_v & b_pos_norm_v);  // -norm / +norm
+
+        /* +infinity */
+        division_res_class[fp_class_pos_inf_c] =
+          (a_pos_inf_v  & b_pos_norm_v) | // +inf    / +norm
+          (a_pos_inf_v  & b_pos_subn_v) | // +inf    / +denorm
+          (a_pos_inf_v  & b_pos_zero_v) | // +inf    / +zero
+          (a_neg_inf_v  & b_neg_norm_v) | // -inf    / -norm
+          (a_neg_inf_v  & b_neg_subn_v) | // -inf    / -denorm
+          (a_neg_inf_v  & b_neg_zero_v) | // -inf    / +zero
+          (a_pos_norm_v & b_pos_zero_v) | // +norm   / +zero
+          (a_neg_norm_v & b_neg_zero_v) | // -norm   / -zero
+          (a_pos_subn_v & b_pos_zero_v) | // +denorm / +zero
+          (a_neg_subn_v & b_neg_zero_v);  // -denorm / -zero
+
+        /* -infinity */
+        division_res_class[fp_class_neg_inf_c] =
+          (a_pos_inf_v  & b_neg_norm_v) | // +inf    / -norm
+          (a_pos_inf_v  & b_neg_subn_v) | // +inf    / -denorm
+          (a_pos_inf_v  & b_neg_zero_v) | // +inf    / -zero
+          (a_neg_inf_v  & b_pos_norm_v) | // -inf    / +norm
+          (a_neg_inf_v  & b_pos_subn_v) | // -inf    / +denorm
+          (a_neg_inf_v  & b_pos_zero_v) | // -inf    / +zero
+          (a_pos_norm_v & b_neg_zero_v) | // +norm   / -zero
+          (a_neg_norm_v & b_pos_zero_v) | // -norm   / +zero
+          (a_pos_subn_v & b_neg_zero_v) | // +denorm / -zero
+          (a_neg_subn_v & b_pos_zero_v);  // -denorm / +zero
+
+        /* +zero */
+        division_res_class[fp_class_pos_zero_c] =
+          (a_pos_norm_v & b_pos_inf_v)  | // +norm   / +inf
+          (a_pos_subn_v & b_pos_inf_v)  | // +denorm / +inf
+          (a_pos_zero_v & b_pos_inf_v)  | // +zero   / +inf
+          (a_neg_norm_v & b_neg_inf_v)  | // -norm   / -inf
+          (a_neg_subn_v & b_neg_inf_v)  | // -denorm / -inf
+          (a_neg_zero_v & b_neg_inf_v)  | // -zero   / -inf
+          (a_pos_zero_v & b_pos_norm_v) | // +zero   / +norm
+          (a_pos_zero_v & b_pos_subn_v) | // +zero   / +denorm
+          (a_neg_zero_v & b_neg_norm_v) | // -zero   / -norm
+          (a_neg_zero_v & b_neg_subn_v);  // -zero   / -denorm
+
+        /* -zero */
+        division_res_class[fp_class_neg_zero_c] =
+          (a_pos_norm_v & b_neg_inf_v) | // +norm   / -inf
+          (a_pos_subn_v & b_neg_inf_v) | // +denorm / -inf
+          (a_pos_zero_v & b_neg_inf_v) | // +zero   / -inf
+          (a_neg_norm_v & b_pos_inf_v) | // -norm   / +inf
+          (a_neg_subn_v & b_pos_inf_v) | // -denorm / +inf
+          (a_neg_zero_v & b_pos_inf_v) | // -zero   / +inf
+          (a_pos_zero_v & b_neg_norm_v) | // +zero  / -norm
+          (a_pos_zero_v & b_neg_subn_v) | // +zero  / -denorm
+          (a_neg_zero_v & b_pos_norm_v) | // -zero  / +norm
+          (a_neg_zero_v & b_pos_subn_v);  // -zero  / +denorm
+
+        /* sNaN */
+        division_res_class[fp_class_snan_c] = (a_snan_v | b_snan_v); // any input is sNaN
+
+        /* qNaN */
+        division_res_class[fp_class_qnan_c] =
+          (a_qnan_v | b_qnan_v) | // nay input is qNaN
+          ((a_pos_zero_v  | a_pos_zero_v) & (b_pos_zero_v | b_neg_zero_v)) | // +/-zero / +/-zero
+          ((a_pos_inf_v | a_pos_inf_v) & (b_pos_inf_v  | b_neg_inf_v));      // +/-inf / +/-inf
+
+        /* subnormal result */
+        division_res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        division_res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
+    end : division_class_core
 
     // Adder/Subtractor Core (FADD, FSUB) --------------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -823,7 +1080,7 @@ module cellrv32_cpu_cp_fpu #(
     /* result class */
     
     //     
-    always_ff @( posedge clk_i ) begin : adder_subtractor_class_core
+    always_comb begin : adder_subtractor_class_core
         // declare local variable
         logic a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v;
         logic a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v;
@@ -831,20 +1088,20 @@ module cellrv32_cpu_cp_fpu #(
         logic a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v;
         logic a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v;
         /* minions */
-        a_pos_norm_v <= fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v <= fpu_operands.rs2_class[fp_class_pos_norm_c];
-        a_neg_norm_v <= fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v <= fpu_operands.rs2_class[fp_class_neg_norm_c];
-        a_pos_subn_v <= fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v <= fpu_operands.rs2_class[fp_class_pos_denorm_c];
-        a_neg_subn_v <= fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v <= fpu_operands.rs2_class[fp_class_neg_denorm_c];
-        a_pos_zero_v <= fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v <= fpu_operands.rs2_class[fp_class_pos_zero_c];
-        a_neg_zero_v <= fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v <= fpu_operands.rs2_class[fp_class_neg_zero_c];
-        a_pos_inf_v  <= fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  <= fpu_operands.rs2_class[fp_class_pos_inf_c];
-        a_neg_inf_v  <= fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  <= fpu_operands.rs2_class[fp_class_neg_inf_c];
-        a_snan_v     <= fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     <= fpu_operands.rs2_class[fp_class_snan_c];
-        a_qnan_v     <= fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     <= fpu_operands.rs2_class[fp_class_qnan_c];
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v = fpu_operands.rs2_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v = fpu_operands.rs2_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v = fpu_operands.rs2_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v = fpu_operands.rs2_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v = fpu_operands.rs2_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v = fpu_operands.rs2_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  = fpu_operands.rs2_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  = fpu_operands.rs2_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     = fpu_operands.rs2_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     = fpu_operands.rs2_class[fp_class_qnan_c];
         //
         if (ctrl_i.ir_funct12[7] == 1'b0) begin // addition
             /* +infinity */
-            addsub.res_class[fp_class_pos_inf_c] <=
+            addsub.res_class[fp_class_pos_inf_c] =
               (a_pos_inf_v  & b_pos_inf_v)  | // +inf    + +inf
               (a_pos_inf_v  & b_pos_zero_v) | // +inf    + +zero
               (a_pos_zero_v & b_pos_inf_v)  | // +zero   + +inf
@@ -861,7 +1118,7 @@ module cellrv32_cpu_cp_fpu #(
               (a_pos_inf_v  & b_neg_subn_v) | // +inf    + -denorm
               (a_neg_subn_v & b_pos_inf_v);   // -denorm + +inf
             /* -infinity */
-            addsub.res_class[fp_class_neg_inf_c] <=
+            addsub.res_class[fp_class_neg_inf_c] =
               (a_neg_inf_v  & b_neg_inf_v)  | // -inf    + -inf
               (a_neg_inf_v  & b_pos_zero_v) | // -inf    + +zero
               (a_pos_zero_v & b_neg_inf_v)  | // +zero   + -inf
@@ -878,22 +1135,22 @@ module cellrv32_cpu_cp_fpu #(
               (a_neg_inf_v  & b_neg_subn_v) | // -inf    + -denorm
               (a_neg_subn_v & b_neg_inf_v);   // -denorm + -inf
             /* +zero */
-            addsub.res_class[fp_class_pos_zero_c] <=
+            addsub.res_class[fp_class_pos_zero_c] =
               (a_pos_zero_v & b_pos_zero_v) | // +zero + +zero
               (a_pos_zero_v & b_neg_zero_v) | // +zero + -zero
               (a_neg_zero_v & b_pos_zero_v);   // -zero + +zero
             /* -zero */
-            addsub.res_class[fp_class_neg_zero_c] <=
+            addsub.res_class[fp_class_neg_zero_c] =
               (a_neg_zero_v & b_neg_zero_v);   // -zero + -zero
             /* qNaN */
-            addsub.res_class[fp_class_qnan_c] <=
+            addsub.res_class[fp_class_qnan_c] =
               (a_snan_v    |  b_snan_v)   | // any input is sNaN
               (a_qnan_v    |  b_qnan_v)   | // any input is qNaN
               (a_pos_inf_v & b_neg_inf_v) | // +inf + -inf
               (a_neg_inf_v & b_pos_inf_v);  // -inf + +inf
         end else begin // subtraction
             /* +infinity */
-            addsub.res_class[fp_class_pos_inf_c] <=
+            addsub.res_class[fp_class_pos_inf_c] =
               (a_pos_inf_v  & b_neg_inf_v)  | // +inf    - -inf
               (a_pos_inf_v  & b_pos_zero_v) | // +inf    - +zero
               (a_pos_inf_v  & b_neg_zero_v) | // +inf    - -zero
@@ -910,7 +1167,7 @@ module cellrv32_cpu_cp_fpu #(
               (a_neg_norm_v & b_neg_inf_v)  | // -norm   - -inf
               (a_neg_subn_v & b_neg_inf_v);   // -denorm - -inf
             /* -infinity */
-            addsub.res_class[fp_class_neg_inf_c] <=
+            addsub.res_class[fp_class_neg_inf_c] =
               (a_neg_inf_v  & b_pos_inf_v)  | // -inf    - +inf
               (a_neg_inf_v  & b_pos_zero_v) | // -inf    - +zero
               (a_neg_inf_v  & b_neg_zero_v) | // -inf    - -zero
@@ -927,28 +1184,28 @@ module cellrv32_cpu_cp_fpu #(
               (a_neg_norm_v & b_pos_inf_v)  | // -norm   - +inf
               (a_neg_subn_v & b_pos_inf_v);   // -denorm - +inf
             /* +zero */
-            addsub.res_class[fp_class_pos_zero_c] <=
+            addsub.res_class[fp_class_pos_zero_c] =
               (a_pos_zero_v & b_pos_zero_v) | // +zero - +zero
               (a_pos_zero_v & b_neg_zero_v) | // +zero - -zero
               (a_neg_zero_v & b_neg_zero_v);  // -zero - -zero
             /* -zero */
-            addsub.res_class[fp_class_neg_zero_c] <=
+            addsub.res_class[fp_class_neg_zero_c] =
               (a_neg_zero_v & b_pos_zero_v);   // -zero - +zero
             /* qNaN */
-            addsub.res_class[fp_class_qnan_c] <=
+            addsub.res_class[fp_class_qnan_c] =
               (a_snan_v    |  b_snan_v)   | // any input is sNaN
               (a_qnan_v    |  b_qnan_v)   | // any input is qNaN
               (a_pos_inf_v & b_pos_inf_v) | // +inf - +inf
               (a_neg_inf_v & b_neg_inf_v);  // -inf - -inf
         end
         /* normal */
-        addsub.res_class[fp_class_pos_norm_c] <= (a_pos_norm_v | a_neg_norm_v) & (b_pos_norm_v | b_neg_norm_v); // +/-norm +/- +-/norm [sign is irrelevant here]
-        addsub.res_class[fp_class_neg_norm_c] <= (a_pos_norm_v | a_neg_norm_v) & (b_pos_norm_v | b_neg_norm_v); // +/-norm +/- +-/norm [sign is irrelevant here]
+        addsub.res_class[fp_class_pos_norm_c] = (a_pos_norm_v | a_neg_norm_v) & (b_pos_norm_v | b_neg_norm_v); // +/-norm +/- +-/norm [sign is irrelevant here]
+        addsub.res_class[fp_class_neg_norm_c] = (a_pos_norm_v | a_neg_norm_v) & (b_pos_norm_v | b_neg_norm_v); // +/-norm +/- +-/norm [sign is irrelevant here]
         /* sNaN */
-        addsub.res_class[fp_class_snan_c] <= (a_snan_v | b_snan_v); // any input is sNaN
+        addsub.res_class[fp_class_snan_c] = (a_snan_v | b_snan_v); // any input is sNaN
         /* subnormal result */
-        addsub.res_class[fp_class_pos_denorm_c] <= 1'b0; // is evaluated by the normalizer
-        addsub.res_class[fp_class_neg_denorm_c] <= 1'b0; // is evaluated by the normalizer
+        addsub.res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        addsub.res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
     end : adder_subtractor_class_core
 
     /* unused */
@@ -985,6 +1242,18 @@ module cellrv32_cpu_cp_fpu #(
                 normalizer.class_data = multiplier.res_class;
                 normalizer.flags_in   = multiplier.flags;
                 normalizer.start      = multiplier.done;
+            end
+            // division
+            op_div_c : begin
+                normalizer.mode             = 1'b0; // normalization
+                normalizer.sign             = division.sign;
+                normalizer.xexp             = {1'b0, division.exp_res[7:0]};
+                normalizer.xmantissa[47:23] = {1'b0, division.quotient, division.rem[38:16]};
+                normalizer.xmantissa[22:07] = {division.rem[15:00]};
+                normalizer.xmantissa[06:00] = '0;
+                normalizer.class_data       = division.res_class;
+                normalizer.flags_in         = division.flags;
+                normalizer.start            = division.done;
             end
             default: begin // op_i2f_c
                 normalizer.mode       = 1'b1; // int_to_float
