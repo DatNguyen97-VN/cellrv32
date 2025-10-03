@@ -33,7 +33,7 @@
 /** UART BAUD rate */
 #define BAUD_RATE          (19200)
 //** Number of test cases for each instruction */
-#define NUM_TEST_CASES     (1000)
+#define NUM_TEST_CASES     (1300)
 //** Silent mode (only show actual errors when != 0) */
 #define SILENT_MODE        (1)
 //** Run conversion tests when != 0 */
@@ -43,7 +43,9 @@
 //** Run multiplication tests when != 0 */
 #define RUN_MUL_TESTS      (0)
 //** Run division tests when != 0 */
-#define RUN_DIV_TESTS      (1)
+#define RUN_DIV_TESTS      (0)
+//** Run square root tests when != 0 */
+#define RUN_SQRT_TESTS     (1)
 //** Run min/max tests when != 0 */
 #define RUN_MINMAX_TESTS   (0)
 //** Run comparison tests when != 0 */
@@ -262,6 +264,24 @@ int main() {
   test_cnt++;
 #endif
 
+// ----------------------------------------------------------------------------
+// Square Root Tests
+// ----------------------------------------------------------------------------
+
+#if (RUN_SQRT_TESTS != 0)
+  cellrv32_uart0_printf("\n#%u: FSQRT.S (square root)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+
+    opa.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fsqrts(opa.float_value);
+    res_sw.float_value = riscv_emulate_fsqrts(opa.float_value);
+    err_cnt += verify_result(i, opa.binary_value, 0, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
 
 // ----------------------------------------------------------------------------
 // Min/Max Tests
@@ -872,7 +892,7 @@ uint32_t get_test_vector(void) {
  **************************************************************************/
 uint32_t xorshift32(void) {
 
-  static uint32_t x32 = 314159265;
+  static uint32_t x32 = 314339265;
 
   x32 ^= x32 << 13;
   x32 ^= x32 >> 17;
