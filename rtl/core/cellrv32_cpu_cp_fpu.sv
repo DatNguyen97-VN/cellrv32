@@ -67,7 +67,8 @@ module cellrv32_cpu_cp_fpu #(
         logic instr_minmax;
         logic instr_addsub;
         logic instr_mul;   
-        logic instr_div;   
+        logic instr_div;
+        logic instr_sqrt;
         logic [3:0] funct;
     } cmd_t;
     //
@@ -121,7 +122,8 @@ module cellrv32_cpu_cp_fpu #(
     fu_interface_t fu_conv_f2i;    
     fu_interface_t fu_addsub;      
     fu_interface_t fu_mul;    
-    fu_interface_t fu_div;     
+    fu_interface_t fu_div;   
+    fu_interface_t fu_sqrt;      
     logic          fu_core_done; // FU operation completed
 
     /* int-to-float */
@@ -176,6 +178,27 @@ module cellrv32_cpu_cp_fpu #(
     } division_t;
     //
     division_t division;
+
+    /* square root unit */
+    typedef enum logic[1:0] { SQRT_IDLE, SQRT_PRE_BUSY, SQRT_BUSY, SQRT_DONE } sqrt_state_t;
+    //
+    typedef struct packed {
+        logic [39:0] result;    // 1-bit hidden + 23-bits mantissa + 16-bits GRS
+        logic [42:0] rem;       // 1-bit sign + 2-bit extend + 24-bits mantissa and hidden + 16-bits GRS
+        logic [39:0] half;      // 24-bits mantissa and hidden + 16-bits GRS (2^-i)
+        logic [09:0] exp_res;   // resulting exponent
+        logic        sign;      // resulting sign (always positive)
+        //
+        sqrt_state_t state;     // state machine
+        //
+        logic [09:0] res_class; // resulting number class
+        logic [04:0] flags;     // exception flags
+        //
+        logic [05:0] latency;   // unit latency
+        logic        done;
+    } sqrt_t;
+    //
+    sqrt_t sqrt;
 
     /* adder/subtractor unit */
     typedef struct {
@@ -241,6 +264,7 @@ module cellrv32_cpu_cp_fpu #(
     assign cmd.instr_addsub = (ctrl_i.ir_funct12[11:8] == 4'b0000)  ? 1'b1 : 1'b0;
     assign cmd.instr_mul    = (ctrl_i.ir_funct12[11:7] == 5'b00010) ? 1'b1 : 1'b0;
     assign cmd.instr_div    = (ctrl_i.ir_funct12[11:7] == 5'b00011) ? 1'b1 : 1'b0;
+    assign cmd.instr_sqrt   = (ctrl_i.ir_funct12[11:7] == 5'b01011) ? 1'b1 : 1'b0;
 
     /* binary re-encoding */
     assign cmd.funct = (cmd.instr_mul    == 1'b1) ? op_mul_c    :
@@ -251,6 +275,7 @@ module cellrv32_cpu_cp_fpu #(
                        (cmd.instr_i2f    == 1'b1) ? op_i2f_c    :
                        (cmd.instr_comp   == 1'b1) ? op_comp_c   :
                        (cmd.instr_div    == 1'b1) ? op_div_c    :
+                       (cmd.instr_sqrt   == 1'b1) ? op_sqrt_c   :
                        op_class_c; // when (cmd.instr_class  = '1')
     
     // Input Operands: Check for subnormal numbers (flush to zero) -------------------------------
@@ -386,6 +411,7 @@ module cellrv32_cpu_cp_fpu #(
     assign fu_addsub.start      = ctrl_engine.start & cmd.instr_addsub;
     assign fu_mul.start         = ctrl_engine.start & cmd.instr_mul;
     assign fu_div.start         = ctrl_engine.start & cmd.instr_div;
+    assign fu_sqrt.start        = ctrl_engine.start & cmd.instr_sqrt;
 
     // ****************************************************************************************************************************
     // FPU Core - Functional Units
@@ -940,6 +966,199 @@ module cellrv32_cpu_cp_fpu #(
         division_res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
     end : division_class_core
 
+    // Square Root Core (FSQRT) ------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    logic [8:0] sqrt_exp_adjust;
+    logic [9:0] sqrt_res_class;
+    //
+    always_ff @( posedge clk_i or negedge rstn_i) begin : square_root_core
+        if (!rstn_i) begin
+            sqrt <= '0;
+        end else begin
+            // --------------------------------------
+            // Square root calculation logic
+            // --------------------------------------
+            //
+            unique case (sqrt.state)
+                // ===========================================
+                // idle state, waiting for start
+                // ===========================================
+                SQRT_IDLE : begin
+                    if (fu_sqrt.start) begin
+                        sqrt.exp_res <= {2'b00, fpu_operands.rs1[30:23]} - 10'd127;
+                        sqrt.sign    <= fpu_operands.rs1[31]; // copy sign
+                        //
+                        if (fpu_operands.rs1[31] | fpu_operands.rs1_class[fp_class_pos_inf_c] |
+                            fpu_operands.rs1_class[fp_class_pos_zero_c] | fpu_operands.rs1_class[fp_class_pos_denorm_c]) begin
+                            // sqrt(negative) = NaN
+                            // sqrt(+inf)     = +inf
+                            // sqrt(+zero)    = +zero
+                            // sqrt(+denorm)  = +zero
+                            sqrt.state <= SQRT_DONE;
+                        end else begin
+                            // normal input
+                            if (fpu_operands.rs1[23]) begin // exponent is odd
+                                sqrt.rem[42:40] <= 3'b000;
+                                sqrt.rem[39:16] <= {fpu_operands.rs1[22:0], 1'b0};
+                                sqrt.rem[15:00] <= 16'b0;
+                            end else begin // exponent is even
+                                sqrt.rem[42:40] <= 3'b000;
+                                sqrt.rem[39:16] <= {1'b1, fpu_operands.rs1[22:0]};
+                                sqrt.rem[15:00] <= 16'b0;
+                            end
+                            //
+                            sqrt.result         <= '0;
+                            sqrt.half           <= {1'b1, {39{1'b0}}}; // 0.5 (2^-1)
+                            sqrt.state          <= SQRT_PRE_BUSY;
+                        end
+                    end
+                    //
+                    sqrt.done <= 1'b0;
+                end   
+                // ===========================================
+                // generate initial remainder
+                // ===========================================
+                SQRT_PRE_BUSY : begin
+                    // first step of the restoring division algorithm
+                    sqrt.rem   <= 2*sqrt.rem - 2*{1'b0, fpu_operands.rs1[23], sqrt.result} - sqrt.half;
+                    sqrt.state <= SQRT_BUSY;
+                end
+                // ===========================================
+                // Restoring algorithm for square root computation
+                // ===========================================
+                // Input: Radicand X and word length n.
+                // Output: Quotient Q and Remainder R.
+                // 1: Initialization r0 = X.
+                // 2: for i ← 1 to n do
+                // 3: ri = 2 ∗ ri−1 − (2Qi−1 + 2^−i)
+                // 4: if ri ≥ 0 then
+                // 5: qi = 1
+                // 6: else if ri < 0 then
+                // 7: qi = 0
+                // 8: ri = 2ri−1
+                // 9: end if
+                // 10: end for
+                SQRT_BUSY : begin
+                    if (sqrt.rem[$bits(sqrt.rem)-1]) begin
+                        sqrt.result[$bits(sqrt.result)-1-sqrt.latency] <= 1'b0;
+                        sqrt.rem <= sqrt.rem + 2*{1'b0, fpu_operands.rs1[23], sqrt.result} + sqrt.half;
+                    end else begin
+                        sqrt.result[$bits(sqrt.result)-1-sqrt.latency] <= 1'b1;
+                    end
+                    // 1/2 : 1/4 : 1/8 : 1/16 : 1/32 : 1/64 : 1/128 : 1/256 : 1/512 : 1/1024 ...
+                    // shift right the "half" value
+                    sqrt.half <= {1'b0, sqrt.half[$bits(sqrt.half)-1:1]};
+                    // increment bit counter
+                    // after 24-bits mantissa and 16-bits G/R/S we are done
+                    // total latency: 40 cycles
+                    if (sqrt.latency == 6'd39) begin
+                        sqrt.latency <= '0;
+                        sqrt.state   <= SQRT_DONE;
+                    end else begin
+                        sqrt.latency <= sqrt.latency + 1;
+                        sqrt.state   <= SQRT_PRE_BUSY;
+                    end
+                end
+                // ===========================================
+                // operation done, compute flags and result class
+                // ===========================================
+                SQRT_DONE : begin
+                    // exception flags
+                    if (sqrt_exp_adjust[$bits(sqrt_exp_adjust)-1]) begin // underflow (exp_res is "negative")
+                        sqrt.flags[fp_exc_of_c] <= 1'b0;
+                        sqrt.flags[fp_exc_uf_c] <= 1'b1;
+                    end else if (sqrt_exp_adjust[$bits(sqrt_exp_adjust)-2]) begin // overflow
+                        sqrt.flags[fp_exc_of_c] <= 1'b1;
+                        sqrt.flags[fp_exc_uf_c] <= 1'b0;
+                    end else begin
+                        sqrt.flags[fp_exc_of_c] <= 1'b0;
+                        sqrt.flags[fp_exc_uf_c] <= 1'b0;
+                    end
+                    // unused flags
+                    sqrt.flags[fp_exc_dz_c] <= 1'b0; // division by zero: not possible here
+                    sqrt.flags[fp_exc_nx_c] <= 1'b0; // inexcat: not possible here
+                    sqrt.flags[fp_exc_of_c] <= 1'b0; // overflow: not possible here
+                    // invalid operation
+                    sqrt.flags[fp_exc_nv_c] <= fpu_operands.rs1[31]; // sqrt(negative)
+                    // classify result as normal/denorm/inf/zero/NaN
+                    sqrt.res_class          <= sqrt_res_class;
+                    // exponent adjustment
+                    sqrt.exp_res            <= sqrt_exp_adjust;
+                    //
+                    sqrt.done               <= 1'b1;
+                    sqrt.state              <= SQRT_IDLE;
+                end
+                // ===========================================
+                // undefined state
+                // ===========================================
+                default: begin
+                    sqrt.state <= SQRT_IDLE;
+                end
+            endcase
+        end
+    end : square_root_core
+
+    // exponent adjustment for sqrt
+    assign sqrt_exp_adjust = {1'b0, sqrt.exp_res[$bits(sqrt.exp_res)-1:1]} + 9'd127;
+
+    /* result class */
+    // -------------------------------------------------------------------------------------------
+    //
+    always_comb begin : sqrt_class_core
+        // declare local variable
+        logic a_pos_norm_v, a_neg_norm_v;
+        logic a_pos_subn_v, a_neg_subn_v;
+        logic a_pos_zero_v, a_neg_zero_v;
+        logic a_pos_inf_v,  a_neg_inf_v;
+        logic a_snan_v,     a_qnan_v;
+
+        /* minions */
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];
+
+        /* +normal */
+        sqrt_res_class[fp_class_pos_norm_c] = a_pos_norm_v; // sqrt(+norm) = +norm
+
+        /* -normal */
+        sqrt_res_class[fp_class_neg_norm_c] = 1'b0; // sqrt(-norm) = NaN
+
+        /* +infinity */
+        sqrt_res_class[fp_class_pos_inf_c] = a_pos_inf_v; // sqrt(+inf) = +inf
+
+        /* -infinity */
+        sqrt_res_class[fp_class_neg_inf_c] = 1'b0; // sqrt(-inf) = NaN
+
+        /* +zero */
+        sqrt_res_class[fp_class_pos_zero_c] = 
+          a_pos_zero_v | // sqrt(+zero) = +zero
+          a_pos_subn_v;  // sqrt(+denorm) = +zero
+
+        /* -zero */
+        sqrt_res_class[fp_class_neg_zero_c] = 1'b0; // sqrt(-zero/-denorm) = NaN
+
+        /* sNaN */
+        sqrt_res_class[fp_class_snan_c] = a_snan_v; // any input is sNaN
+
+        /* qNaN */
+        sqrt_res_class[fp_class_qnan_c] = a_qnan_v     | // nay input is qNaN
+                                          a_neg_norm_v | // sqrt(-norm) = NaN
+                                          a_neg_subn_v | // sqrt(-denorm) = NaN
+                                          a_neg_zero_v | // sqrt(-zero) = NaN
+                                          a_neg_inf_v;   // sqrt(-inf) = NaN
+
+        /* subnormal result */
+        sqrt_res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        sqrt_res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
+    end : sqrt_class_core
+
     // Adder/Subtractor Core (FADD, FSUB) --------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i ) begin : adder_subtractor_core
@@ -1254,6 +1473,26 @@ module cellrv32_cpu_cp_fpu #(
                 normalizer.class_data       = division.res_class;
                 normalizer.flags_in         = division.flags;
                 normalizer.start            = division.done;
+            end
+            // square root
+            op_sqrt_c : begin
+                normalizer.mode             = 1'b0; // normalization
+                normalizer.sign             = sqrt.sign;
+                normalizer.xexp             = {1'b0, sqrt.exp_res[7:0]};
+                // exponent is even: result is: 1-hidden + 23-mantissa + 16-GRS
+                // exponent is odd:  result is: 23-mantissa + 17-GRS
+                normalizer.xmantissa[47]    = 1'b0;
+                // hidden bit or MSB of result
+                normalizer.xmantissa[46]    = fpu_operands.rs1[23] ? 1'b1 : sqrt.result[$bits(sqrt.result)-1];
+                normalizer.xmantissa[45:23] = fpu_operands.rs1[23] ? sqrt.result[$bits(sqrt.result)-1:$bits(sqrt.result)-23] : 
+                                                                     sqrt.result[$bits(sqrt.result)-2:$bits(sqrt.result)-24];
+                normalizer.xmantissa[22:21] = fpu_operands.rs1[23] ? {sqrt.result[$bits(sqrt.result)-24], sqrt.result[$bits(sqrt.result)-25]} :
+                                                                     {sqrt.result[$bits(sqrt.result)-25], sqrt.result[$bits(sqrt.result)-26]};
+                normalizer.xmantissa[20]    = fpu_operands.rs1[23] ? |sqrt.result[$bits(sqrt.result)-26:0] : |sqrt.result[$bits(sqrt.result)-27:0];
+                normalizer.xmantissa[19:00] = '0;
+                normalizer.class_data       = sqrt.res_class;
+                normalizer.flags_in         = sqrt.flags;
+                normalizer.start            = sqrt.done;
             end
             default: begin // op_i2f_c
                 normalizer.mode       = 1'b1; // int_to_float

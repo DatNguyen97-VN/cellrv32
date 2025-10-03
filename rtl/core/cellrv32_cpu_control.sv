@@ -820,6 +820,7 @@ module cellrv32_cpu_control #(
         if (((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+3] == 4'b0000))  || // FADD.S / FSUB.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00010)) || // FMUL.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00011)) || // FDIV.S
+            ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b01011)  && (execute_engine.i_reg[instr_funct12_lsb_c+4 : instr_funct12_lsb_c] == 5'b00000))  ||     // FSQRT.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b11100)  && (execute_engine.i_reg[instr_funct3_msb_c    : instr_funct3_lsb_c] == 3'b001))     ||     // FCLASS.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00100)  && (execute_engine.i_reg[instr_funct3_msb_c] == 1'b0))                               ||     // FSGNJ[N/X].S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00101)  && (execute_engine.i_reg[instr_funct3_msb_c    : instr_funct3_msb_c-1] == 2'b00))    ||     // FMIN.S / FMAX.S
