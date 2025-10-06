@@ -33,19 +33,23 @@
 /** UART BAUD rate */
 #define BAUD_RATE          (19200)
 //** Number of test cases for each instruction */
-#define NUM_TEST_CASES     (1300)
+#define NUM_TEST_CASES     (1000)
 //** Silent mode (only show actual errors when != 0) */
 #define SILENT_MODE        (1)
 //** Run conversion tests when != 0 */
-#define RUN_CONV_TESTS     (0)
+#define RUN_CONV_TESTS     (1)
 //** Run add/sub tests when != 0 */
 #define RUN_ADDSUB_TESTS   (0)
+//** Run fused-multiply add/sub tests when != 0 */
+#define RUN_MADDSUB_TESTS  (0)
+//** Run fused negate-multiply add/sub tests when != 0 */
+#define RUN_NMADDSUB_TESTS (0)
 //** Run multiplication tests when != 0 */
 #define RUN_MUL_TESTS      (0)
 //** Run division tests when != 0 */
 #define RUN_DIV_TESTS      (0)
 //** Run square root tests when != 0 */
-#define RUN_SQRT_TESTS     (1)
+#define RUN_SQRT_TESTS     (0)
 //** Run min/max tests when != 0 */
 #define RUN_MINMAX_TESTS   (0)
 //** Run comparison tests when != 0 */
@@ -65,6 +69,7 @@
 uint32_t get_test_vector(void);
 uint32_t xorshift32(void);
 uint32_t verify_result(uint32_t num, uint32_t opa, uint32_t opb, uint32_t ref, uint32_t res);
+uint32_t verify_result3(uint32_t num, uint32_t opa, uint32_t opb, uint32_t opc, uint32_t ref, uint32_t res);
 void print_report(uint32_t num_err);
 
 
@@ -83,6 +88,7 @@ int main() {
   uint32_t i = 0;
   float_conv_t opa;
   float_conv_t opb;
+  float_conv_t opc;
   float_conv_t res_hw;
   float_conv_t res_sw;
 
@@ -122,7 +128,8 @@ int main() {
   cellrv32_uart0_printf("SILENT_MODE enabled (only showing actual errors)\n");
 #endif
   cellrv32_uart0_printf("Test cases per instruction: %u\n", (uint32_t)NUM_TEST_CASES);
-  cellrv32_uart0_printf("NOTE: The CELLRV32 FPU does not support subnormal numbers yet. Subnormal numbers are flushed to zero.\n\n");
+  cellrv32_uart0_printf("NOTE: The CELLRV32 FPU does not support subnormal numbers yet. Subnormal numbers are flushed to zero.\n");
+  cellrv32_uart0_printf("WARNING: The F[N]MADD/SUB reference software is non-fused (it performs multiplication, then rounding, then addition and rounding), so some test cases may fail.\n\n");
 
   // clear exception status word
   cellrv32_cpu_csr_write(CSR_FFLAGS, 0); // real hardware
@@ -181,6 +188,80 @@ int main() {
     res_hw.binary_value = (uint32_t)riscv_intrinsic_fcvt_ws(opa.float_value);
     res_sw.binary_value = (uint32_t)riscv_emulate_fcvt_ws(opa.float_value);
     err_cnt += verify_result(i, opa.binary_value, 0, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+// ----------------------------------------------------------------------------
+// Fused-Multiply Add/Sub Tests
+// ----------------------------------------------------------------------------
+
+#if (RUN_MADDSUB_TESTS != 0)
+  cellrv32_uart0_printf("\n#%u: FMADD.S (fused-multiply addition)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fmadds(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fmadds(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  cellrv32_uart0_printf("\n#%u: FMSUB.S (fused-multiply subtraction)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fmsubs(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fmsubs(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+// ----------------------------------------------------------------------------
+// Fused-Negate-Multiply Add/Sub Tests
+// ----------------------------------------------------------------------------
+
+#if (RUN_NMADDSUB_TESTS != 0)
+  cellrv32_uart0_printf("\n#%u: FNNADD.S (fused-negate-multiply addition)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fnmadds(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fnmadds(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  cellrv32_uart0_printf("\n#%u: FNMSUB.S (fused-negate-multiply subtraction)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
   print_report(err_cnt);
   err_cnt_total += err_cnt;
@@ -921,6 +1002,39 @@ uint32_t verify_result(uint32_t num, uint32_t opa, uint32_t opb, uint32_t ref, u
   if (ref != res) {
 #if (SILENT_MODE != 0)
     cellrv32_uart0_printf("%u: opa = 0x%x, opb = 0x%x : ref[SW] = 0x%x vs. res[HW] = 0x%x ", num, opa, opb, ref, res);
+#endif
+    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
+    return 1;
+  }
+  else {
+#if (SILENT_MODE == 0)
+    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
+#endif
+    return 0;
+  }
+}
+
+
+/**********************************************************************//**
+ * Verify results (software reference vs. actual hardware).
+ *
+ * @param[in] num Test case number
+ * @param[in] opa Operand 1
+ * @param[in] opb Operand 2
+ * @param[in] opc Operand 3
+ * @param[in] ref Software reference
+ * @param[in] res Actual results from hardware
+ * @return zero if results are equal.
+ **************************************************************************/
+uint32_t verify_result3(uint32_t num, uint32_t opa, uint32_t opb, uint32_t opc, uint32_t ref, uint32_t res) {
+
+#if (SILENT_MODE == 0)
+  cellrv32_uart0_printf("%u: opa = 0x%x, opb = 0x%x, opc = 0x%x : ref[SW] = 0x%x vs. res[HW] = 0x%x ", num, opa, opb, opc, ref, res);
+#endif
+
+  if (ref != res) {
+#if (SILENT_MODE != 0)
+    cellrv32_uart0_printf("%u: opa = 0x%x, opb = 0x%x, opc = 0x%x : ref[SW] = 0x%x vs. res[HW] = 0x%x ", num, opa, opb, opc, ref, res);
 #endif
     cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
     return 1;

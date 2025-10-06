@@ -1,5 +1,5 @@
 // #################################################################################################
-// # << CELLRV32 - Intrinsics + Emulation Functions for the RISC-V "Zfinx" CPU extension >>         #
+// # << CELLRV32 - Intrinsics + Emulation Functions for the RISC-V "Zfinx" CPU extension >>        #
 // # ********************************************************************************************* #
 // # The intrinsics provided by this library allow to use the hardware floating-point unit of the  #
 // # RISC-V Zfinx CPU extension without the need for Zfinx support by the compiler / toolchain.    #
@@ -32,7 +32,7 @@
 // # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  #
 // # OF THE POSSIBILITY OF SUCH DAMAGE.                                                            #
 // # ********************************************************************************************* #
-// # The CELLRV32 Processor - https://github.com/stnolting/cellrv32              (c) Stephan Nolting #
+// # The NEORV32 Processor - https://github.com/stnolting/neorv32              (c) Stephan Nolting #
 // #################################################################################################
 
 
@@ -215,6 +215,120 @@ inline float __attribute__ ((always_inline)) riscv_intrinsic_fmuls(float rs1, fl
   opb.float_value = rs2;
 
   res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0001000, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point fused multiply-add
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fmadds(float rs1, float rs2, float rs3) {
+
+  float_conv_t opa, opb, opc, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+  opc.float_value = rs3;
+
+  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1000011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point fused multiply-sub
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fmsubs(float rs1, float rs2, float rs3) {
+
+  float_conv_t opa, opb, opc, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+  opc.float_value = rs3;
+
+  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1000111);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point fused negated multiply-sub
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fnmsubs(float rs1, float rs2, float rs3) {
+
+  float_conv_t opa, opb, opc, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+  opc.float_value = rs3;
+
+  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1001011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point fused negated multiply-add
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fnmadds(float rs1, float rs2, float rs3) {
+
+  float_conv_t opa, opb, opc, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+  opc.float_value = rs3;
+
+  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1001111);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point division
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fdivs(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0001100, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point square root
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fsqrts(float rs1) {
+
+  float_conv_t opa, res;
+  opa.float_value = rs1;
+
+  res.binary_value = CUSTOM_INSTR_R2_TYPE(0b0101100, 0b00000, opa.binary_value, 0b000, 0b1010011);
   return res.float_value;
 }
 
@@ -438,131 +552,6 @@ inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fclasss(float rs
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################
-
-/**********************************************************************//**
- * Single-precision floating-point division
- *
- * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
- *
- * @param[in] rs1 Source operand 1.
- * @param[in] rs2 Source operand 2.
- * @return Result.
- **************************************************************************/
-inline float __attribute__ ((always_inline)) riscv_intrinsic_fdivs(float rs1, float rs2) {
-
-  float_conv_t opa, opb, res;
-  opa.float_value = rs1;
-  opb.float_value = rs2;
-
-  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0001100, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
-  return res.float_value;
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point square root
- *
- * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
- *
- * @param[in] rs1 Source operand 1.
- * @return Result.
- **************************************************************************/
-inline float __attribute__ ((always_inline)) riscv_intrinsic_fsqrts(float rs1) {
-
-  float_conv_t opa, res;
-  opa.float_value = rs1;
-
-  res.binary_value = CUSTOM_INSTR_R2_TYPE(0b0101100, 0b00000, opa.binary_value, 0b000, 0b1010011);
-  return res.float_value;
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused multiply-add
- *
- * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline float __attribute__ ((always_inline)) riscv_intrinsic_fmadds(float rs1, float rs2, float rs3) {
-
-  float_conv_t opa, opb, opc, res;
-  opa.float_value = rs1;
-  opb.float_value = rs2;
-  opc.float_value = rs3;
-
-  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1000011);
-  return res.float_value;
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused multiply-sub
- *
- * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline float __attribute__ ((always_inline)) riscv_intrinsic_fmsubs(float rs1, float rs2, float rs3) {
-
-  float_conv_t opa, opb, opc, res;
-  opa.float_value = rs1;
-  opb.float_value = rs2;
-  opc.float_value = rs3;
-
-  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1000111);
-  return res.float_value;
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused negated multiply-sub
- *
- * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline float __attribute__ ((always_inline)) riscv_intrinsic_fnmsubs(float rs1, float rs2, float rs3) {
-
-  float_conv_t opa, opb, opc, res;
-  opa.float_value = rs1;
-  opb.float_value = rs2;
-  opc.float_value = rs3;
-
-  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1001011);
-  return res.float_value;
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused negated multiply-add
- *
- * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline float __attribute__ ((always_inline)) riscv_intrinsic_fnmadds(float rs1, float rs2, float rs3) {
-
-  float_conv_t opa, opb, opc, res;
-  opa.float_value = rs1;
-  opb.float_value = rs2;
-  opc.float_value = rs3;
-
-  res.binary_value = CUSTOM_INSTR_R4_TYPE(opc.binary_value, opb.binary_value, opa.binary_value, 0b000, 0b1001111);
-  return res.float_value;
-}
 
 
 // ################################################################################################
