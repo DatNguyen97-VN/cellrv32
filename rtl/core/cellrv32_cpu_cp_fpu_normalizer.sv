@@ -15,6 +15,7 @@ module cellrv32_cpu_cp_fpu_normalizer (
     input logic       start_i,    // trigger operation
     input logic [2:0] rmode_i,    // rounding mode
     input logic       funct_i,    // operating mode (0=norm&round, 1=int-to-float)
+    input logic       fused_i,    // fused operation (FMADD/FMSUB/FNMADD/FNMSUB)
     /* input */
     input logic        sign_i,     // sign
     input logic [8:0]  exponent_i, // extended exponent
@@ -157,13 +158,14 @@ module cellrv32_cpu_cp_fpu_normalizer (
                 // --------------------------------------------------------------
                 // prepare "normal" normalization & rounding
                 S_PREPARE_NORM : begin 
-                    sreg.upper[31:2] <= '0;
-                    sreg.upper[1:0]  <= mantissa_i[47:46];
-                    sreg.lower <= mantissa_i[45:23];
-                    sreg.ext_g <= mantissa_i[22];
-                    sreg.ext_r <= mantissa_i[21];
+                    sreg.upper[31:3] <= '0;
+                    // is Fused Multiply-Add/Subtract or Not-Multiply-Add/Subtract  operation?
+                    sreg.upper[02:0] <= fused_i ? mantissa_i[47:45] : {1'b0, mantissa_i[47:46]};
+                    sreg.lower       <= fused_i ? mantissa_i[44:22] : mantissa_i[45:23];
                     //
-                    sreg.ext_s <= |mantissa_i[20:0]; // sticky bit
+                    sreg.ext_g <= fused_i ? mantissa_i[21] : mantissa_i[22];
+                    sreg.ext_r <= fused_i ? mantissa_i[20] : mantissa_i[21];
+                    sreg.ext_s <= fused_i ? |mantissa_i[19:0] : |mantissa_i[20:0]; // sticky bit
                     // check for special cases
                     if ((ctrl.class_data[fp_class_snan_c]       || ctrl.class_data[fp_class_qnan_c]       || // NaN
                          ctrl.class_data[fp_class_neg_zero_c]   || ctrl.class_data[fp_class_pos_zero_c]   || // zero
@@ -197,20 +199,20 @@ module cellrv32_cpu_cp_fpu_normalizer (
                             ctrl.state <= S_CHECK;
                         end
                     end else begin
-                        if (sreg.dir == 1'b0) begin // shift right
-                            ctrl.cnt   <= ctrl.cnt + 1'b1;
-                            sreg.upper <= {1'b0, sreg.upper[$bits(sreg.upper)-1:1]};
-                            sreg.lower <= {sreg.upper[0], sreg.lower[$bits(sreg.lower)-1:1]};
-                            sreg.ext_g <= sreg.lower[0];
-                            sreg.ext_r <= sreg.ext_g;
-                            sreg.ext_s <= sreg.ext_r | sreg.ext_s; // sticky bit
-                        end else begin // shift left
+                        if (sreg.dir) begin // shift left
                             ctrl.cnt   <= ctrl.cnt - 1'b1;
                             sreg.upper <= {sreg.upper[$bits(sreg.upper)-2:0], sreg.lower[$bits(sreg.lower)-1]};
                             sreg.lower <= {sreg.lower[$bits(sreg.lower)-2:0], sreg.ext_g};
                             sreg.ext_g <= sreg.ext_r;
                             sreg.ext_r <= sreg.ext_s;
                             sreg.ext_s <= sreg.ext_s; // sticky bit
+                        end else begin // shift right
+                            ctrl.cnt   <= ctrl.cnt + 1'b1;
+                            sreg.upper <= {1'b0, sreg.upper[$bits(sreg.upper)-1:1]};
+                            sreg.lower <= {sreg.upper[0], sreg.lower[$bits(sreg.lower)-1:1]};
+                            sreg.ext_g <= sreg.lower[0];
+                            sreg.ext_r <= sreg.ext_g;
+                            sreg.ext_s <= sreg.ext_r | sreg.ext_s; // sticky bit
                         end
                     end
                 end

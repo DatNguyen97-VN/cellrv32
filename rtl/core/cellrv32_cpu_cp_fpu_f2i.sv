@@ -138,6 +138,8 @@ module cellrv32_cpu_cp_fpu_f2i #(
                         end else
                            ctrl.state <= S_NORMALIZE_BUSY;
                     end
+                    // reset guard, round and sticky bits
+                    {sreg.ext_g, sreg.ext_r, sreg.ext_s} <= 3'b000;
                 end
                 // --------------------------------------------------------------
                 S_NORMALIZE_BUSY : begin // running normalization cycle
@@ -157,7 +159,6 @@ module cellrv32_cpu_cp_fpu_f2i #(
                         sreg.int_data <= {sreg.int_data[$bits(sreg.int_data)-2:0], sreg.mant[$bits(sreg.mant)-1]};
                         sreg.mant     <= {sreg.mant[$bits(sreg.mant)-2:0], 1'b0};
                         ctrl.over     <= ctrl.over | sreg.int_data[$bits(sreg.int_data)-1];
-                        {sreg.ext_g, sreg.ext_r, sreg.ext_s} <= 3'b000; // reset guard, round and sticky bits
                     end
                 end
                 // --------------------------------------------------------------
@@ -170,25 +171,25 @@ module cellrv32_cpu_cp_fpu_f2i #(
                 // --------------------------------------------------------------
                 S_FINALIZE : begin // check for corner cases and finalize result
                     if (ctrl.unsign == 1'b1) begin // unsigned conversion
-                        if ((ctrl.class_data[fp_class_snan_c] == 1'b1) || 
-                           (ctrl.class_data[fp_class_qnan_c] == 1'b1) || 
+                        if ((ctrl.class_data[fp_class_snan_c] == 1'b1) ||
+                           (ctrl.class_data[fp_class_qnan_c] == 1'b1) ||
                            (ctrl.class_data[fp_class_pos_inf_c] == 1'b1) || // NaN or +inf
                            ((ctrl.sign == 1'b0) && (ctrl.over == 1'b1))) // positive out-of-range
                           ctrl.result <= 32'hffffffff;
-                        else if ((ctrl.class_data[fp_class_neg_zero_c] == 1'b1) || 
-                                 (ctrl.class_data[fp_class_pos_zero_c] == 1'b1) || 
+                        else if ((ctrl.class_data[fp_class_neg_zero_c] == 1'b1) ||
+                                 (ctrl.class_data[fp_class_pos_zero_c] == 1'b1) ||
                                  (ctrl.class_data[fp_class_neg_inf_c]  == 1'b1) || // subnormal zero or -inf
                                  (ctrl.sign == 1'b1) || (ctrl.under == 1'b1)) // negative out-of-range or underflow
                           ctrl.result <= 32'h00000000;
                         else
                           ctrl.result <= ctrl.result_tmp;
                     end else begin // signed conversion
-                        if ((ctrl.class_data[fp_class_snan_c] == 1'b1) || 
-                           (ctrl.class_data[fp_class_qnan_c] == 1'b1) || 
+                        if ((ctrl.class_data[fp_class_snan_c] == 1'b1) ||
+                           (ctrl.class_data[fp_class_qnan_c] == 1'b1) ||
                            (ctrl.class_data[fp_class_pos_inf_c] == 1'b1) || // NaN or +inf
                            ((ctrl.sign == 1'b0) && (ctrl.over == 1'b1))) // positive out-of-range
                           ctrl.result <= 32'h7fffffff;
-                        else if ((ctrl.class_data[fp_class_neg_zero_c] == 1'b1) || 
+                        else if ((ctrl.class_data[fp_class_neg_zero_c] == 1'b1) ||
                                  (ctrl.class_data[fp_class_pos_zero_c] == 1'b1) || // subnormal zero or -inf
                                  (ctrl.under == 1'b1)) // negative out-of-range or underflow
                           ctrl.result <= 32'h00000000;
@@ -232,7 +233,7 @@ module cellrv32_cpu_cp_fpu_f2i #(
         /* rounding mode */
         unique case (rmode_i[2:0])
             // round to nearest, ties to even
-            3'b000 : begin 
+            3'b000 : begin
                 if (sreg.ext_g == 1'b0)
                    round.en <= 1'b0; // round down (do nothing)
                 else
@@ -242,7 +243,7 @@ module cellrv32_cpu_cp_fpu_f2i #(
                       round.en <= 1'b1; // round up
             end
             // round towards zero
-            3'b001 : 
+            3'b001 :
                      round.en <= 1'b0; // no rounding -> just truncate
             3'b010 : begin // round down (towards -infinity)
                      // if the number is negative then round up towards -inf else truncate
@@ -251,7 +252,7 @@ module cellrv32_cpu_cp_fpu_f2i #(
                      end
             end
             // round up (towards +infinity)
-            3'b011 : begin 
+            3'b011 : begin
                      // if the number is positive then round up towards +inf else truncate
                      if (sign_i == 1'b0) begin
                         round.en  <= sreg.ext_g | sreg.ext_r | sreg.ext_s;
