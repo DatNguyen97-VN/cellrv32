@@ -193,7 +193,7 @@ asm(".set RISCV_OPCODE_CUSTOM3 , 0b1111011");
 /**********************************************************************//**
  * @name R4-type instruction format, RISC-V-standard
  **************************************************************************/
-#define CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, funct3, opcode) \
+#define CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, funct3, fmt, opcode) \
 ({                                                          \
     uint32_t __return;                                      \
     asm volatile (                                          \
@@ -206,6 +206,7 @@ asm(".set RISCV_OPCODE_CUSTOM3 , 0b1111011");
     asm volatile (                                          \
       ".word (                                              \
         ((( regnum_%3 ) & 0x1f) << 27) |                    \
+        (((" #fmt    ") & 0x03) << 25) |                    \
         ((( regnum_%2 ) & 0x1f) << 20) |                    \
         ((( regnum_%1 ) & 0x1f) << 15) |                    \
         (((" #funct3 ") & 0x07) << 12) |                    \
