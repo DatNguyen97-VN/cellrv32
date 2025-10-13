@@ -60,6 +60,7 @@ module cellrv32_test_setup_bootloader #(
         .CPU_EXTENSION_RISCV_M        (CPU_EXTENSION_RISCV_M), // implement mul/div extension?
         .CPU_EXTENSION_RISCV_U        (CPU_EXTENSION_RISCV_U), // implement user mode extension?
         .CPU_EXTENSION_RISCV_Zfinx    (true),          // implement 32-bit floating-point extension (using INT reg!)
+        .CPU_EXTENSION_RISCV_Zhinx    (true),          // implement 16-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zicsr    (CPU_EXTENSION_RISCV_Zicsr), // implement CSR system?
         .CPU_EXTENSION_RISCV_Zicntr   (true),          // implement base counters?
         .CPU_EXTENSION_RISCV_Zicond   (true),          // implement conditional operations extension?
@@ -68,7 +69,7 @@ module cellrv32_test_setup_bootloader #(
         .CPU_EXTENSION_RISCV_Zmmul    (false),          // implement multiply-only M sub-extension?
         .CPU_EXTENSION_RISCV_Zxcfu    (true),          // implement custom (instr.) functions unit?
         /* Extension Options */
-        .FAST_MUL_EN                  (true),          // use DSPs for M extension's multiplier
+        .FAST_MUL_EN                  (false),          // use DSPs for M extension's multiplier
         .FAST_SHIFT_EN                (true),          // use barrel shifter for shift operations
         .CPU_IPB_ENTRIES              (4),             // entries is instruction prefetch buffer, has to be a power of 2, min 1
         /* Physical Memory Protection (PMP) */

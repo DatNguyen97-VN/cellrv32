@@ -351,6 +351,10 @@ package cellrv32_package;
   const logic [6:0] opcode_system_c = 7'b1110011; // system/csr access (type via funct3)
   // floating point operations --
   const logic [6:0] opcode_fop_c    = 7'b1010011; // dual/single operand instruction
+  const logic [6:0] opcode_fmadd_c  = 7'b1000011; // fused multiply-add
+  const logic [6:0] opcode_fmsub_c  = 7'b1000111; // fused multiply-subtract
+  const logic [6:0] opcode_fnmadd_c = 7'b1001111; // fused negative multiply-add
+  const logic [6:0] opcode_fnmsub_c = 7'b1001011; // fused negative multiply-subtract
   // official *custom* RISC-V opcodes - free for custom instructions --
   const logic [6:0] opcode_cust0_c  = 7'b0001011; // custom-0
   const logic [6:0] opcode_cust1_c  = 7'b0101011; // custom-1
@@ -413,8 +417,8 @@ package cellrv32_package;
   // -------------------------------------------------------------------------------------------
   // formats --
   const logic [1:0] float_single_c    = 2'b00; // single-precision (32-bit)
+  const logic [1:0] float_half_c      = 2'b10; // half-precision (16-bit)
 //const float_double_c : std_ulogic_vector(1 downto 0) := "01"; // double-precision (64-bit)
-//const float_half_c   : std_ulogic_vector(1 downto 0) := "10"; // half-precision (16-bit)
 //const float_quad_c   : std_ulogic_vector(1 downto 0) := "11"; // quad-precision (128-bit)
 
   // number class flags --
@@ -437,12 +441,20 @@ package cellrv32_package;
   localparam int fp_exc_nx_c = 4; // inexact
 
   // special values (single-precision) --
-  const logic [31:0] fp_single_qnan_c     = 32'h7fc00000; // quiet NaN
-  const logic [31:0] fp_single_snan_c     = 32'h7fa00000; // signaling NaN
-  const logic [31:0] fp_single_pos_inf_c  = 32'h7f800000; // positive infinity
-  const logic [31:0] fp_single_neg_inf_c  = 32'hff800000; // negative infinity
-  const logic [31:0] fp_single_pos_zero_c = 32'h00000000; // positive zero
-  const logic [31:0] fp_single_neg_zero_c = 32'h80000000; // negative zero
+  const logic [31:0] fp32_single_qnan_c     = 32'h7fc00000; // quiet NaN
+  const logic [31:0] fp32_single_snan_c     = 32'h7fa00000; // signaling NaN
+  const logic [31:0] fp32_single_pos_inf_c  = 32'h7f800000; // positive infinity
+  const logic [31:0] fp32_single_neg_inf_c  = 32'hff800000; // negative infinity
+  const logic [31:0] fp32_single_pos_zero_c = 32'h00000000; // positive zero
+  const logic [31:0] fp32_single_neg_zero_c = 32'h80000000; // negative zero
+
+  // special values (half-precision) --
+  const logic [15:0] fp16_half_qnan_c     = 16'h7e00; // quiet NaN
+  const logic [15:0] fp16_half_snan_c     = 16'h7d00; // signaling NaN
+  const logic [15:0] fp16_half_pos_inf_c  = 16'h7c00; // positive infinity
+  const logic [15:0] fp16_half_neg_inf_c  = 16'hfc00; // negative infinity
+  const logic [15:0] fp16_half_pos_zero_c = 16'h0000; // positive zero
+  const logic [15:0] fp16_half_neg_zero_c = 16'h8000; // negative zero
 
   // RISC-V CSR Addresses -------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -713,7 +725,7 @@ package cellrv32_package;
      logic        alu_opb_mux;   // operand B select (0=rs2, 1=IMM)
      logic        alu_unsigned;  // is unsigned ALU operation
      logic [2:0]  alu_frm;       // FPU rounding mode
-     logic [5:0]  alu_cp_trig;   // co-processor trigger (one-hot)
+     logic [6:0]  alu_cp_trig;   // co-processor trigger (one-hot)
      /* bus interface */
      logic        bus_req;       // trigger memory request
      logic        bus_mo_we;     // memory address and data output register write enable
@@ -768,12 +780,13 @@ package cellrv32_package;
 
   // CPU Co-Processor IDs -------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  const int cp_sel_shifter_c  = 0; // CP0: shift operations (base ISA)
-  const int cp_sel_muldiv_c   = 1; // CP1: multiplication/division operations ('M' extensions)
-  const int cp_sel_bitmanip_c = 2; // CP2: bit manipulation ('B' extensions)
-  const int cp_sel_fpu_c      = 3; // CP3: floating-point unit ('Zfinx' extension)
-  const int cp_sel_cfu_c      = 4; // CP4: custom instructions CFU ('Zxcfu' extension)
-  const int cp_sel_cond_c     = 5; // CP5: conditional operations ('Zicond' extension)
+  localparam int cp_sel_shifter_c  = 0; // CP0: shift operations (base ISA)
+  localparam int cp_sel_muldiv_c   = 1; // CP1: multiplication/division operations ('M' extensions)
+  localparam int cp_sel_bitmanip_c = 2; // CP2: bit manipulation ('B' extensions)
+  localparam int cp_sel_fpu32_c    = 3; // CP3: floating-point unit ('Zfinx' extension)
+  localparam int cp_sel_fpu16_c    = 4; // CP4: floating-point unit ('Zhinx' extension)
+  localparam int cp_sel_cfu_c      = 5; // CP5: custom instructions CFU ('Zxcfu' extension)
+  localparam int cp_sel_cond_c     = 6; // CP6: conditional operations ('Zicond' extension)
 
   // ALU Function Codes [DO NOT CHANGE ENCODING!] -------------------------------------------
   // -------------------------------------------------------------------------------------------

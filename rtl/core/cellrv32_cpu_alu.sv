@@ -15,6 +15,7 @@ module cellrv32_cpu_alu #(
     parameter int CPU_EXTENSION_RISCV_M      = 0, // implement mul/div extension?
     parameter int CPU_EXTENSION_RISCV_Zmmul  = 0, // implement multiply-only M sub-extension?
     parameter int CPU_EXTENSION_RISCV_Zfinx  = 0, // implement 32-bit floating-point extension (using INT reg!)
+    parameter int CPU_EXTENSION_RISCV_Zhinx  = 0, // implement 16-bit floating-point extension (using INT reg!)
     parameter int CPU_EXTENSION_RISCV_Zxcfu  = 0, // implement custom (instr.) functions unit?
     parameter int CPU_EXTENSION_RISCV_Zicond = 0, // implement conditional operations extension?
     /* Extension Options */
@@ -65,11 +66,13 @@ module cellrv32_cpu_alu #(
     cp_monitor_t cp_monitor;
 
     /* co-processor interface */
-    typedef logic [XLEN-1:0] cp_data_if_t [5:0];
+    typedef logic [XLEN-1:0] cp_data_if_t [6:0];
     cp_data_if_t cp_result; // co-processor result
-    logic [5:0]  cp_start ; // trigger co-processor
-    logic [5:0]  cp_valid ; // co-processor done
-
+    logic [6:0] cp_start;   // trigger co-processor
+    logic [6:0] cp_valid;   // co-processor done
+    logic [4:0] fpu32_flags; // fp32 flags
+    logic [4:0] fpu16_flags; // fp16 flags
+ 
     // Comparator Unit (for conditional branches) ------------------------------------------------
     // -------------------------------------------------------------------------------------------
     assign cmp_rs1 = {(rs1_i[$bits(rs1_i)-1] & (~ctrl_i.alu_unsigned)), rs1_i}; // optional sign-extension
@@ -224,9 +227,15 @@ module cellrv32_cpu_alu #(
     // -- > "cp_valid" signal has to be set (for one cycle) one cycle before CP output data (cp_result) is valid
     assign cp_done_o = |cp_valid;
 
+    /* exceoption flags */
+    assign fpu_flags_o = fpu32_flags | fpu16_flags;
+
     /* co-processor result */
     // -- > "cp_result" data has to be always zero unless the specific co-processor has been actually triggered
-    assign cp_res = cp_result[0] | cp_result[1] | cp_result[2] | cp_result[3] | cp_result[4] | cp_result[5];
+    assign cp_res = cp_result[cp_sel_shifter_c]  | cp_result[cp_sel_muldiv_c] | 
+                    cp_result[cp_sel_bitmanip_c] | cp_result[cp_sel_fpu32_c]  | 
+                    cp_result[cp_sel_fpu16_c]    | cp_result[cp_sel_cfu_c]    | 
+                    cp_result[cp_sel_cond_c];
 
     // -------------------------------------------------------------------------------------------
     // Co-Processor 0: Shifter Unit ('I'/'E' Base ISA) -------------------------------------------
@@ -240,13 +249,13 @@ module cellrv32_cpu_alu #(
         .clk_i   (clk_i),        // global clock, rising edge
         .rstn_i  (rstn_i),       // global reset, low-active, async
         .ctrl_i  (ctrl_i),       // main control bus
-        .start_i (cp_start[0]),  // trigger operation
+        .start_i (cp_start[cp_sel_shifter_c]),  // trigger operation
         /* data input */
         .rs1_i   (rs1_i),        // rf source 1
         .shamt_i (opb[$clog2(XLEN)-1:0]), // shift amount
         /* result and status */
-        .res_o   (cp_result[0]), // operation result
-        .valid_o (cp_valid[0])   // data output valid
+        .res_o   (cp_result[cp_sel_shifter_c]), // operation result
+        .valid_o (cp_valid[cp_sel_shifter_c])   // data output valid
     );
 
     // -------------------------------------------------------------------------------------------
@@ -263,21 +272,21 @@ module cellrv32_cpu_alu #(
                 .clk_i   ( clk_i),       // global clock, rising edge
                 .rstn_i  (rstn_i),       // global reset, low-active, async
                 .ctrl_i  (ctrl_i),       // main control bus
-                .start_i (cp_start[1]),  // trigger operation
+                .start_i (cp_start[cp_sel_muldiv_c]),  // trigger operation
                 /* data input */
                 .rs1_i   (rs1_i),        // rf source 1
                 .rs2_i   (rs2_i),        // rf source 2
                 /* result and status */
-                .res_o   (cp_result[1]), // operation result
-                .valid_o (cp_valid[1])   // data output valid
+                .res_o   (cp_result[cp_sel_muldiv_c]), // operation result
+                .valid_o (cp_valid[cp_sel_muldiv_c])   // data output valid
             );
         end : cellrv32_cpu_cp_muldiv_inst_ON
     endgenerate
 
     generate
         if ((CPU_EXTENSION_RISCV_M == 1'b0) && (CPU_EXTENSION_RISCV_Zmmul == 1'b0)) begin : cellrv32_cpu_cp_muldiv_inst_OFF
-            assign cp_result[1] = '0;
-            assign cp_valid[1]  = 1'b0;
+            assign cp_result[cp_sel_muldiv_c] = '0;
+            assign cp_valid[cp_sel_muldiv_c]  = 1'b0;
         end : cellrv32_cpu_cp_muldiv_inst_OFF
     endgenerate
 
@@ -294,23 +303,23 @@ module cellrv32_cpu_alu #(
                 .clk_i   ( clk_i),       // global clock, rising edge
                 .rstn_i  (rstn_i),       // global reset, low-active, async
                 .ctrl_i  (ctrl_i),       // main control bus
-                .start_i (cp_start[2]),  // trigger operation
+                .start_i (cp_start[cp_sel_bitmanip_c]),  // trigger operation
                 /* data input */
                 .cmp_i   (cmp),          // comparator status
                 .rs1_i   (rs1_i),        // rf source 1
                 .rs2_i   (rs2_i),        // rf source 2
                 .shamt_i (opb[$clog2(XLEN)-1:0]), // shift amount
                 /* result and status */
-                .res_o   (cp_result[2]), // operation result
-                .valid_o (cp_valid[2])   // data output valid
+                .res_o   (cp_result[cp_sel_bitmanip_c]), // operation result
+                .valid_o (cp_valid[cp_sel_bitmanip_c])   // data output valid
             );
         end : cellrv32_cpu_cp_bitmanip_inst_ON
     endgenerate
 
     generate
         if (CPU_EXTENSION_RISCV_B == 1'b0) begin : cellrv32_cpu_cp_bitmanip_inst_OFF
-            assign cp_result[2] = '0;
-            assign cp_valid[2]  = 1'b0;
+            assign cp_result[cp_sel_bitmanip_c] = '0;
+            assign cp_valid[cp_sel_bitmanip_c]  = 1'b0;
         end : cellrv32_cpu_cp_bitmanip_inst_OFF
     endgenerate
 
@@ -318,38 +327,72 @@ module cellrv32_cpu_alu #(
     // Co-Processor 3: Single-Precision Floating-Point Unit ('Zfinx' Extension) ------------------
     // -------------------------------------------------------------------------------------------
     generate
-       if (CPU_EXTENSION_RISCV_Zfinx == 1'b1) begin : cellrv32_cpu_cp_fpu_inst_ON
-           cellrv32_cpu_cp_fpu #(
+       if (CPU_EXTENSION_RISCV_Zfinx == 1'b1) begin : cellrv32_cpu_cp_fpu32_inst_ON
+           cellrv32_cpu_cp_fpu32 #(
                .XLEN (XLEN)
-           ) cellrv32_cpu_cp_fpu_inst (
+           ) cellrv32_cpu_cp_fpu32_inst (
                /* global control */
                .clk_i    (clk_i),        // global clock, rising edge
                .rstn_i   (rstn_i),       // global reset, low-active, async
                .ctrl_i   (ctrl_i),       // main control bus
-               .start_i  (cp_start[3]),  // trigger operation
+               .start_i  (cp_start[cp_sel_fpu32_c]),  // trigger operation
                /* data input */
                .cmp_i    (cmp),          // comparator status
                .rs1_i    (rs1_i),        // rf source 1
                .rs2_i    (rs2_i),        // rf source 2
                .rs3_i    (rs3_i),        // rf source 3
                /* result and status */
-               .res_o    (cp_result[3]), // operation result
-               .fflags_o (fpu_flags_o),  // exception flags
-               .valid_o  (cp_valid[3])   // data output valid
+               .res_o    (cp_result[cp_sel_fpu32_c]), // operation result
+               .fflags_o (fpu32_flags),  // exception flags
+               .valid_o  (cp_valid[cp_sel_fpu32_c])   // data output valid
            );
-       end : cellrv32_cpu_cp_fpu_inst_ON
+       end : cellrv32_cpu_cp_fpu32_inst_ON
     endgenerate
 
     generate
-       if (CPU_EXTENSION_RISCV_Zfinx == 1'b0) begin : cellrv32_cpu_cp_fpu_inst_OFF
-           assign cp_result[3] = '0;
-           assign fpu_flags_o  = '0;
-           assign cp_valid[3]  = 1'b0;
-       end : cellrv32_cpu_cp_fpu_inst_OFF
+       if (CPU_EXTENSION_RISCV_Zfinx == 1'b0) begin : cellrv32_cpu_cp_fpu32_inst_OFF
+           assign cp_result[cp_sel_fpu32_c] = '0;
+           assign fpu32_flags  = '0;
+           assign cp_valid[cp_sel_fpu32_c]  = 1'b0;
+       end : cellrv32_cpu_cp_fpu32_inst_OFF
+    endgenerate
+
+    // --------------------------------------------------------------------------------------------
+    // Co-Processor 4: Half-Precision Floating-Point Unit ('Zhinx' Extension) ------------------
+    // -------------------------------------------------------------------------------------------
+    generate
+       if (CPU_EXTENSION_RISCV_Zhinx == 1'b1) begin : cellrv32_cpu_cp_fpu16_inst_ON
+           cellrv32_cpu_cp_fpu16 #(
+               .XLEN (XLEN)
+           ) cellrv32_cpu_cp_fpu16_inst (
+               /* global control */
+               .clk_i    (clk_i),        // global clock, rising edge
+               .rstn_i   (rstn_i),       // global reset, low-active, async
+               .ctrl_i   (ctrl_i),       // main control bus
+               .start_i  (cp_start[cp_sel_fpu16_c]),  // trigger operation
+               /* data input */
+               .cmp_i    (cmp),          // comparator status
+               .rs1_i    (rs1_i),        // rf source 1
+               .rs2_i    (rs2_i),        // rf source 2
+               .rs3_i    (rs3_i),        // rf source 3
+               /* result and status */
+               .res_o    (cp_result[cp_sel_fpu16_c]), // operation result
+               .fflags_o (fpu16_flags),  // exception flags
+               .valid_o  (cp_valid[cp_sel_fpu16_c])   // data output valid
+           );
+       end : cellrv32_cpu_cp_fpu16_inst_ON
+    endgenerate
+
+    generate
+       if (CPU_EXTENSION_RISCV_Zhinx == 1'b0) begin : cellrv32_cpu_cp_fpu16_inst_OFF
+           assign cp_result[cp_sel_fpu16_c] = '0;
+           assign fpu16_flags  = '0;
+           assign cp_valid[cp_sel_fpu16_c]  = 1'b0;
+       end : cellrv32_cpu_cp_fpu16_inst_OFF
     endgenerate
 
     // -------------------------------------------------------------------------------------------
-    // Co-Processor 4: Custom (Instructions) Functions Unit ('Zxcfu' Extension) ------------------
+    // Co-Processor 5: Custom (Instructions) Functions Unit ('Zxcfu' Extension) ------------------
     // -------------------------------------------------------------------------------------------
     generate
        if (CPU_EXTENSION_RISCV_Zxcfu == 1'b1) begin : cellrv32_cpu_cp_cfu_inst_ON
@@ -360,28 +403,28 @@ module cellrv32_cpu_alu #(
                .clk_i   (clk_i),        // global clock, rising edge
                .rstn_i  (rstn_i),       // global reset, low-active, async
                .ctrl_i  (ctrl_i),       // main control bus
-               .start_i (cp_start[4]),  // trigger operation
+               .start_i (cp_start[cp_sel_cfu_c]),  // trigger operation
                /* data input */
                .rs1_i   (rs1_i),        // rf source 1
                .rs2_i   (rs2_i),        // rf source 2
                .rs3_i   (rs3_i),        // rf source 3
                .rs4_i   (rs4_i),        // rf source 4
                /* result and status */
-               .res_o   (cp_result[4]), // operation result
-               .valid_o (cp_valid[4])   // data output valid
+               .res_o   (cp_result[cp_sel_cfu_c]), // operation result
+               .valid_o (cp_valid[cp_sel_cfu_c])   // data output valid
            );
        end : cellrv32_cpu_cp_cfu_inst_ON
     endgenerate
 
     generate
        if (CPU_EXTENSION_RISCV_Zxcfu == 1'b0) begin : cellrv32_cpu_cp_cfu_inst_OFF
-           assign cp_result[4] = '0;
-           assign cp_valid[4]  = 1'b0;
+           assign cp_result[cp_sel_cfu_c] = '0;
+           assign cp_valid[cp_sel_cfu_c]  = 1'b0;
        end : cellrv32_cpu_cp_cfu_inst_OFF
     endgenerate
 
     // -------------------------------------------------------------------------------------------
-    // Co-Processor 5: Conditional Operations ('Zicond' Extension) -------------------------------
+    // Co-Processor 6: Conditional Operations ('Zicond' Extension) -------------------------------
     // -------------------------------------------------------------------------------------------
     generate
        if (CPU_EXTENSION_RISCV_Zicond == 1'b1) begin : cellrv32_cpu_cp_cond_inst_ON
@@ -390,21 +433,21 @@ module cellrv32_cpu_alu #(
                /* global control */
                .clk_i   (clk_i),        // global clock, rising edge
                .ctrl_i  (ctrl_i),       // main control bus
-               .start_i (cp_start[5]),  // trigger operation
+               .start_i (cp_start[cp_sel_cond_c]),  // trigger operation
                /* data input */
                .rs1_i   (rs1_i),        // rf source 1
                .rs2_i   (rs2_i),        // rf source 2
                /* result and status */
-               .res_o   (cp_result[5]), // operation result
-               .valid_o (cp_valid[5])   // data output valid
+               .res_o   (cp_result[cp_sel_cond_c]), // operation result
+               .valid_o (cp_valid[cp_sel_cond_c])   // data output valid
            );
        end : cellrv32_cpu_cp_cond_inst_ON
     endgenerate
 
     generate
        if (CPU_EXTENSION_RISCV_Zicond == 1'b0) begin : cellrv32_cpu_cp_cond_inst_OFF
-           assign cp_result[5] = '0;
-           assign cp_valid[5]  = 1'b0;
+           assign cp_result[cp_sel_cond_c] = '0;
+           assign cp_valid[cp_sel_cond_c]  = 1'b0;
        end : cellrv32_cpu_cp_cond_inst_OFF
     endgenerate
 

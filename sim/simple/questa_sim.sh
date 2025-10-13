@@ -25,8 +25,8 @@ for uart in 0 1; do
 done
 
 # Start simulation
-QUESTA_RUN_ARGS="1ms"
-echo "Using simulation runtime args: $QUESTA_RUN_ARGS";
+QUESTA_RUN_ARGS="-all"
+echo "☢ Using simulation runtime args: $QUESTA_RUN_ARGS ☢";
 
 # -voptargs="+acc" option for debug mode to add wave internal signal
 vsim -do "source ../add_wave_debug.tcl; run $QUESTA_RUN_ARGS; exit" \

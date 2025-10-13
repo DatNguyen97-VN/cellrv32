@@ -412,13 +412,15 @@ enum CELLRV32_CSR_XISA_enum {
   CSR_MXISA_ZMMUL     =  2, /**< CPU mxisa CSR  (2): hardware mul/div (r/-)*/
   CSR_MXISA_ZXCFU     =  3, /**< CPU mxisa CSR  (3): custom RISC-V instructions (r/-)*/
   CSR_MXISA_ZICOND    =  4, /**< CPU mxisa CSR  (4): conditional operations (r/-)*/
-  CSR_MXISA_ZFINX     =  5, /**< CPU mxisa CSR  (5): FPU using x registers, "F-alternative" (r/-)*/
+  CSR_MXISA_ZFINX     =  5, /**< CPU mxisa CSR  (5): Single-Precision FPU using x registers, "F-alternative" (r/-)*/
 
   CSR_MXISA_ZICNTR    =  7, /**< CPU mxisa CSR  (7): standard instruction, cycle and time counter CSRs (r/-)*/
   CSR_MXISA_PMP       =  8, /**< CPU mxisa CSR  (8): physical memory protection (also "Smpmp") (r/-)*/
   CSR_MXISA_ZIHPM     =  9, /**< CPU mxisa CSR  (9): hardware performance monitors (r/-)*/
   CSR_MXISA_SDEXT     = 10, /**< CPU mxisa CSR (10): RISC-V debug mode (r/-)*/
   CSR_MXISA_SDTRIG    = 11, /**< CPU mxisa CSR (11): RISC-V trigger module (r/-)*/
+
+  CSR_MXISA_ZHINX     = 12, /**< CPU mxisa CSR (12): Half-Precision FPU using x registers, "ZFH-alternative" (r/-)*/
 
   // Misc
   CSR_MXISA_IS_SIM    = 20, /**< CPU mxisa CSR (20): this might be a simulation when set (r/-)*/

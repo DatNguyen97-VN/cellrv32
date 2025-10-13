@@ -39,6 +39,7 @@ module cellrv32_top #(
     parameter logic CPU_EXTENSION_RISCV_M        = 1'b0,  // implement mul/div extension?
     parameter logic CPU_EXTENSION_RISCV_U        = 1'b0,  // implement user mode extension?
     parameter logic CPU_EXTENSION_RISCV_Zfinx    = 1'b0,  // implement 32-bit floating-point extension (using INT regs!)
+    parameter logic CPU_EXTENSION_RISCV_Zhinx    = 1'b0,  // implement 16-bit floating-point extension (using INT regs!)
     parameter logic CPU_EXTENSION_RISCV_Zicsr    = 1'b1,   // implement CSR system?
     parameter logic CPU_EXTENSION_RISCV_Zicntr   = 1'b1,   // implement base counters?
     parameter logic CPU_EXTENSION_RISCV_Zicond   = 1'b0,  // implement conditional operations extension?
@@ -543,6 +544,7 @@ module cellrv32_top #(
         .CPU_EXTENSION_RISCV_M       (CPU_EXTENSION_RISCV_M),        // implement mul/div extension?
         .CPU_EXTENSION_RISCV_U       (CPU_EXTENSION_RISCV_U),        // implement user mode extension?
         .CPU_EXTENSION_RISCV_Zfinx   (CPU_EXTENSION_RISCV_Zfinx),    // implement 32-bit floating-point extension (using INT reg!)
+        .CPU_EXTENSION_RISCV_Zhinx   (CPU_EXTENSION_RISCV_Zhinx),    // implement 16-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zicsr   (CPU_EXTENSION_RISCV_Zicsr),    // implement CSR system?
         .CPU_EXTENSION_RISCV_Zicntr  (CPU_EXTENSION_RISCV_Zicntr),   // implement base counters?
         .CPU_EXTENSION_RISCV_Zicond  (CPU_EXTENSION_RISCV_Zicond),   // implement conditional operations extension?

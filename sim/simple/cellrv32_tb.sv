@@ -120,6 +120,10 @@ module cellrv32_tb_simple #(
     // declare external ram b variable
     logic [ext_mem_b_size_c/4-1 : 0][31:0] ext_ram_b;
 
+    // Introduction ------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    
+                                                                                  
     // Clock/Reset Generator ---------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     initial begin
@@ -132,6 +136,18 @@ module cellrv32_tb_simple #(
     initial begin
         rst_gen = 1'b0;
         #(60*(t_clock_c/2)) rst_gen = 1'b1;
+    end
+
+    // Shutdown Generator ------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    initial begin
+        forever @(posedge clk_gen) begin
+            if (&gpio) begin
+                $display("Testbench is complete...");
+                #10
+                $finish;
+            end
+        end
     end
     
     // The Core of the Problem -------------------------------------------------------------------
@@ -151,6 +167,7 @@ module cellrv32_tb_simple #(
         .CPU_EXTENSION_RISCV_M        (CPU_EXTENSION_RISCV_M), // implement mul/div extension?
         .CPU_EXTENSION_RISCV_U        (CPU_EXTENSION_RISCV_U), // implement user mode extension?
         .CPU_EXTENSION_RISCV_Zfinx    (1'b1),          // implement 32-bit floating-point extension (using INT reg!)
+        .CPU_EXTENSION_RISCV_Zhinx    (1'b1),          // implement 16-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zicsr    (CPU_EXTENSION_RISCV_Zicsr), // implement CSR system?
         .CPU_EXTENSION_RISCV_Zicntr   (1'b1),          // implement base counters?
         .CPU_EXTENSION_RISCV_Zicond   (1'b1),          // implement conditional operations extension?

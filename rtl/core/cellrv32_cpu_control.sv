@@ -30,6 +30,7 @@ module cellrv32_cpu_control #(
     parameter CPU_EXTENSION_RISCV_M        = 0, // implement mul/div extension?
     parameter CPU_EXTENSION_RISCV_U        = 0, // implement user mode extension?
     parameter CPU_EXTENSION_RISCV_Zfinx    = 0, // implement 32-bit floating-point extension (using INT reg!)
+    parameter CPU_EXTENSION_RISCV_Zhinx    = 0, // implement 16-bit floating-point extension (using INT reg!)
     parameter CPU_EXTENSION_RISCV_Zicsr    = 0, // implement CSR system?
     parameter CPU_EXTENSION_RISCV_Zicntr   = 0, // implement base counters?
     parameter CPU_EXTENSION_RISCV_Zihpm    = 0, // implement hardware performance monitors?
@@ -149,7 +150,8 @@ module cellrv32_cpu_control #(
 
     /* instruction decoding helper logic */
     typedef struct {
-        logic is_f_op;   
+        logic is_f_op;  
+        logic is_h_op; 
         logic is_m_mul;  
         logic is_m_div;  
         logic is_b_imm;  
@@ -769,6 +771,7 @@ module cellrv32_cpu_control #(
     always_comb begin : decode_helper
      /* defaults */
      decode_aux.is_f_op   = 1'b0;
+     decode_aux.is_h_op   = 1'b0;
      decode_aux.is_m_mul  = 1'b0;
      decode_aux.is_m_div  = 1'b0;
      decode_aux.is_b_imm  = 1'b0;
@@ -815,8 +818,9 @@ module cellrv32_cpu_control #(
          end
      end
      
-     /* floating-point operations (Zfinx) */
-     if (CPU_EXTENSION_RISCV_Zfinx == 1) begin //  FPU implemented at all?
+     /* single-precision floating-point operations (Zfinx) */
+     /* half-precision floating-point operations (Zhinx) */
+     if ((CPU_EXTENSION_RISCV_Zfinx == 1) || (CPU_EXTENSION_RISCV_Zhinx == 1)) begin //  FPU implemented at all?
         if (((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+3] == 4'b0000))         || // FADD.S / FSUB.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00010))        || // FMUL.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00011))        || // FDIV.S
@@ -834,6 +838,10 @@ module cellrv32_cpu_control #(
             // single-precision operations only
             if ((execute_engine.i_reg[instr_funct7_lsb_c+1 : instr_funct7_lsb_c] == float_single_c)) begin
                 decode_aux.is_f_op = 1'b1;
+            end
+            // half-precision operations only
+            if ((execute_engine.i_reg[instr_funct7_lsb_c+1 : instr_funct7_lsb_c] == float_half_c)) begin
+                decode_aux.is_h_op = 1'b1;
             end
         end
      end
@@ -1092,12 +1100,13 @@ module cellrv32_cpu_control #(
                      execute_engine.state_nxt = TRAP_EXECUTE; // use TRAP_EXECUTE to "modify" PC (PC <= PC)
                  end
                  // --------------------------------------------------------------
-                 // floating-point operations
-                 // floating point fused multiply-add/sub operations
-                 // floating point fused negate-multiply-add/sub operations
+                 // half/single-precision floating-point operations
+                 // half/single-precision floating point fused multiply-add/sub operations
+                 // half/single-precision floating point fused negate-multiply-add/sub operations
                  opcode_fop_c, opcode_fmadd_c, opcode_fmsub_c, opcode_fnmsub_c, opcode_fnmadd_c : begin
-                     if (CPU_EXTENSION_RISCV_Zfinx == 1) begin
-                         ctrl_nxt.alu_cp_trig[cp_sel_fpu_c] = 1'b1; // trigger FPU CP
+                     if ((CPU_EXTENSION_RISCV_Zfinx == 1) || (CPU_EXTENSION_RISCV_Zhinx == 1)) begin
+                         ctrl_nxt.alu_cp_trig[cp_sel_fpu32_c] = decode_aux.is_f_op; // trigger FPU CP3
+                         ctrl_nxt.alu_cp_trig[cp_sel_fpu16_c] = decode_aux.is_h_op; // trigger FPU CP4
                          execute_engine.state_nxt = ALU_WAIT;
                      end else begin
                          execute_engine.state_nxt = DISPATCH;
@@ -1510,9 +1519,10 @@ module cellrv32_cpu_control #(
          end
          // --------------------------------------------------------------
          // floating point operations - single/dual operands
-         // floating point fused [negate]-multiply-add/sub operations
+         // floating point fused [negate]-multiply-add/sub operations - third operands
          opcode_fop_c, opcode_fmadd_c, opcode_fmsub_c, opcode_fnmadd_c, opcode_fnmsub_c : begin
-             if ((CPU_EXTENSION_RISCV_Zfinx == 1) && (decode_aux.is_f_op == 1'b1)) begin // is supported floating-point instruction
+             if (((CPU_EXTENSION_RISCV_Zfinx == 1) && (decode_aux.is_f_op == 1'b1)) || // is supported single-precision floating-point instruction
+                 ((CPU_EXTENSION_RISCV_Zhinx == 1) && (decode_aux.is_h_op == 1'b1))) begin // is supported half-precision floating-point instruction
                  illegal_cmd = 1'b0;
                  illegal_reg = execute_engine.i_reg[instr_rs2_msb_c] | execute_engine.i_reg[instr_rs1_msb_c] | execute_engine.i_reg[instr_rd_msb_c]; // illegal 'E' register?
              end else begin
@@ -2425,6 +2435,8 @@ module cellrv32_cpu_control #(
                  csr.rdata[09] <= logic'(CPU_EXTENSION_RISCV_Zihpm);    // Zihpm: hardware performance monitors
                  csr.rdata[10] <= logic'(CPU_EXTENSION_RISCV_Sdext);    // Sdext: RISC-V (external) debug mode
                  csr.rdata[11] <= logic'(CPU_EXTENSION_RISCV_Sdtrig);   // Sdtrig: trigger module
+
+                 csr.rdata[12] <= logic'(CPU_EXTENSION_RISCV_Zhinx);    // Zhinx: FPU using x registers, "ZFH-alternative"
                  // misc 
                  csr.rdata[20] <= logic'(is_simulation_c);              // is this a simulation?
                  // tuning options 

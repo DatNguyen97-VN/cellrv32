@@ -196,6 +196,7 @@ int main(int argc, char *argv[]) {
                         "// Built: %s\n"
                         "\n"
                         "\n"
+                        "package cellrv32_application_image_pkg;\n"
                         "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
                         "typedef logic [31:0] mem_app_t   [32*1024];\n"
                         "typedef logic [31:0] mem32_app_t [%lu];\n"
@@ -264,7 +265,7 @@ int main(int argc, char *argv[]) {
     }
 
     // end
-    sprintf(tmp_string, "};\n\n// End of file");
+    sprintf(tmp_string, "};\nendpackage : cellrv32_application_image_pkg\n// End of file");
     fputs(tmp_string, output);
   }
 
@@ -283,6 +284,7 @@ int main(int argc, char *argv[]) {
                         "// Built: %s\n"
                         "\n"
                         "\n"
+                        "package cellrv32_bootloader_image_pkg;\n"
                         "// Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)\n"
                         "typedef logic [31:0] mem_boot_t   [16*1024];\n"
                         "typedef logic [31:0] mem32_boot_t [%lu];\n"
@@ -351,7 +353,7 @@ int main(int argc, char *argv[]) {
     }
 
     // end
-    sprintf(tmp_string, "};\n\n//End of file");
+    sprintf(tmp_string, "};\nendpackage : cellrv32_bootloader_image_pkg\n//End of file");
     fputs(tmp_string, output);
   }
 
