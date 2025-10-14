@@ -138,19 +138,12 @@ module cellrv32_cpu_cp_fpu32_f2i #(
                         end else
                            ctrl.state <= S_NORMALIZE_BUSY;
                     end
-                    // reset guard, round and sticky bits
-                    {sreg.ext_g, sreg.ext_r, sreg.ext_s} <= 3'b000;
+                    // sticky bit is set if any of the bits below the guard and round bit is set
+                    sreg.ext_s <= |sreg.mant[$bits(sreg.mant)-3:0];
                 end
                 // --------------------------------------------------------------
                 S_NORMALIZE_BUSY : begin // running normalization cycle
                     if ((|ctrl.cnt[$bits(ctrl.cnt)-2:0]) == 1'b0) begin
-                        // guard bit
-                        sreg.ext_g <= sreg.mant[$bits(sreg.mant)-1];
-                        // round bit
-                        sreg.ext_r <= sreg.mant[$bits(sreg.mant)-2];
-                        // sticky bit is set if any of the bits below the guard and round bit is set
-                        sreg.ext_s <= |sreg.mant[$bits(sreg.mant)-3:0];
-                        //
                         if (ctrl.unsign == 1'b0) // signed conversion
                             ctrl.over <= ctrl.over | sreg.int_data[$bits(sreg.int_data)-1]; // update overrun flag again to check for numerical overflow into sign bit
                         ctrl.state <= S_ROUND;
@@ -264,6 +257,11 @@ module cellrv32_cpu_cp_fpu32_f2i #(
                      round.en <= 1'b0;
         endcase
     end : rounding_unit_ctrl
+
+    // guard bit
+    assign sreg.ext_g = sreg.mant[$bits(sreg.mant)-1];
+    // round bit
+    assign sreg.ext_r = sreg.mant[$bits(sreg.mant)-2];
 
     /* incrementer */
     logic [32:0] tmp_v; // including overflow

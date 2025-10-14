@@ -1523,8 +1523,12 @@ module cellrv32_cpu_cp_fpu32 #(
                 // Normalization state
                 // ===========================================
                 S_NORM: begin
+                    // buf_ff normalizer
+                    if (fmaddsub.buf_ff[$bits(fmaddsub.buf_ff)-1]) begin
+                        fmaddsub.exp_res <= fmaddsub.exp_res + 1'b1;
+                        fmaddsub.buf_ff  <= {1'b0, fmaddsub.buf_ff[$bits(fmaddsub.buf_ff)-1:02], fmaddsub.buf_ff[1] | fmaddsub.buf_ff[0]};
                     // shift right small mantissa to align radix point
-                    if (fmaddsub.latency) begin
+                    end else if (fmaddsub.latency) begin
                         if (fpu_operands.rs1_class[fp_class_pos_zero_c] || fpu_operands.rs1_class[fp_class_neg_zero_c] ||
                             fpu_operands.rs2_class[fp_class_pos_zero_c] || fpu_operands.rs2_class[fp_class_neg_zero_c] ||
                             fpu_operands.rs3_class[fp_class_pos_zero_c] || fpu_operands.rs3_class[fp_class_neg_zero_c]) begin // input is zero
@@ -1546,7 +1550,7 @@ module cellrv32_cpu_cp_fpu32 #(
                         if (signed'(fmaddsub.large_exp - fmaddsub.small_exp) > signed'(27) ) begin
                             fmaddsub.man_sreg  <= '0;
                             // set s_ext to 1 as it will always be 1 from the implied 1 being shifted out.
-                            fmaddsub.man_s_ext <= 1'b0;
+                            fmaddsub.man_s_ext <= 1'b1;
                             fmaddsub.exp_cnt <= fmaddsub.large_exp;
                         end else begin
                             fmaddsub.man_sreg  <= {1'b0, fmaddsub.man_sreg[$bits(fmaddsub.man_sreg)-1:1]};
@@ -1918,7 +1922,7 @@ module cellrv32_cpu_cp_fpu32 #(
                 normalizer.fused            = 1'b0;
                 normalizer.xexp             = {1'b0, division.exp_res[7:0]};
                 normalizer.xmantissa[47:23] = {1'b0, division.quotient, division.rem[38:16]};
-                normalizer.xmantissa[22:07] = {division.rem[15:00]};
+                normalizer.xmantissa[22:07] = division.rem[15:00];
                 normalizer.xmantissa[06:00] = '0;
                 normalizer.class_data       = division.res_class;
                 normalizer.flags_in         = division.flags;
