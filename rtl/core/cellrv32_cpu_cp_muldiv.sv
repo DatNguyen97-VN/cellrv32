@@ -70,12 +70,10 @@ module cellrv32_cpu_cp_muldiv #(
     /* multiplier core */
     typedef struct {
         // State registers
-        logic [2*XLEN-1:0]        M_ext;   // sign-extended multiplicand
-        logic [XLEN+2:0]          Qext;    // 2-bits signed + multiplier + appended 0
-        logic [$clog2(STEPS):0]   step;    // step counter
-        logic [2*XLEN-1:0]        base;    // base partial product, shifted pp
+        logic [XLEN+1:0]          M_ext;   // sign-extended multiplicand
+        logic [XLEN+1:0]          base;    // base partial product, shifted pp
         logic                     running; // is running?
-        logic [2*XLEN-1:0]        prod;    // final product
+        logic [2*XLEN+2:0]        prod;    // final product
         logic                     start;   // start new multiplication
         logic signed [XLEN:0]     dsp_x;   // input for using DSPs
         logic signed [XLEN:0]     dsp_y;   // input for using DSPs
@@ -194,33 +192,28 @@ module cellrv32_cpu_cp_muldiv #(
                     // Reset all registers
                     mul.prod    <= '0;
                     mul.M_ext   <= '0;
-                    mul.Qext    <= '0;
-                    mul.step    <= 0;
                     mul.running <= 1'b0;
                 end else begin
                     if (mul.start && !mul.running) begin
                         // Initialize new multiplication
-                        mul.M_ext   <= {{(XLEN){rs1_i[XLEN-1] & ctrl.rs1_is_signed}}, rs1_i};
-                        mul.Qext    <= {{2{rs2_i[XLEN-1] & ctrl.rs2_is_signed}}, rs2_i, 1'b0};
-                        mul.prod    <= '0;
-                        mul.step    <= 0;
+                        mul.M_ext   <= {{2{rs1_i[XLEN-1] & ctrl.rs1_is_signed}}, rs1_i};
+                        mul.prod    <= {32'h00000000, {2{rs2_i[XLEN-1] & ctrl.rs2_is_signed}}, rs2_i, 1'b0};
                         mul.running <= 1'b1;
                     end else if (mul.running) begin   
                         // Last step?
                         if (ctrl.state == S_DONE) begin
                             mul.running <= 1'b0;
-                        end else begin
-                            mul.step <= mul.step + 1;
                         end
                         // Shift the partial product and accumulate
-                        mul.prod <= mul.prod + (mul.base << {mul.step[$bits(mul.step)-1:0], 1'b0});
+                        mul.prod[2*XLEN+2:33] <= {{2{mul.prod[2*XLEN+2]}}, mul.prod[2*XLEN+2:35]} + mul.base;
+                        mul.prod[32:00]       <= mul.prod[34:02];
                     end
                 end
             end : multiplier_core_serial_booth
 
             // Booth recoding: look at 3 bits of multiplier
             always_comb begin : booth_recoding
-                unique case (mul.Qext[2*mul.step +: 3])
+                unique case (mul.prod[2:0])
                     3'b000, 3'b111: mul.base = '0;                // 0
                     3'b001, 3'b010: mul.base = mul.M_ext;         // +M
                     3'b011:         mul.base = mul.M_ext << 1;    // +2M
@@ -237,8 +230,6 @@ module cellrv32_cpu_cp_muldiv #(
         if (FAST_MUL_EN == 1'b1) begin : multiplier_core_serial_none
              assign mul.base    = '0;
              assign mul.M_ext   = '0;
-             assign mul.Qext    = '0;
-             assign mul.step    = '0;
              assign mul.running = 1'b0;
         end : multiplier_core_serial_none
     endgenerate
@@ -290,10 +281,10 @@ module cellrv32_cpu_cp_muldiv #(
         res_o = '0; // default
         if (ctrl.out_en == 1'b1) begin
             unique case (ctrl.cp_op_ff)
-                cp_op_mul_c   : res_o = mul.prod[31:0];
+                cp_op_mul_c   : res_o = mul.prod[32:01];
                 cp_op_mulh_c,
                 cp_op_mulhsu_c,
-                cp_op_mulhu_c : res_o = mul.prod[63:32];
+                cp_op_mulhu_c : res_o = mul.prod[64:33];
                 default: begin // cp_op_div_c | cp_op_rem_c | cp_op_divu_c | cp_op_remu_c
                                 res_o = div.res;
                 end
