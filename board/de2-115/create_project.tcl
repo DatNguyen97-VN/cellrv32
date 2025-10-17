@@ -69,6 +69,8 @@ if {$make_assignments} {
   }
   #
   set_global_assignment -name VERILOG_MACRO _QUARTUS_IGNORE_INCLUDES
+
+  set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
   
   set_global_assignment -name SYSTEMVERILOG_FILE ./../../rtl/core/mem/cellrv32_dmem.sv -library cellrv32
   set_global_assignment -name SYSTEMVERILOG_FILE ./../../rtl/core/mem/cellrv32_imem.sv -library cellrv32
