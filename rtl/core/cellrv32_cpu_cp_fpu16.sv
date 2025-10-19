@@ -290,7 +290,6 @@ module cellrv32_cpu_cp_fpu16 #(
         logic start;
         logic mode;
         logic sign;
-        logic fused;
         logic [05:0] xexp;
         logic [21:0] xmantissa;
         logic [15:0] result;
@@ -1134,11 +1133,11 @@ module cellrv32_cpu_cp_fpu16 #(
                     sqrt.flags[fp_exc_nx_c] <= 1'b0; // inexcat: not possible here
                     sqrt.flags[fp_exc_of_c] <= 1'b0; // overflow: not possible here
                     // invalid operation
-                    sqrt.flags[fp_exc_nv_c] <= fpu_operands.rs1[15] & (|fpu_operands.rs1[14:00]); // sqrt(negative), except -zero
+                    sqrt.flags[fp_exc_nv_c] <= fpu_operands.rs1[15] & (|fpu_operands.rs1[14:00]); // sqrt(negative), except: -zero, +/- subnormal
                     // classify result as normal/denorm/inf/zero/NaN
                     sqrt.res_class          <= sqrt_res_class;
                     // exponent adjustment
-                    sqrt.exp_res            <= signed'({sqrt.exp_res[$bits(sqrt.exp_res)-1], sqrt.exp_res[$bits(sqrt.exp_res)-1:1]}) + signed'(6'd15);
+                    sqrt.exp_res            <= {sqrt.exp_res[$bits(sqrt.exp_res)-1], sqrt.exp_res[$bits(sqrt.exp_res)-1:1]} + 6'd15;
                     //
                     sqrt.done               <= 1'b1;
                     sqrt.state              <= SQRT_IDLE;
@@ -1188,13 +1187,15 @@ module cellrv32_cpu_cp_fpu16 #(
         /* -infinity */
         sqrt_res_class[fp_class_neg_inf_c] = 1'b0; // sqrt(-inf) = NaN
 
-        /* +zero */
+         /* +zero */
         sqrt_res_class[fp_class_pos_zero_c] = 
+          a_neg_zero_v | // sqrt(-zero) = +zero
           a_pos_zero_v | // sqrt(+zero) = +zero
+          a_neg_subn_v | // sqrt(-denorm) = +zero
           a_pos_subn_v;  // sqrt(+denorm) = +zero
 
         /* -zero */
-        sqrt_res_class[fp_class_neg_zero_c] = 1'b0; // sqrt(-zero/-denorm) = NaN
+        sqrt_res_class[fp_class_neg_zero_c] = 1'b0; // sqrt(-zero) = +zero
 
         /* sNaN */
         sqrt_res_class[fp_class_snan_c] = a_snan_v; // any input is sNaN
@@ -1897,7 +1898,6 @@ module cellrv32_cpu_cp_fpu16 #(
             op_addsub_c : begin
                 normalizer.mode             = 1'b0; // normalization
                 normalizer.sign             = addsub.res_sign;
-                normalizer.fused            = 1'b0;
                 normalizer.xexp             = addsub.exp_cnt;
                 normalizer.xmantissa[21:19] = {1'b0, addsub.res_sum[14:13]};
                 normalizer.xmantissa[18:09] = addsub.res_sum[12:03];
@@ -1913,7 +1913,6 @@ module cellrv32_cpu_cp_fpu16 #(
             op_mul_c : begin
                 normalizer.mode             = 1'b0; // normalization
                 normalizer.sign             = multiplier.sign;
-                normalizer.fused            = 1'b0;
                 normalizer.xexp             = {1'b0, multiplier.exp_res[4:0]};
                 normalizer.xmantissa[21:19] = {1'b0, multiplier.product[21:20]};
                 normalizer.xmantissa[18:09] = multiplier.product[19:10];
@@ -1929,7 +1928,6 @@ module cellrv32_cpu_cp_fpu16 #(
             op_div_c : begin
                 normalizer.mode             = 1'b0; // normalization
                 normalizer.sign             = division.sign;
-                normalizer.fused            = 1'b0;
                 normalizer.xexp             = {1'b0, division.exp_res[4:0]};
                 normalizer.xmantissa[21:19] = {2'b00, division.quotient};
                 normalizer.xmantissa[18:09] = division.rem[25:16];
@@ -1945,7 +1943,6 @@ module cellrv32_cpu_cp_fpu16 #(
             op_sqrt_c : begin
                 normalizer.mode             = 1'b0; // normalization
                 normalizer.sign             = sqrt.sign;
-                normalizer.fused            = 1'b0;
                 normalizer.xexp             = sqrt.exp_res;
                 // exponent is odd: result is: 1-hidden + 10-mantissa + 16-GRS
                 // exponent is even: result is: 10-mantissa + 17-GRS
@@ -1967,7 +1964,6 @@ module cellrv32_cpu_cp_fpu16 #(
             op_madd_c, op_msub_c, op_nmadd_c, op_nmsub_c : begin
                 normalizer.mode             = 1'b0; // normalization
                 normalizer.sign             = fmaddsub.res_sign;
-                normalizer.fused            = 1'b1;
                 normalizer.xexp             = fmaddsub.exp_cnt;
                 normalizer.xmantissa[21:09] = fmaddsub.add_stage[$bits(fmaddsub.add_stage)-1:3];
                 normalizer.xmantissa[08]    = fmaddsub.add_stage[2];
@@ -1982,7 +1978,6 @@ module cellrv32_cpu_cp_fpu16 #(
             default: begin 
                 normalizer.mode       = 1'b1; // int_to_float
                 normalizer.sign       = fu_conv_i2f.sign;
-                normalizer.fused      = 1'b0;
                 normalizer.xexp       = 6'b001111; // bias = 127
                 normalizer.xmantissa  = '0; // don't care
                 normalizer.class_data = '0; // don't care
@@ -2002,7 +1997,6 @@ module cellrv32_cpu_cp_fpu16 #(
         .start_i(normalizer.start),        // trigger operation
         .rmode_i(fpu_operands.frm),        // rounding mode
         .funct_i(normalizer.mode),         // operation mode
-        .fused_i(normalizer.fused),        // fused operation
         /* input */
         .sign_i(normalizer.sign),          // sign
         .exponent_i(normalizer.xexp),      // extended exponent
@@ -2038,15 +2032,15 @@ module cellrv32_cpu_cp_fpu16 #(
                     fflags_o <= fu_conv_f2i.flags;
                 end
                 op_sgnj_c : begin
-                    res_o    <= {{16{0}}, fu_sign_inject.result};
+                    res_o    <= {{16{1'b0}}, fu_sign_inject.result};
                     fflags_o <= fu_sign_inject.flags;
                 end
                 op_minmax_c : begin
-                    res_o    <= {{16{0}}, fu_min_max.result};
+                    res_o    <= {{16{1'b0}}, fu_min_max.result};
                     fflags_o <= fu_min_max.flags;
                 end
                 default: begin // op_mul_c, op_addsub_c, op_i2f_c, ...
-                    res_o    <= {{16{0}}, normalizer.result};
+                    res_o    <= {{16{1'b0}}, normalizer.result};
                     fflags_o <= normalizer.flags_out;
                 end
             endcase

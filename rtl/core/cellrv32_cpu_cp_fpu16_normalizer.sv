@@ -15,7 +15,6 @@ module cellrv32_cpu_cp_fpu16_normalizer (
     input logic        start_i,    // trigger operation
     input logic [02:0] rmode_i,    // rounding mode
     input logic        funct_i,    // operating mode (0=norm&round, 1=int-to-half)
-    input logic        fused_i,    // fused operation (F[N]MADD/F[N]MSUB)
     /* input */
     input logic        sign_i,     // sign
     input logic [05:0] exponent_i, // extended exponent
