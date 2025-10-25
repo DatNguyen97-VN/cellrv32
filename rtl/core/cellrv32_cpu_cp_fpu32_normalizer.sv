@@ -15,7 +15,6 @@ module cellrv32_cpu_cp_fpu32_normalizer (
     input logic       start_i,    // trigger operation
     input logic [2:0] rmode_i,    // rounding mode
     input logic       funct_i,    // operating mode (0=norm&round, 1=int-to-float)
-    input logic       fused_i,    // fused operation (FMADD/FMSUB/FNMADD/FNMSUB)
     /* input */
     input logic        sign_i,     // sign
     input logic [8:0]  exponent_i, // extended exponent
@@ -160,12 +159,12 @@ module cellrv32_cpu_cp_fpu32_normalizer (
                 S_PREPARE_NORM : begin 
                     sreg.upper[31:3] <= '0;
                     // is Fused Multiply-Add/Subtract or Not-Multiply-Add/Subtract  operation?
-                    sreg.upper[02:0] <= fused_i ? mantissa_i[47:45] : {1'b0, mantissa_i[47:46]};
-                    sreg.lower       <= fused_i ? mantissa_i[44:22] : mantissa_i[45:23];
+                    sreg.upper[02:0] <= mantissa_i[47:45];
+                    sreg.lower       <= mantissa_i[44:22];
                     //
-                    sreg.ext_g <= fused_i ? mantissa_i[21] : mantissa_i[22];
-                    sreg.ext_r <= fused_i ? mantissa_i[20] : mantissa_i[21];
-                    sreg.ext_s <= fused_i ? |mantissa_i[19:0] : |mantissa_i[20:0]; // sticky bit
+                    sreg.ext_g <= mantissa_i[21];
+                    sreg.ext_r <= mantissa_i[20];
+                    sreg.ext_s <= mantissa_i[00]; // sticky bit
                     // check for special cases
                     if ((ctrl.class_data[fp_class_snan_c]       || ctrl.class_data[fp_class_qnan_c]       || // NaN
                          ctrl.class_data[fp_class_neg_zero_c]   || ctrl.class_data[fp_class_pos_zero_c]   || // zero
@@ -247,7 +246,8 @@ module cellrv32_cpu_cp_fpu32_normalizer (
                 S_FINALIZE : begin 
                     /* generate result word (the ORDER of checks is imporatant here!) */
                     // sNaN / qNaN
-                    if ((ctrl.class_data[fp_class_snan_c] == 1'b1) || (ctrl.class_data[fp_class_qnan_c] == 1'b1)) begin
+                    if ((ctrl.class_data[fp_class_snan_c] == 1'b1) || (ctrl.class_data[fp_class_qnan_c] == 1'b1) ||
+                        (ctrl.flags[fp_exc_nv_c] == 1'b1)) begin
                         ctrl.res_sgn <= fp32_single_qnan_c[31];
                         ctrl.res_exp <= fp32_single_qnan_c[30:23];
                         ctrl.res_man <= fp32_single_qnan_c[22:00];
@@ -255,7 +255,13 @@ module cellrv32_cpu_cp_fpu32_normalizer (
                     end else if ((ctrl.class_data[fp_class_neg_inf_c] == 1'b1) ||
                                  (ctrl.class_data[fp_class_pos_inf_c] == 1'b1) ||  // infinity
                                  (ctrl.flags[fp_exc_of_c] == 1'b1)) begin // overflow
-                        ctrl.res_exp <= fp32_single_pos_inf_c[30:23]; // keep original sign
+                        if (ctrl.class_data[fp_class_neg_inf_c]) begin
+                            ctrl.res_sgn <= 1'b1;
+                        end else if (ctrl.class_data[fp_class_pos_inf_c]) begin
+                            ctrl.res_sgn <= 1'b0;
+                        end
+                        //
+                        ctrl.res_exp <= fp32_single_pos_inf_c[30:23];
                         ctrl.res_man <= fp32_single_pos_inf_c[22:00];
                     //
                     end else if ((ctrl.class_data[fp_class_neg_zero_c] == 1'b1) || 

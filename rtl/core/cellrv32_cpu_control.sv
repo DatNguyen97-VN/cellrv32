@@ -821,13 +821,9 @@ module cellrv32_cpu_control #(
      /* single-precision floating-point operations (Zfinx) */
      /* half-precision floating-point operations (Zhinx) */
      if ((CPU_EXTENSION_RISCV_Zfinx == 1) || (CPU_EXTENSION_RISCV_Zhinx == 1)) begin //  FPU implemented at all?
-        if (((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+3] == 4'b0000))         || // FADD.S / FSUB.S
-            ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00010))        || // FMUL.S
-            ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00011))        || // FDIV.S
-            ((execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c]   == opcode_fmadd_c))  || // FMADD.S
-            ((execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c]   == opcode_fmsub_c))  || // FMSUB.S
-            ((execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c]   == opcode_fnmadd_c)) || // FNMADD.S
-            ((execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c]   == opcode_fnmsub_c)) || // FNMSUB.S
+        if (((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+3] == 4'b0000))  || // FADD.S / FSUB.S
+            ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00010)) || // FMUL.S
+            ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00011)) || // FDIV.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b01011)  && (execute_engine.i_reg[instr_funct12_lsb_c+4 : instr_funct12_lsb_c] == 5'b00000))  ||     // FSQRT.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b11100)  && (execute_engine.i_reg[instr_funct3_msb_c    : instr_funct3_lsb_c] == 3'b001))     ||     // FCLASS.S
             ((execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+2] == 5'b00100)  && (execute_engine.i_reg[instr_funct3_msb_c] == 1'b0))                               ||     // FSGNJ[N/X].S
@@ -1101,9 +1097,7 @@ module cellrv32_cpu_control #(
                  end
                  // --------------------------------------------------------------
                  // half/single-precision floating-point operations
-                 // half/single-precision floating point fused multiply-add/sub operations
-                 // half/single-precision floating point fused negate-multiply-add/sub operations
-                 opcode_fop_c, opcode_fmadd_c, opcode_fmsub_c, opcode_fnmsub_c, opcode_fnmadd_c : begin
+                 opcode_fop_c : begin
                      if ((CPU_EXTENSION_RISCV_Zfinx == 1) || (CPU_EXTENSION_RISCV_Zhinx == 1)) begin
                          ctrl_nxt.alu_cp_trig[cp_sel_fpu32_c] = decode_aux.is_f_op; // trigger FPU CP3
                          ctrl_nxt.alu_cp_trig[cp_sel_fpu16_c] = decode_aux.is_h_op; // trigger FPU CP4
@@ -1519,8 +1513,7 @@ module cellrv32_cpu_control #(
          end
          // --------------------------------------------------------------
          // floating point operations - single/dual operands
-         // floating point fused [negate]-multiply-add/sub operations - third operands
-         opcode_fop_c, opcode_fmadd_c, opcode_fmsub_c, opcode_fnmadd_c, opcode_fnmsub_c : begin
+         opcode_fop_c : begin
              if (((CPU_EXTENSION_RISCV_Zfinx == 1) && (decode_aux.is_f_op == 1'b1)) || // is supported single-precision floating-point instruction
                  ((CPU_EXTENSION_RISCV_Zhinx == 1) && (decode_aux.is_h_op == 1'b1))) begin // is supported half-precision floating-point instruction
                  illegal_cmd = 1'b0;

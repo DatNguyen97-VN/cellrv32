@@ -254,20 +254,26 @@ module cellrv32_cpu_cp_fpu16_normalizer (
                     end else if (ctrl.class_data[fp_class_neg_inf_c] ||
                                  ctrl.class_data[fp_class_pos_inf_c] || // infinity
                                  ctrl.flags[fp_exc_of_c]) begin         // overflow
-                        ctrl.res_exp <= fp16_half_pos_inf_c[14:10]; // keep original sign
+                        if (ctrl.class_data[fp_class_neg_inf_c]) begin
+                            ctrl.res_sgn <= 1'b1;
+                        end else if (ctrl.class_data[fp_class_pos_inf_c]) begin
+                            ctrl.res_sgn <= 1'b0;
+                        end
+                        //
+                        ctrl.res_exp <= fp16_half_pos_inf_c[14:10];
                         ctrl.res_man <= fp16_half_pos_inf_c[09:00];
                     //
                     end else if (ctrl.class_data[fp_class_neg_zero_c] || 
                                  ctrl.class_data[fp_class_pos_zero_c]) begin // zero
                         ctrl.res_sgn <= ctrl.class_data[fp_class_neg_zero_c];
                         ctrl.res_exp <= fp16_half_pos_zero_c[14:10];
-                        ctrl.res_man <= fp16_half_pos_zero_c[09:00]; 
+                        ctrl.res_man <= fp16_half_pos_zero_c[09:00];
                     //    
                     end else if (ctrl.flags[fp_exc_uf_c] || // underflow
                                  sreg.zero               || 
                                  ctrl.class_data[fp_class_neg_denorm_c] || 
                                  ctrl.class_data[fp_class_pos_denorm_c]) begin // denormalized (flush-to-zero)
-                        ctrl.res_exp <= fp16_half_pos_zero_c[14:10]; // keep original sign
+                        ctrl.res_exp <= fp16_half_pos_zero_c[14:10];
                         ctrl.res_man <= fp16_half_pos_zero_c[09:00];   
                     //      
                     end else begin // result is OK

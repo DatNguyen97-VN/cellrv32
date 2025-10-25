@@ -144,6 +144,9 @@ module cellrv32_cpu_cp_fpu32_f2i #(
                 // --------------------------------------------------------------
                 S_NORMALIZE_BUSY : begin // running normalization cycle
                     if ((|ctrl.cnt[$bits(ctrl.cnt)-2:0]) == 1'b0) begin
+                        // sticky bit is set if any of the bits below the guard and round bit is set
+                        sreg.ext_s <= sreg.ext_s | (|sreg.mant[$bits(sreg.mant)-3:0]);
+                        //
                         if (ctrl.unsign == 1'b0) // signed conversion
                             ctrl.over <= ctrl.over | sreg.int_data[$bits(sreg.int_data)-1]; // update overrun flag again to check for numerical overflow into sign bit
                         ctrl.state <= S_ROUND;
