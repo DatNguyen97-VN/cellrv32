@@ -40,7 +40,7 @@ module cellrv32_cpu_regfile #(
     output logic [XLEN-1:0] rs4_o  // operand 3
 );
     /* register file */
-    typedef logic [XLEN-1:0] reg_file_t [31:0];
+    typedef logic [XLEN-1:0] reg_file_t     [31:0];
     typedef logic [XLEN-1:0] reg_file_emb_t [15:0];
     reg_file_t reg_file;
     reg_file_emb_t reg_file_emb;
@@ -87,10 +87,8 @@ module cellrv32_cpu_regfile #(
     generate
         if (CPU_EXTENSION_RISCV_E == 0) begin : reg_file_rv32i
             // sync read and write
-            always_ff @( posedge clk_i or negedge rstn_i ) begin : rf_access
-                if (rstn_i == 1'b0) begin
-                    reg_file <= '{default: '0}; // reset register file
-                end else if (rf_we == 1'b1) begin
+            always_ff @( posedge clk_i ) begin : rf_access
+                if (rf_we == 1'b1) begin
                     reg_file[opa_addr[4:0]] <= rf_wdata;
                 end
                 //
@@ -120,7 +118,7 @@ module cellrv32_cpu_regfile #(
         if (CPU_EXTENSION_RISCV_E == 1) begin : reg_file_rv32e
             // sync read and write
             always_ff @( posedge clk_i ) begin : rf_access
-                if (rf_we == 1'b1) begin
+                if (rf_we) begin
                     reg_file_emb[opa_addr[3:0]] <= rf_wdata;
                 end
                 //
@@ -128,14 +126,14 @@ module cellrv32_cpu_regfile #(
                 rs2_o <= reg_file_emb[opb_addr[3:0]];
                 //
                 /* optional 3rd read port */
-                if (RS3_EN == 1) begin
+                if (RS3_EN) begin
                     rs3_o <= reg_file_emb[opc_addr[3:0]];
                 end else begin
                     rs3_o <= '0;
                 end
                 //
                 /* optional 4th read port */
-                if (RS4_EN == 1) begin // implement fourth read port?
+                if (RS4_EN) begin // implement fourth read port?
                     rs4_o <= reg_file_emb[opd_addr[3:0]];
                 end else begin
                     rs4_o <= '0;
