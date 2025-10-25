@@ -16,7 +16,7 @@ package cellrv32_package;
   localparam logic [31:0] dspace_base_c = 32'h80000000; // default data memory address space base address
 
   // if register x0 is implemented as a *physical register* it has to be explicitly set to zero by the CPU hardware --
-  const logic reset_x0_c = 1'b0; // has to be 'true' for the default register file rtl description (BRAM-based)
+  const logic reset_x0_c = 1'b1; // has to be 'true' for the default register file rtl description (BRAM-based)
 
   // "response time window" for processor-internal modules --
   // = cycles after which an *unacknowledged* internal bus access will timeout and trigger a bus fault exception
@@ -351,10 +351,6 @@ package cellrv32_package;
   const logic [6:0] opcode_system_c = 7'b1110011; // system/csr access (type via funct3)
   // floating point operations --
   const logic [6:0] opcode_fop_c    = 7'b1010011; // dual/single operand instruction
-  const logic [6:0] opcode_fmadd_c  = 7'b1000011; // fused multiply-add
-  const logic [6:0] opcode_fmsub_c  = 7'b1000111; // fused multiply-subtract
-  const logic [6:0] opcode_fnmadd_c = 7'b1001111; // fused negative multiply-add
-  const logic [6:0] opcode_fnmsub_c = 7'b1001011; // fused negative multiply-subtract
   // official *custom* RISC-V opcodes - free for custom instructions --
   const logic [6:0] opcode_cust0_c  = 7'b0001011; // custom-0
   const logic [6:0] opcode_cust1_c  = 7'b0101011; // custom-1
