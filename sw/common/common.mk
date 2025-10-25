@@ -99,23 +99,35 @@ CC_OPTS  = -march=$(MARCH) -mabi=$(MABI) $(EFFORT) -Wall -ffunction-sections -fd
 CC_OPTS += -Wl,--gc-sections -lm -lc -lgcc -lc -g
 CC_OPTS += $(USER_FLAGS)
 
+# -------------------------------------------------------------------
+# Intro
+# -------------------------------------------------------------------
+intro:
+	@echo ""
+	@echo " ██████╗███████╗██╗     ██╗     ██████╗ ██╗   ██╗██████╗ ██████╗     ███████╗ ██████╗  ██████╗"
+	@echo "██╔════╝██╔════╝██║     ██║     ██╔══██╗██║   ██║╚════██╗╚════██╗    ██╔════╝██╔═══██╗██╔════╝"
+	@echo "██║     █████╗  ██║     ██║     ██████╔╝██║   ██║ █████╔╝ █████╔╝    ███████╗██║   ██║██║     "
+	@echo "██║     ██╔══╝  ██║     ██║     ██╔══██╗╚██╗ ██╔╝ ╚═══██╗██╔═══╝     ╚════██║██║   ██║██║     "
+	@echo "╚██████╗███████╗███████╗███████╗██║  ██║ ╚████╔╝ ██████╔╝███████╗    ███████║╚██████╔╝╚██████╗"
+	@echo " ╚═════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═════╝ ╚══════╝    ╚══════╝ ╚═════╝  ╚═════╝"
+	@echo ""
 
 # -----------------------------------------------------------------------------
 # Application output definitions
 # -----------------------------------------------------------------------------
-.PHONY: check info help elf_info clean clean_all bootloader
+.PHONY: intro check info help elf_info clean clean_all bootloader
 .DEFAULT_GOAL := help
 
 # 'compile' is still here for compatibility
-asm:     $(APP_ASM)
-elf:     $(APP_ELF)
-exe:     $(APP_EXE)
-hex:     $(APP_HEX)
-bin:     $(APP_BIN)
-compile: $(APP_EXE)
-image:   $(APP_IMG)
-install: image install-$(APP_IMG)
-all:     $(APP_ASM) $(APP_EXE) $(APP_IMG) install hex bin
+asm:     intro $(APP_ASM)
+elf:     intro $(APP_ELF)
+exe:     intro $(APP_EXE)
+hex:     intro $(APP_HEX)
+bin:     intro $(APP_BIN)
+compile: intro $(APP_EXE)
+image:   intro $(APP_IMG)
+install: intro image install-$(APP_IMG)
+all:     intro $(APP_ASM) $(APP_EXE) $(APP_IMG) install hex bin
 
 # Check if making bootloader
 # Use different base address and length for instruction memory/"rom" (BOOTROM instead of IMEM)
@@ -218,13 +230,13 @@ install-$(BOOT_IMG): $(BOOT_IMG)
 
 # Just an alias
 bl_image: $(BOOT_IMG)
-bootloader: bl_image install-$(BOOT_IMG)
+bootloader: bl_image install-$(BOOT_IMG) $(APP_ASM)
 
 
 # -----------------------------------------------------------------------------
 # Check toolchain
 # -----------------------------------------------------------------------------
-check: $(IMAGE_GEN)
+check: intro $(IMAGE_GEN)
 	@echo "---------------- Check: CELLRV32_HOME folder ----------------"
 ifneq ($(shell [ -e $(CELLRV32_HOME_MARKER) ] && echo 1 || echo 0 ), 1)
 $(error CELLRV32_HOME folder not found!)
@@ -279,7 +291,7 @@ clean_all: clean
 # -----------------------------------------------------------------------------
 # Show configuration
 # -----------------------------------------------------------------------------
-info:
+info: intro
 	@echo "---------------- Info: Project ----------------"
 	@echo "Project folder:        $(shell basename $(CURDIR))"
 	@echo "Source files:          $(APP_SRC)"
@@ -321,7 +333,7 @@ info:
 # -----------------------------------------------------------------------------
 # Help
 # -----------------------------------------------------------------------------
-help:
+help: intro
 	@echo "<<< CELLRV32 SW Application Makefile >>>"
 	@echo "Make sure to add the bin folder of RISC-V GCC to your PATH variable."
 	@echo ""
