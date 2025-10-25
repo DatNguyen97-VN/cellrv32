@@ -33,17 +33,13 @@
 /** UART BAUD rate */
 #define BAUD_RATE          (19200)
 //** Number of test cases for each instruction */
-#define NUM_TEST_CASES     (10)
+#define NUM_TEST_CASES     (1000000)
 //** Silent mode (only show actual errors when != 0) */
 #define SILENT_MODE        (1)
 //** Run conversion tests when != 0 */
 #define RUN_CONV_TESTS     (1)
 //** Run add/sub tests when != 0 */
 #define RUN_ADDSUB_TESTS   (1)
-//** Run fused-multiply add/sub tests when != 0 */
-#define RUN_MADDSUB_TESTS  (1)
-//** Run fused negate-multiply add/sub tests when != 0 */
-#define RUN_NMADDSUB_TESTS (1)
 //** Run multiplication tests when != 0 */
 #define RUN_MUL_TESTS      (1)
 //** Run division tests when != 0 */
@@ -58,6 +54,8 @@
 #define RUN_SGNINJ_TESTS   (1)
 //** Run classify tests when != 0 */
 #define RUN_CLASSIFY_TESTS (1)
+//** Run unsupported instructions tests when != 0 */
+#define RUN_UNAVAIL_TESTS  (0)
 
 
 // Prototypes
@@ -84,14 +82,10 @@ void print_report(uint32_t num_err);
   uint32_t i = 0;
   float16_conv_t vector_a;
   float16_conv_t vector_b;
-  #if (RUN_MADDSUB_TESTS || RUN_NMADDSUB_TESTS)
-  float16_conv_t vector_c;
-  #endif
+  
   float_conv_t opa;
   float_conv_t opb;
-  #if (RUN_MADDSUB_TESTS || RUN_NMADDSUB_TESTS)
-  float_conv_t opc;
-  #endif
+  
   float_conv_t res_hw;
   float_conv_t res_sw;
 
@@ -221,108 +215,6 @@ void print_report(uint32_t num_err);
     res_hw.binary_value = riscv_intrinsic_fcvt_wh(vector_a.binary_value);
     // verification
     err_cnt += verify_result(i, vector_a.binary_value, opa.binary_value, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-#endif
-
-
-// ----------------------------------------------------------------------------
-// Fused-Multiply Add/Sub Tests
-// ----------------------------------------------------------------------------
-
-#if (RUN_MADDSUB_TESTS != 0)
-  cellrv32_uart0_printf("\n#%u: FMADD.H (fused-multiply addition)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    // generate vector
-    vector_a.binary_value = get_test_vector16();
-    vector_b.binary_value = get_test_vector16();
-    vector_c.binary_value = get_test_vector16();
-    // software emulation
-    opa.float_value = half2float(vector_a.binary_value);
-    opb.float_value = half2float(vector_b.binary_value);
-    opc.float_value = half2float(vector_c.binary_value);
-    res_sw.float_value = riscv_emulate_fmadds(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.binary_value = float2half(res_sw.float_value);
-    // hardware
-    res_hw.binary_value = riscv_intrinsic_fmadds(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
-     // verification
-    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-
-  cellrv32_uart0_printf("\n#%u: FMSUB.H (fused-multiply subtraction)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    // generate vector
-    vector_a.binary_value = get_test_vector16();
-    vector_b.binary_value = get_test_vector16();
-    vector_c.binary_value = get_test_vector16();
-    // software emulation
-    opa.float_value = half2float(vector_a.binary_value);
-    opb.float_value = half2float(vector_b.binary_value);
-    opc.float_value = half2float(vector_c.binary_value);
-    res_sw.float_value = riscv_emulate_fmsubs(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.binary_value = float2half(res_sw.float_value);
-    // hardware
-    res_hw.binary_value = riscv_intrinsic_fmsubs(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
-     // verification
-    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-#endif
-
-
-// ----------------------------------------------------------------------------
-// Fused-Negated-Multiply Add/Sub Tests
-// ----------------------------------------------------------------------------
-
-#if (RUN_NMADDSUB_TESTS != 0)
-  cellrv32_uart0_printf("\n#%u: FNMADD.H (fused-negated-multiply addition)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    // generate vector
-    vector_a.binary_value = get_test_vector16();
-    vector_b.binary_value = get_test_vector16();
-    vector_c.binary_value = get_test_vector16();
-    // software emulation
-    opa.float_value = half2float(vector_a.binary_value);
-    opb.float_value = half2float(vector_b.binary_value);
-    opc.float_value = half2float(vector_c.binary_value);
-    res_sw.float_value = riscv_emulate_fnmadds(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.binary_value = float2half(res_sw.float_value);
-    // hardware
-    res_hw.binary_value = riscv_intrinsic_fnmadds(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
-     // verification
-    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-
-  cellrv32_uart0_printf("\n#%u: FNMSUB.H (fused-negated-multiply subtraction)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    // generate vector
-    vector_a.binary_value = get_test_vector16();
-    vector_b.binary_value = get_test_vector16();
-    vector_c.binary_value = get_test_vector16();
-    // software emulation
-    opa.float_value = half2float(vector_a.binary_value);
-    opb.float_value = half2float(vector_b.binary_value);
-    opc.float_value = half2float(vector_c.binary_value);
-    res_sw.float_value = riscv_emulate_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.binary_value = float2half(res_sw.float_value);
-    // hardware
-    res_hw.binary_value = riscv_intrinsic_fnmsubs(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
-     // verification
-    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
   print_report(err_cnt);
   err_cnt_total += err_cnt;
@@ -629,6 +521,109 @@ void print_report(uint32_t num_err);
     // hardware
     res_hw.binary_value = riscv_intrinsic_fclasss(vector_a.binary_value);
     err_cnt += verify_result(i, vector_a.binary_value, opa.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+
+// ----------------------------------------------------------------------------
+// Unsupported Instructions Tests
+// ----------------------------------------------------------------------------
+
+#if (RUN_UNAVAIL_TESTS != 0)
+// ----------------------------------------------------------------------------
+// Fused-Multiply Add/Sub Tests
+// ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n#%u: FMADD.H (fused-multiply addition)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    // generate vector
+    vector_a.binary_value = get_test_vector16();
+    vector_b.binary_value = get_test_vector16();
+    vector_c.binary_value = get_test_vector16();
+    // software emulation
+    opa.float_value = half2float(vector_a.binary_value);
+    opb.float_value = half2float(vector_b.binary_value);
+    opc.float_value = half2float(vector_c.binary_value);
+    res_sw.float_value = riscv_emulate_fmadds(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.binary_value = float2half(res_sw.float_value);
+    // hardware
+    res_hw.binary_value = riscv_intrinsic_fmadds(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
+     // verification
+    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  cellrv32_uart0_printf("\n#%u: FMSUB.H (fused-multiply subtraction)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    // generate vector
+    vector_a.binary_value = get_test_vector16();
+    vector_b.binary_value = get_test_vector16();
+    vector_c.binary_value = get_test_vector16();
+    // software emulation
+    opa.float_value = half2float(vector_a.binary_value);
+    opb.float_value = half2float(vector_b.binary_value);
+    opc.float_value = half2float(vector_c.binary_value);
+    res_sw.float_value = riscv_emulate_fmsubs(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.binary_value = float2half(res_sw.float_value);
+    // hardware
+    res_hw.binary_value = riscv_intrinsic_fmsubs(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
+     // verification
+    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+// ----------------------------------------------------------------------------
+// Fused-Negated-Multiply Add/Sub Tests
+// ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n#%u: FNMADD.H (fused-negated-multiply addition)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    // generate vector
+    vector_a.binary_value = get_test_vector16();
+    vector_b.binary_value = get_test_vector16();
+    vector_c.binary_value = get_test_vector16();
+    // software emulation
+    opa.float_value = half2float(vector_a.binary_value);
+    opb.float_value = half2float(vector_b.binary_value);
+    opc.float_value = half2float(vector_c.binary_value);
+    res_sw.float_value = riscv_emulate_fnmadds(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.binary_value = float2half(res_sw.float_value);
+    // hardware
+    res_hw.binary_value = riscv_intrinsic_fnmadds(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
+     // verification
+    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  cellrv32_uart0_printf("\n#%u: FNMSUB.H (fused-negated-multiply subtraction)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    // generate vector
+    vector_a.binary_value = get_test_vector16();
+    vector_b.binary_value = get_test_vector16();
+    vector_c.binary_value = get_test_vector16();
+    // software emulation
+    opa.float_value = half2float(vector_a.binary_value);
+    opb.float_value = half2float(vector_b.binary_value);
+    opc.float_value = half2float(vector_c.binary_value);
+    res_sw.float_value = riscv_emulate_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.binary_value = float2half(res_sw.float_value);
+    // hardware
+    res_hw.binary_value = riscv_intrinsic_fnmsubs(vector_a.binary_value, vector_b.binary_value, vector_c.binary_value);
+     // verification
+    err_cnt += verify_result3(i, vector_a.binary_value, vector_b.binary_value, vector_c.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
   print_report(err_cnt);
   err_cnt_total += err_cnt;

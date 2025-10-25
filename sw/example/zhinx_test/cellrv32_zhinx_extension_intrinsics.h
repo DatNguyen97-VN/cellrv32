@@ -177,7 +177,7 @@ uint16_t float2half(float f) {
     } else if (exp > 0x70 + 0x1E) { // overflow
         h_exp = 0x1F;
         h_frac = 0;
-    } else if (exp <= 0x70) { // underflow -> subnormal flush them to zero or zero
+    } else if (exp < 0x70) { // underflow -> subnormal flush them to zero or zero
         h_exp = 0;
         h_frac = 0;
     } else {
@@ -204,6 +204,9 @@ uint16_t float2half(float f) {
             if (h_exp >= 0x1F) { // overflow
                 h_exp = 0x1F;
             }
+        } else if (!(h_exp & 0x1F)) {
+            // flush to zero if subnormal
+            h_frac = 0;
         }
     }
 
@@ -253,62 +256,6 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fsubs(int16_t rs1
 inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmuls(int16_t rs1, int16_t rs2) {
 
   return CUSTOM_INSTR_R3_TYPE(0b0001010, rs2, rs1, 0b000, 0b1010011);
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused multiply-add
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmadds(int16_t rs1, int16_t rs2, int16_t rs3) {
-
-  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1000011);
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused multiply-sub
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmsubs(int16_t rs1, int16_t rs2, int16_t rs3) {
-
-  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1000111);
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused negated multiply-sub
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fnmsubs(int16_t rs1, int16_t rs2, int16_t rs3) {
- 
-  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1001011);
-}
-
-
-/**********************************************************************//**
- * Single-precision floating-point fused negated multiply-add
- *
- * @param[in] rs1 Source operand 1
- * @param[in] rs2 Source operand 2
- * @param[in] rs3 Source operand 3
- * @return Result.
- **************************************************************************/
-inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fnmadds(int16_t rs1, int16_t rs2, int16_t rs3) {
-
-  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1001111);;
 }
 
 
@@ -498,6 +445,74 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fsgnjxs(int16_t r
 inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fclasss(int16_t rs1) {
 
   return CUSTOM_INSTR_R2_TYPE(0b1110010, 0b00000, rs1, 0b001, 0b1010011);
+}
+
+
+// ################################################################################################
+// !!! UNSUPPORTED instructions !!!
+// ################################################################################################
+
+/**********************************************************************//**
+ * Single-precision floating-point fused multiply-add
+ *
+ * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmadds(int16_t rs1, int16_t rs2, int16_t rs3) {
+
+  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1000011);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point fused multiply-sub
+ *
+ * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmsubs(int16_t rs1, int16_t rs2, int16_t rs3) {
+
+  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1000111);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point fused negated multiply-sub
+ *
+ * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fnmsubs(int16_t rs1, int16_t rs2, int16_t rs3) {
+ 
+  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1001011);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point fused negated multiply-add
+ *
+ * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
+ *
+ * @param[in] rs1 Source operand 1
+ * @param[in] rs2 Source operand 2
+ * @param[in] rs3 Source operand 3
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fnmadds(int16_t rs1, int16_t rs2, int16_t rs3) {
+
+  return CUSTOM_INSTR_R4_TYPE(rs3, rs2, rs1, 0b000, 0b10, 0b1001111);;
 }
 
 
