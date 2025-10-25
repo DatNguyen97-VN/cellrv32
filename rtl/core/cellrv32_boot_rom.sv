@@ -24,12 +24,12 @@ module cellrv32_boot_rom #(
     output logic         err_o   // transfer error
 );
     /* determine required ROM size in bytes (expand to next power of two) */
-    localparam int boot_rom_size_index_c = $clog2($size(bootloader_init_image)+1); // address with (32-bit entries)
+    localparam int boot_rom_size_index_c = $clog2($size(bootloader_init_image)); // address with (32-bit entries)
     localparam int boot_rom_size_c       = (2**boot_rom_size_index_c)*4; // size in bytes
 
     /* IO space: module base address */
     localparam int hi_abb_c = 31; // high address boundary bit
-    localparam int lo_abb_c = $clog2(boot_rom_max_size_c+1); // low address boundary bit
+    localparam int lo_abb_c = $clog2(boot_rom_max_size_c); // low address boundary bit
     
     /* local signals */
     logic acc_en;
@@ -56,7 +56,7 @@ module cellrv32_boot_rom #(
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i ) begin : mem_file_access
       rden  <= acc_en & rden_i;
-      err_o <= acc_en & wren_i + acc_en ^ rden_i; // error on write access or read access within acc_en not simultaneously
+      err_o <= acc_en & wren_i; // read only for bootloader
       // reduce switching activity when not accessed
       if (acc_en) begin
         rdata <= mem_rom[addr];
