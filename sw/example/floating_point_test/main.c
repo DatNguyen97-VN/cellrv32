@@ -33,31 +33,27 @@
 /** UART BAUD rate */
 #define BAUD_RATE          (19200)
 //** Number of test cases for each instruction */
-#define NUM_TEST_CASES     (1000)
+#define NUM_TEST_CASES     (1000000)
 //** Silent mode (only show actual errors when != 0) */
 #define SILENT_MODE        (1)
 //** Run conversion tests when != 0 */
 #define RUN_CONV_TESTS     (1)
 //** Run add/sub tests when != 0 */
-#define RUN_ADDSUB_TESTS   (0)
-//** Run fused-multiply add/sub tests when != 0 */
-#define RUN_MADDSUB_TESTS  (0)
-//** Run fused negate-multiply add/sub tests when != 0 */
-#define RUN_NMADDSUB_TESTS (0)
+#define RUN_ADDSUB_TESTS   (1)
 //** Run multiplication tests when != 0 */
-#define RUN_MUL_TESTS      (0)
+#define RUN_MUL_TESTS      (1)
 //** Run division tests when != 0 */
-#define RUN_DIV_TESTS      (0)
+#define RUN_DIV_TESTS      (1)
 //** Run square root tests when != 0 */
-#define RUN_SQRT_TESTS     (0)
+#define RUN_SQRT_TESTS     (1)
 //** Run min/max tests when != 0 */
-#define RUN_MINMAX_TESTS   (0)
+#define RUN_MINMAX_TESTS   (1)
 //** Run comparison tests when != 0 */
-#define RUN_COMPARE_TESTS  (0)
+#define RUN_COMPARE_TESTS  (1)
 //** Run sign-injection tests when != 0 */
-#define RUN_SGNINJ_TESTS   (0)
+#define RUN_SGNINJ_TESTS   (1)
 //** Run classify tests when != 0 */
-#define RUN_CLASSIFY_TESTS (0)
+#define RUN_CLASSIFY_TESTS (1)
 //** Run unsupported instructions tests when != 0 */
 #define RUN_UNAVAIL_TESTS  (0)
 //** Run average instruction execution time test when != 0 */
@@ -104,13 +100,6 @@ int main() {
   // check available hardware extensions and compare with compiler flags
   cellrv32_rte_check_isa(0); // silent = 0 -> show message if isa mismatch
 
-  // check if Zfinx extension is implemented at all
-  if ((cellrv32_cpu_csr_read(CSR_MXISA) & (1<<CSR_MXISA_ZFINX)) == 0) {
-    cellrv32_uart0_puts("Error! <Zfinx> extension not synthesized!\n");
-    return 1;
-  }
-
-
 // Disable compilation by default
 #ifndef RUN_CHECK
   #warning Program HAS NOT BEEN COMPILED! Use >>make USER_FLAGS+=-DRUN_CHECK clean_all exe<< to compile it.
@@ -124,13 +113,30 @@ int main() {
 
   // intro
   cellrv32_uart0_printf("<<< Zfinx extension test >>>\n");
+
+   // check if Zfinx extension is implemented at all
+  if (cellrv32_cpu_csr_read(CSR_MXISA) & (1<<CSR_MXISA_ZFINX)) {
+    cellrv32_uart0_puts("Info: <Zfinx> extension synthesized.\n");
+  } else {
+    cellrv32_uart0_puts("Error! <Zfinx> extension not synthesized!\n");
+    return 1;
+  }
+
+  // check if GPIO device is implemented at all
+  if (cellrv32_gpio_available()) {
+    cellrv32_uart0_puts("Info: <GPIO> device synthesized.\n");
+  } else {
+    cellrv32_uart0_puts("Error! <GPIO> device not synthesized!\n\n");
+    return 1;
+  }
+
+
 #if (SILENT_MODE != 0)
   cellrv32_uart0_printf("SILENT_MODE enabled (only showing actual errors)\n");
 #endif
   cellrv32_uart0_printf("Test cases per instruction: %u\n", (uint32_t)NUM_TEST_CASES);
   cellrv32_uart0_printf("NOTE: The CELLRV32 FPU does not support subnormal numbers yet. Subnormal numbers are flushed to zero.\n");
-  cellrv32_uart0_printf("WARNING: The F[N]MADD/SUB reference software is non-fused (it performs multiplication, then rounding, then addition and rounding), so some test cases may fail.\n\n");
-
+  
   // clear exception status word
   cellrv32_cpu_csr_write(CSR_FFLAGS, 0); // real hardware
   feclearexcept(FE_ALL_EXCEPT); // software runtime (GCC floating-point emulation)
@@ -188,80 +194,6 @@ int main() {
     res_hw.binary_value = (uint32_t)riscv_intrinsic_fcvt_ws(opa.float_value);
     res_sw.binary_value = (uint32_t)riscv_emulate_fcvt_ws(opa.float_value);
     err_cnt += verify_result(i, opa.binary_value, 0, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-#endif
-
-
-// ----------------------------------------------------------------------------
-// Fused-Multiply Add/Sub Tests
-// ----------------------------------------------------------------------------
-
-#if (RUN_MADDSUB_TESTS != 0)
-  cellrv32_uart0_printf("\n#%u: FMADD.S (fused-multiply addition)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    
-    opa.binary_value = get_test_vector();
-    opb.binary_value = get_test_vector();
-    opc.binary_value = get_test_vector();
-    res_hw.float_value = riscv_intrinsic_fmadds(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.float_value = riscv_emulate_fmadds(opa.float_value, opb.float_value, opc.float_value);
-    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-
-  cellrv32_uart0_printf("\n#%u: FMSUB.S (fused-multiply subtraction)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    
-    opa.binary_value = get_test_vector();
-    opb.binary_value = get_test_vector();
-    opc.binary_value = get_test_vector();
-    res_hw.float_value = riscv_intrinsic_fmsubs(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.float_value = riscv_emulate_fmsubs(opa.float_value, opb.float_value, opc.float_value);
-    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-#endif
-
-
-// ----------------------------------------------------------------------------
-// Fused-Negate-Multiply Add/Sub Tests
-// ----------------------------------------------------------------------------
-
-#if (RUN_NMADDSUB_TESTS != 0)
-  cellrv32_uart0_printf("\n#%u: FNNADD.S (fused-negate-multiply addition)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    
-    opa.binary_value = get_test_vector();
-    opb.binary_value = get_test_vector();
-    opc.binary_value = get_test_vector();
-    res_hw.float_value = riscv_intrinsic_fnmadds(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.float_value = riscv_emulate_fnmadds(opa.float_value, opb.float_value, opc.float_value);
-    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
-  }
-  print_report(err_cnt);
-  err_cnt_total += err_cnt;
-  test_cnt++;
-
-  cellrv32_uart0_printf("\n#%u: FNMSUB.S (fused-negate-multiply subtraction)...\n", test_cnt);
-  err_cnt = 0;
-  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
-    
-    opa.binary_value = get_test_vector();
-    opb.binary_value = get_test_vector();
-    opc.binary_value = get_test_vector();
-    res_hw.float_value = riscv_intrinsic_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
-    res_sw.float_value = riscv_emulate_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
-    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
   print_report(err_cnt);
   err_cnt_total += err_cnt;
@@ -516,89 +448,78 @@ int main() {
   test_cnt++;
 #endif
 
-  
+ 
 // ----------------------------------------------------------------------------
-// UNSUPPORTED Instructions Tests - Execution should raise illegal instruction exception
+// Unsupported Instructions Tests
 // ----------------------------------------------------------------------------
 
 #if (RUN_UNAVAIL_TESTS != 0)
-  cellrv32_uart0_printf("\n# unsupported FDIV.S (division) [illegal instruction]...\n");
-  cellrv32_cpu_csr_write(CSR_MCAUSE, 0);
-  opa.binary_value = get_test_vector();
-  opb.binary_value = get_test_vector();
-  riscv_intrinsic_fdivs(opa.float_value, opb.float_value);
-  if (cellrv32_cpu_csr_read(CSR_MCAUSE) != TRAP_CODE_I_ILLEGAL) {
-    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
-    err_cnt_total++;
+// ----------------------------------------------------------------------------
+// Fused-Multiply Add/Sub Tests
+// ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n#%u: FMADD.S (fused-multiply addition)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fmadds(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fmadds(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
-  else {
-    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
-  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
 
-  cellrv32_uart0_printf("\n# unsupported FSQRT.S (square root) [illegal instruction]...\n");
-  cellrv32_cpu_csr_write(CSR_MCAUSE, 0);
-  opa.binary_value = get_test_vector();
-  opb.binary_value = get_test_vector();
-  riscv_intrinsic_fsqrts(opa.float_value);
-  if (cellrv32_cpu_csr_read(CSR_MCAUSE) != TRAP_CODE_I_ILLEGAL) {
-    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
-    err_cnt_total++;
+  cellrv32_uart0_printf("\n#%u: FMSUB.S (fused-multiply subtraction)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fmsubs(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fmsubs(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
-  else {
-    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
-  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
 
-  cellrv32_uart0_printf("\n# unsupported FMADD.S (fused multiply-add) [illegal instruction]...\n");
-  cellrv32_cpu_csr_write(CSR_MCAUSE, 0);
-  opa.binary_value = get_test_vector();
-  opb.binary_value = get_test_vector();
-  riscv_intrinsic_fmadds(opa.float_value, opb.float_value, -opa.float_value);
-  if (cellrv32_cpu_csr_read(CSR_MCAUSE) != TRAP_CODE_I_ILLEGAL) {
-    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
-    err_cnt_total++;
-  }
-  else {
-    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
-  }
 
-  cellrv32_uart0_printf("\n# unsupported FMSUB.S (fused multiply-sub) [illegal instruction]...\n");
-  cellrv32_cpu_csr_write(CSR_MCAUSE, 0);
-  opa.binary_value = get_test_vector();
-  opb.binary_value = get_test_vector();
-  riscv_intrinsic_fmsubs(opa.float_value, opb.float_value, -opa.float_value);
-  if (cellrv32_cpu_csr_read(CSR_MCAUSE) != TRAP_CODE_I_ILLEGAL) {
-    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
-    err_cnt_total++;
+// ----------------------------------------------------------------------------
+// Fused-Negate-Multiply Add/Sub Tests
+// ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n#%u: FNNADD.S (fused-negate-multiply addition)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fnmadds(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fnmadds(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
-  else {
-    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
-  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
 
-  cellrv32_uart0_printf("\n# unsupported FNMSUB.S (fused negated multiply-sub) [illegal instruction]...\n");
-  cellrv32_cpu_csr_write(CSR_MCAUSE, 0);
-  opa.binary_value = get_test_vector();
-  opb.binary_value = get_test_vector();
-  riscv_intrinsic_fnmadds(opa.float_value, opb.float_value, -opa.float_value);
-  if (cellrv32_cpu_csr_read(CSR_MCAUSE) != TRAP_CODE_I_ILLEGAL) {
-    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
-    err_cnt_total++;
+  cellrv32_uart0_printf("\n#%u: FNMSUB.S (fused-negate-multiply subtraction)...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
+    
+    opa.binary_value = get_test_vector();
+    opb.binary_value = get_test_vector();
+    opc.binary_value = get_test_vector();
+    res_hw.float_value = riscv_intrinsic_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
+    res_sw.float_value = riscv_emulate_fnmsubs(opa.float_value, opb.float_value, opc.float_value);
+    err_cnt += verify_result3(i, opa.binary_value, opb.binary_value, opc.binary_value, res_sw.binary_value, res_hw.binary_value);
   }
-  else {
-    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
-  }
-
-  cellrv32_uart0_printf("\n# unsupported FNMADD.S (fused negated multiply-add) [illegal instruction]...\n");
-  cellrv32_cpu_csr_write(CSR_MCAUSE, 0);
-  opa.binary_value = get_test_vector();
-  opb.binary_value = get_test_vector();
-  riscv_intrinsic_fnmadds(opa.float_value, opb.float_value, -opa.float_value);
-  if (cellrv32_cpu_csr_read(CSR_MCAUSE) != TRAP_CODE_I_ILLEGAL) {
-    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
-    err_cnt_total++;
-  }
-  else {
-    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
-  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
 #endif
 
 
@@ -924,10 +845,18 @@ int main() {
   if (err_cnt_total != 0) {
     cellrv32_uart0_printf("\n%c[1m[ZFINX EXTENSION VERIFICATION FAILED!]%c[0m\n", 27, 27);
     cellrv32_uart0_printf("%u errors in %u test cases\n", err_cnt_total, test_cnt*(uint32_t)NUM_TEST_CASES);
+    // ----------------------------------------------------------------------------
+    // ShutDown Generator
+    // ----------------------------------------------------------------------------
+    cellrv32_gpio_port_set(0xFFFFFFFFFFFFFFFF);
     return 1;
   }
   else {
-    cellrv32_uart0_printf("\n%c[1m[Zfinx extension verification successful!]%c[0m\n", 27, 27);
+    cellrv32_uart0_printf("\n%c[1m[Zfinx extension verification successful.]%c[0m\n", 27, 27);
+    // ----------------------------------------------------------------------------
+    // ShutDown Generator
+    // ----------------------------------------------------------------------------
+    cellrv32_gpio_port_set(0xFFFFFFFFFFFFFFFF);
     return 0;
   }
 
