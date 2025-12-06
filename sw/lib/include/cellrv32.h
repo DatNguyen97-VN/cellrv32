@@ -40,6 +40,15 @@ enum CELLRV32_CSR_enum {
   CSR_FRM            = 0x002, /**< 0x002 - frm    (r/w): Floating-point dynamic rounding mode */
   CSR_FCSR           = 0x003, /**< 0x003 - fcsr   (r/w): Floating-point control/status register (frm + fflags) */
 
+  /* vector extension */
+  CSR_VSTART         = 0x008, /**< 0x008 - vstart (r/w): Vector start register */
+  CSR_VXSAT          = 0x009, /**< 0x009 - vxsat  (r/w): Vector fixed-point saturation flag register */
+  CSR_VXRM           = 0x00a, /**< 0x00a - vxrm   (r/w): Vector fixed-point rounding mode register */
+  CSR_VCSR           = 0x00f, /**< 0x00f - vcsr   (r/w): Vector control and status register */
+  CSR_VL             = 0xc20, /**< 0x00c - vl     (r/w): Vector length register */
+  CSR_VTYPE          = 0xc21, /**< 0x00d - vtype  (r/-): Vector type register (read-only) */
+  CSR_VLENB          = 0xc22, /**< 0x00e - vlenb  (r/-): Vector length in bytes (read-only) */
+
   /* machine control and status */
   CSR_MSTATUS        = 0x300, /**< 0x300 - mstatus    (r/w): Machine status register */
   CSR_MISA           = 0x301, /**< 0x301 - misa       (r/-): CPU ISA and extensions (read-only in CELLRV32) */
@@ -396,6 +405,7 @@ enum CELLRV32_CSR_MISA_enum {
   CSR_MISA_I      =  8, /**< CPU misa CSR  (8): I: Base integer ISA CPU extension available (r/-) */
   CSR_MISA_M      = 12, /**< CPU misa CSR (12): M: Multiplier/divider CPU extension available (r/-)*/
   CSR_MISA_U      = 20, /**< CPU misa CSR (20): U: User mode CPU extension available (r/-)*/
+  CSR_MISA_V      = 21, /**< CPU misa CSR (21): V: Vector extension available (r/-)*/
   CSR_MISA_X      = 23, /**< CPU misa CSR (23): X: Non-standard CPU extension available (r/-) */
   CSR_MISA_MXL_LO = 30, /**< CPU misa CSR (30): MXL.lo: CPU data width (r/-) */
   CSR_MISA_MXL_HI = 31  /**< CPU misa CSR (31): MXL.Hi: CPU data width (r/-) */
@@ -420,7 +430,9 @@ enum CELLRV32_CSR_XISA_enum {
   CSR_MXISA_SDEXT     = 10, /**< CPU mxisa CSR (10): RISC-V debug mode (r/-)*/
   CSR_MXISA_SDTRIG    = 11, /**< CPU mxisa CSR (11): RISC-V trigger module (r/-)*/
 
-  CSR_MXISA_ZHINX     = 12, /**< CPU mxisa CSR (12): Half-Precision FPU using x registers, "ZFH-alternative" (r/-)*/
+  CSR_MXISA_ZHINX     = 12, /**< CPU mxisa CSR (12): Half-Precision FPU using x registers, "H-alternative" (r/-)*/
+  
+  CSR_MXISA_VECTOR    = 13, /**< CPU mxisa CSR (13): Vector extension (r/-)*/
 
   // Misc
   CSR_MXISA_IS_SIM    = 20, /**< CPU mxisa CSR (20): this might be a simulation when set (r/-)*/
