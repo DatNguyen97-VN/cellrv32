@@ -335,6 +335,9 @@ void cellrv32_rte_print_hw_config(void) {
   if (tmp & (1<<CSR_MXISA_ZFINX)) {
     cellrv32_uart0_printf("Zfinx ");
   }
+  if (tmp & (1<<CSR_MXISA_ZHINX)) {
+    cellrv32_uart0_printf("Zhinx ");
+  }
   if (tmp & (1<<CSR_MXISA_ZIHPM)) {
     cellrv32_uart0_printf("Zihpm ");
   }
@@ -786,6 +789,10 @@ uint32_t cellrv32_rte_get_compiler_isa(void) {
 
 #if defined __riscv_mul || defined __riscv_m
   misa_cc |= 1 << CSR_MISA_M;
+#endif
+
+#if defined __riscv_v || defined __riscv_v
+  misa_cc |= 1 << CSR_MISA_V;
 #endif
 
 #if (__riscv_xlen == 32)
