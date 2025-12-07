@@ -18,6 +18,7 @@ module cellrv32_cpu #(
     parameter logic CPU_EXTENSION_RISCV_E = 1'b0,        // implement embedded RF extension?
     parameter logic CPU_EXTENSION_RISCV_M = 1'b0,        // implement mul/div extension?
     parameter logic CPU_EXTENSION_RISCV_U = 1'b0,        // implement user mode extension?
+    parameter logic CPU_EXTENSION_RISCV_V = 1'b0,        // implement vector extension?
     parameter logic CPU_EXTENSION_RISCV_Zfinx = 1'b0,    // implement 32-bit floating-point extension (using INT reg!)
     parameter logic CPU_EXTENSION_RISCV_Zhinx = 1'b0,    // implement 16-bit floating-point extension (using INT reg!)
     parameter logic CPU_EXTENSION_RISCV_Zicsr = 1'b0,    // implement CSR system?
@@ -30,12 +31,14 @@ module cellrv32_cpu #(
     parameter logic CPU_EXTENSION_RISCV_Sdext = 1'b0,    // implement external debug mode extension?
     parameter logic CPU_EXTENSION_RISCV_Sdtrig = 1'b0,   // implement trigger module extension?
     /* Extension Options */
-    parameter logic   FAST_MUL_EN = 1'b0,                // use DSPs for M extension's multiplier
-    parameter logic   FAST_SHIFT_EN = 1'b0,              // use barrel shifter for shift operations
-    parameter int CPU_IPB_ENTRIES = 0,               // entries in instruction prefetch buffer, has to be a power of 2, min 1
+    parameter logic FAST_MUL_EN = 1'b0,                  // use DSPs for M extension's multiplier
+    parameter logic FAST_SHIFT_EN = 1'b0,                // use barrel shifter for shift operations
+    parameter int   CPU_IPB_ENTRIES = 1,                 // entries in instruction prefetch buffer, has to be a power of 2, min 1
+    parameter int   VLEN = 256,                          // max size of element vector
+    parameter int   ELEN = 32,                           // size of vector register
     /* Physical Memory Protection (PMP) */
     parameter int PMP_NUM_REGIONS = 0,               // number of regions (0..16)
-    parameter int PMP_MIN_GRANULARITY = 0,           // minimal region granularity in bytes, has to be a power of 2, min 4 bytes
+    parameter int PMP_MIN_GRANULARITY = 4,           // minimal region granularity in bytes, has to be a power of 2, min 4 bytes
     /* Hardware Performance Monitors (HPM) */
     parameter int HPM_NUM_CNTS = 0,                  // number of implemented HPM counters (0..29)
     parameter int HPM_CNT_WIDTH = 0                  // total size of HPM counters (0..64)
@@ -127,17 +130,19 @@ module cellrv32_cpu #(
         // -------------------------------------------------------------------------------------------
         /* CPU ISA configuration */
         assert (1'b0)
-        else $info("CELLRV32 CPU CONFIG NOTE: Core ISA ('MARCH') = RV32 %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s",
+        else $info("CELLRV32 CPU CONFIG NOTE: Core ISA ('MARCH') = RV32 %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s",
                     cond_sel_string_f(CPU_EXTENSION_RISCV_E,        "E", "I"),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_M,        "M", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_C,        "C", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_B,        "B", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_U,        "U", ""),
+                    cond_sel_string_f(CPU_EXTENSION_RISCV_V,        "V", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zicsr,    "_Zicsr", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zicntr,   "_Zicntr", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zicond,   "_Zicond", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zifencei, "_Zifencei", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zfinx,    "_Zfinx", ""),
+                    cond_sel_string_f(CPU_EXTENSION_RISCV_Zhinx,    "_Zhinx", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zihpm,    "_Zihpm", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zmmul,    "_Zmmul", ""),
                     cond_sel_string_f(CPU_EXTENSION_RISCV_Zxcfu,    "_Zxcfu", ""),
@@ -236,6 +241,20 @@ module cellrv32_cpu #(
         /* fast shift option */
         assert (!(FAST_SHIFT_EN == 1'b1))
         else $info("CELLRV32 CPU CONFIG NOTE: <FAST_SHIFT_EN> enabled. Implementing full-parallel logic / barrel shifters.");
+
+        // -------------------------------------------------------------------------------------------
+        /* Vector Extension */
+        assert (!(CPU_EXTENSION_RISCV_V == 1'b1))
+        else $info("CELLRV32 CPU CONFIG NOTE: Vector Extension <V> enabled with <VLEN> = %d and <ELEN> = %d.", VLEN, ELEN);
+        //
+        assert ((CPU_EXTENSION_RISCV_V != 1'b1) || (is_power_of_two_f(VLEN) != 1'b0)) else
+        $warning("CELLRV32 PROCESSOR CONFIG WARNING! VLEN should be a power of 2 to follow hardware design.");
+        //
+        assert ((CPU_EXTENSION_RISCV_V != 1'b1) || (is_power_of_two_f(ELEN) != 1'b0)) else
+        $warning("CELLRV32 PROCESSOR CONFIG WARNING! ELEN should be a power of 2 to follow hardware design.");
+        //
+        assert ((CPU_EXTENSION_RISCV_V != 1'b1) || (VLEN >= ELEN)) else
+        $warning("CELLRV32 PROCESSOR CONFIG WARNING! VLEN should be greater or equal to ELEN to follow hardware design.");
     end
 
     // Control Unit ---------------------------------------------------------------------------
@@ -253,6 +272,7 @@ module cellrv32_cpu #(
         .CPU_EXTENSION_RISCV_E(CPU_EXTENSION_RISCV_E), // implement embedded RF extension?
         .CPU_EXTENSION_RISCV_M(CPU_EXTENSION_RISCV_M), // implement mul/div extension?
         .CPU_EXTENSION_RISCV_U(CPU_EXTENSION_RISCV_U), // implement user mode extension?
+        .CPU_EXTENSION_RISCV_V(CPU_EXTENSION_RISCV_V), // implement vector extension?
         .CPU_EXTENSION_RISCV_Zfinx(CPU_EXTENSION_RISCV_Zfinx),       // implement 32-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zhinx(CPU_EXTENSION_RISCV_Zhinx),       // implement 16-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zicsr(CPU_EXTENSION_RISCV_Zicsr),       // implement CSR system?
@@ -294,6 +314,7 @@ module cellrv32_cpu #(
         .cmp_i(alu_cmp),      // comparator status
         .alu_add_i(alu_add),  // ALU address result
         .rs1_i(rs1),          // rf source 1
+        .rs2_i(rs2),          // rf source 2
         /* data output */
         .imm_o(imm),          // immediate
         .curr_pc_o(curr_pc),         // current PC (corresponding to current instruction)

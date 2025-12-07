@@ -2,9 +2,10 @@
 // Auto-generated memory initialization file (for BOOTLOADER) from source file <bootloader/main.bin>
 // Size: 2960 bytes ( 1 cell = 4 byte)
 // MARCH: default
-// Built: 21.09.2024 19:24:01
+// Built: 23.10.2025 11:50:12
 
 
+package cellrv32_bootloader_image_pkg;
 // Memory with 32-bit entries, 32kb = 8192 cell, 1 cell = 4(B)
 typedef logic [31:0] mem_boot_t   [16*1024];
 typedef logic [31:0] mem32_boot_t [740];
@@ -148,7 +149,7 @@ const logic [31:0] bootloader_init_image [740] = '{
 32'h070e079a,
 32'h8b618ff5,
 32'he7938fd9,
-32'h20230037,
+32'h20230017,
 32'h5701faf0,
 32'h06b7471c,
 32'h8ff50002,
@@ -646,9 +647,9 @@ const logic [31:0] bootloader_init_image [740] = '{
 32'h3e3e2072,
 32'h4c420a0a,
 32'h203a5644,
-32'h20706553,
-32'h32203132,
-32'h0a343230,
+32'h2074634f,
+32'h32203332,
+32'h0a353230,
 32'h3a565748,
 32'h00002020,
 32'h4449430a,
@@ -768,5 +769,5 @@ const logic [31:0] bootloader_init_image [740] = '{
 32'h4600534b,
 32'h0048534c
 };
-
+endpackage : cellrv32_bootloader_image_pkg
 //End of file

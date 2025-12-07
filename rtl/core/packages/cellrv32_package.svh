@@ -351,6 +351,8 @@ package cellrv32_package;
   const logic [6:0] opcode_system_c = 7'b1110011; // system/csr access (type via funct3)
   // floating point operations --
   const logic [6:0] opcode_fop_c    = 7'b1010011; // dual/single operand instruction
+  // vector operations --
+  const logic [6:0] opcode_vsetvl_c = 7'b1010111; // vector instruction 
   // official *custom* RISC-V opcodes - free for custom instructions --
   const logic [6:0] opcode_cust0_c  = 7'b0001011; // custom-0
   const logic [6:0] opcode_cust1_c  = 7'b0101011; // custom-1
@@ -461,6 +463,15 @@ package cellrv32_package;
   const logic [11:0] csr_fflags_c         = 12'h001;
   const logic [11:0] csr_frm_c            = 12'h002;
   const logic [11:0] csr_fcsr_c           = 12'h003;
+  // vector extension CSRs //
+  const logic [8:0]  csr_class_vector_c   = {8'h00, 1'b0}; // vector extension
+  const logic [11:0] csr_vstart_c         = 12'h008;
+  const logic [11:0] csr_vxsat_c          = 12'h009;
+  const logic [11:0] csr_vxrm_c           = 12'h00a;
+  const logic [11:0] csr_vcsr_c           = 12'h00f;
+  const logic [11:0] csr_vl_c             = 12'hc20;
+  const logic [11:0] csr_vtype_c          = 12'hc21;
+  const logic [11:0] csr_vlenb_c          = 12'hc22;
   // machine trap setup //
   const logic [8:0]  csr_class_setup_c    = {8'h30, 1'b0}; // trap setup
   const logic [11:0] csr_mstatus_c        = 12'h300;
@@ -783,6 +794,7 @@ package cellrv32_package;
   localparam int cp_sel_fpu16_c    = 4; // CP4: floating-point unit ('Zhinx' extension)
   localparam int cp_sel_cfu_c      = 5; // CP5: custom instructions CFU ('Zxcfu' extension)
   localparam int cp_sel_cond_c     = 6; // CP6: conditional operations ('Zicond' extension)
+  localparam int cp_sel_vector_c   = 7; // CP7: vector operations ('Vector' extension)
 
   // ALU Function Codes [DO NOT CHANGE ENCODING!] -------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -919,6 +931,17 @@ package cellrv32_package;
   // Functions
   // ****************************************************************************************************************************
 
+  // Function: calculate lmul -----------------------------------------------------------------
+  // -------------------------------------------------------------------------------------------
+  function logic [3:0] vlmul2lmul (input logic [2:0] vlmul);
+     case (vlmul)
+       3'b001: return 4'd2;  // LMUL= 2
+       3'b010: return 4'd4;  // LMUL= 4
+       3'b011: return 4'd8;  // LMUL= 8
+       default: return 4'd1; // LMUL= 1 : 1/2 : 1/4 : 1/8
+     endcase
+  endfunction
+  
   // Function: compute propagate and generate signals for prefix adder tree --------------------
   // -------------------------------------------------------------------------------------------
   function logic [31:0] pro_and_gen_f (input logic [15:0] pleft,

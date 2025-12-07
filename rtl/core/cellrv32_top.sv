@@ -24,8 +24,8 @@
 
 module cellrv32_top #(
     /* General */
-    parameter int     CLOCK_FREQUENCY   = 0,            // clock frequency of clk_i in Hz
-    parameter int     HW_THREAD_ID      = 0,            // hardware thread id (32-bit)
+    parameter int         CLOCK_FREQUENCY   = 0,            // clock frequency of clk_i in Hz
+    parameter int         HW_THREAD_ID      = 0,            // hardware thread id (32-bit)
     parameter logic[31:0] CUSTOM_ID         = 32'h00000000, // custom user-defined ID
     parameter logic       INT_BOOTLOADER_EN = 1'b0,         // boot configuration: true = boot explicit bootloader; false = boot from int/ext (I)MEM
 
@@ -38,6 +38,7 @@ module cellrv32_top #(
     parameter logic CPU_EXTENSION_RISCV_E        = 1'b0,  // implement embedded RF extension?
     parameter logic CPU_EXTENSION_RISCV_M        = 1'b0,  // implement mul/div extension?
     parameter logic CPU_EXTENSION_RISCV_U        = 1'b0,  // implement user mode extension?
+    parameter logic CPU_EXTENSION_RISCV_V        = 1'b0,  // implement vector extension?
     parameter logic CPU_EXTENSION_RISCV_Zfinx    = 1'b0,  // implement 32-bit floating-point extension (using INT regs!)
     parameter logic CPU_EXTENSION_RISCV_Zhinx    = 1'b0,  // implement 16-bit floating-point extension (using INT regs!)
     parameter logic CPU_EXTENSION_RISCV_Zicsr    = 1'b1,   // implement CSR system?
@@ -543,6 +544,7 @@ module cellrv32_top #(
         .CPU_EXTENSION_RISCV_E       (CPU_EXTENSION_RISCV_E),        // implement embedded RF extension?
         .CPU_EXTENSION_RISCV_M       (CPU_EXTENSION_RISCV_M),        // implement mul/div extension?
         .CPU_EXTENSION_RISCV_U       (CPU_EXTENSION_RISCV_U),        // implement user mode extension?
+        .CPU_EXTENSION_RISCV_V       (CPU_EXTENSION_RISCV_V),        // implement vector extension?
         .CPU_EXTENSION_RISCV_Zfinx   (CPU_EXTENSION_RISCV_Zfinx),    // implement 32-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zhinx   (CPU_EXTENSION_RISCV_Zhinx),    // implement 16-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zicsr   (CPU_EXTENSION_RISCV_Zicsr),    // implement CSR system?

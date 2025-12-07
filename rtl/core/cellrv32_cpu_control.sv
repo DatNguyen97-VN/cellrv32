@@ -18,8 +18,9 @@
 
 module cellrv32_cpu_control #(
     /* General */
-    parameter XLEN                         = 32, // data path width
-    parameter HW_THREAD_ID                 = 0,  // hardware thread id (32-bit)
+    parameter XLEN                         = 32,   // data path width
+    parameter VLEN                         = 256,  // vector register file width
+    parameter HW_THREAD_ID                 = 0,    // hardware thread id (32-bit)
     parameter logic[31:0] CPU_BOOT_ADDR       = 0, // cpu boot address
     parameter logic[31:0] CPU_DEBUG_PARK_ADDR = 0, // cpu debug mode parking loop entry address
     parameter logic[31:0] CPU_DEBUG_EXC_ADDR  = 0, // cpu debug mode exception entry address
@@ -29,6 +30,7 @@ module cellrv32_cpu_control #(
     parameter CPU_EXTENSION_RISCV_E        = 0, // implement embedded RF extension?
     parameter CPU_EXTENSION_RISCV_M        = 0, // implement mul/div extension?
     parameter CPU_EXTENSION_RISCV_U        = 0, // implement user mode extension?
+    parameter CPU_EXTENSION_RISCV_V        = 0, // implement vector extension?
     parameter CPU_EXTENSION_RISCV_Zfinx    = 0, // implement 32-bit floating-point extension (using INT reg!)
     parameter CPU_EXTENSION_RISCV_Zhinx    = 0, // implement 16-bit floating-point extension (using INT reg!)
     parameter CPU_EXTENSION_RISCV_Zicsr    = 0, // implement CSR system?
@@ -70,6 +72,7 @@ module cellrv32_cpu_control #(
     input logic [1:0]      cmp_i,     // comparator status
     input logic [XLEN-1:0] alu_add_i, // ALU address result
     input logic [XLEN-1:0] rs1_i,     // rf source 1
+    input logic [XLEN-1:0] rs2_i,     // rf source 2
     /* data output */
     output logic [XLEN-1:0] imm_o,       // immediate
     output logic [XLEN-1:0] curr_pc_o,   // current PC (corresponding to current instruction)
@@ -239,13 +242,17 @@ module cellrv32_cpu_control #(
     typedef logic [0:28][XLEN-1:0]                            mhpmcnt_rd_t;
     //
     typedef struct packed {
-        logic [11:0]     addr;              // csr address
-        logic            we;                // csr write enable
-        logic            we_nxt;           
-        logic            re;                // csr read enable
+        logic [11:0]     addr;                  // csr address
+        logic            we;                    // csr write enable
+        logic            we_nxt;     
+        logic            is_vsetvl;             // is vsetvl/vsetivli instruction?
+        logic            is_vsetvl_nxt; 
+        logic [XLEN-1:0] vl_update_nxt;         // next vector length value
+        logic [08:0]     vtype_update_nxt;
+        logic            re;                    // csr read enable
         logic            re_nxt;           
-        logic [XLEN-1:0] wdata;             // csr write data
-        logic [XLEN-1:0] rdata;             // csr read data
+        logic [XLEN-1:0] wdata;                 // csr write data
+        logic [XLEN-1:0] rdata;                 // csr read data
         //
         logic mstatus_mie;       // mstatus.MIE: global IRQ enable (R/W)
         logic mstatus_mpie;      // mstatus.MPIE: previous global IRQ enable (R/W)
@@ -256,7 +263,7 @@ module cellrv32_cpu_control #(
         logic        mie_msi;    // mie.MSIE: machine software interrupt enable (R/W)
         logic        mie_mei;    // mie.MEIE: machine external interrupt enable (R/W)
         logic        mie_mti;    // mie.MEIE: machine timer interrupt enable (R/W)
-        logic [15:0] mie_firq;  // mie.firq*e: fast interrupt enabled (R/W)
+        logic [15:0] mie_firq;   // mie.firq*e: fast interrupt enabled (R/W)
         //
         logic [15:0] mip_firq_nclr;     // clear pending FIRQ (active-low)
         //
@@ -300,6 +307,18 @@ module cellrv32_cpu_control #(
         //
         logic [2:0] frm;                 // frm (R/W): FPU rounding mode
         logic [4:0] fflags;              // fflags (R/W): FPU exception flags
+        //
+        logic [$clog2(VLEN)-1:0] vstart; // vstart (R/W): vector start index
+        logic [1:0] vxrm;                // vxrm (R/W): Vector Fixed-Point Rounding Mode
+        logic vxsat;                     // vxsat (R/-): Vector Control and Status Register
+        logic [2:0] vcsr;                // vcsr (R/-): Vector Control and Status Register
+        logic [XLEN-1:0] vl;             // vl (R/W*): vector length
+        logic vtype_vill;                // vtype (R/W*): Illegal value if set
+        logic vtype_vma;                 // vtype (R/W*): vector memory agnostic
+        logic vtype_vta;                 // vtype (R/W*): vector tail agnostic
+        logic [2:0] vtype_sew;           // vtype (R/W*): selected element width
+        logic [2:0] vtype_vlmul;         // vtype (R/W*): vector register group multiplier
+        //logic [XLEN-1:0] vlenb;          // vlenb (R/-): vector register length in bytes
         //
         logic            dcsr_ebreakm;  // dcsr.ebreakm (R/W): behavior of ebreak instruction in m-mode
         logic            dcsr_ebreaku;  // dcsr.ebreaku (R/W): behavior of ebreak instruction in u-mode
@@ -900,6 +919,7 @@ module cellrv32_cpu_control #(
      /* CSR access defaults */
      csr.we_nxt = 1'b0;
      csr.re_nxt = 1'b0;
+     csr.is_vsetvl_nxt = 1'b0;
 
      /* Control defaults */
      ctrl_nxt        = ctrl_bus_zero_c; // all off by default
@@ -1128,6 +1148,17 @@ module cellrv32_cpu_control #(
                      end
                  end
                  // --------------------------------------------------------------
+                 // vector CSR access
+                 opcode_vsetvl_c : begin
+                     csr.re_nxt = 1'b1; // always read CSR, only relevant for CSR access
+                     //
+                     if ((CPU_EXTENSION_RISCV_V == 1) && (CPU_EXTENSION_RISCV_Zicsr == 1)) begin
+                         execute_engine.state_nxt = SYSTEM;
+                     end else begin
+                         execute_engine.state_nxt = DISPATCH;
+                     end
+                 end
+                 // --------------------------------------------------------------
                  // illegal opcode
                  default: begin
                      execute_engine.state_nxt = DISPATCH;
@@ -1224,8 +1255,17 @@ module cellrv32_cpu_control #(
                                         execute_engine.sleep_nxt = 1'b1; // "funct12_wfi_c" - wfi/sleep
                      end
                  endcase
+             end else if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_csrrci_c) && 
+                           execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c] == opcode_vsetvl_c) begin // only for VSET[I]VL[I] CSR access
+                 execute_engine.state_nxt = DISPATCH;
+                 csr.we_nxt = 1'b1;
+                 csr.is_vsetvl_nxt = 1'b1;
+                 //
+                 if (decode_aux.rd_zero == 1'b0 && ((decode_aux.rs1_zero == 1'b0) || (execute_engine.i_reg[instr_rs2_msb_c : instr_rs2_lsb_c] != 5'b00000))) begin
+                    ctrl_nxt.rf_wb_en = 1'b1; // valid RF write-back value of vl when rd != x0 and rs1/im5 != x0
+                 end
              end else begin // CSR ACCESS - no CSR will be altered if illegal instruction
-                 execute_engine.state_nxt <= DISPATCH;
+                 execute_engine.state_nxt = DISPATCH;
                  //
                  if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_csrrw_c ) || // CSRRW:  always write CSR
                      (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_csrrwi_c) || // CSRRWI: always write CSR
@@ -1258,6 +1298,12 @@ module cellrv32_cpu_control #(
          /* floating-point CSRs */
          csr_fflags_c, csr_frm_c, csr_fcsr_c : begin
              csr_reg_valid = logic'(CPU_EXTENSION_RISCV_Zfinx); // valid if FPU implemented
+         end
+         // --------------------------------------------------------------
+         /* vector CSRs */
+         csr_vstart_c, csr_vxsat_c, csr_vxrm_c, csr_vcsr_c,
+         csr_vl_c, csr_vtype_c, csr_vlenb_c : begin
+             csr_reg_valid = logic'(CPU_EXTENSION_RISCV_V); // valid if vector extension implemented
          end
          // --------------------------------------------------------------
          // machine trap setup/handling, counters, environment & information registers
@@ -1512,6 +1558,12 @@ module cellrv32_cpu_control #(
              end
          end
          // --------------------------------------------------------------
+         // Vector Configuration-Setting Instructions (vsetvli/vsetivli/vsetvl)
+         opcode_vsetvl_c : begin
+             illegal_cmd = ~(logic'(CPU_EXTENSION_RISCV_V)); // vector extension implemented?
+             illegal_reg = execute_engine.i_reg[instr_rs1_msb_c] | execute_engine.i_reg[instr_rd_msb_c]; // illegal 'E' register?
+         end
+         // --------------------------------------------------------------
          // floating point operations - single/dual operands
          opcode_fop_c : begin
              if (((CPU_EXTENSION_RISCV_Zfinx == 1) && (decode_aux.is_f_op == 1'b1)) || // is supported single-precision floating-point instruction
@@ -1751,6 +1803,48 @@ module cellrv32_cpu_control #(
       endcase
     end : csr_write_data
 
+    always_comb begin : compute_vl_csr
+        // compute new VL value
+        csr.vl_update_nxt    = '0;
+        csr.vtype_update_nxt = '0;
+        // if AVL/IMM != 0, VL is updated to min(AVL, VLMAX)
+        if ((decode_aux.rs1_zero == 1'b0) || (execute_engine.i_reg[instr_rs2_msb_c : instr_rs2_lsb_c] != 5'b00000)) begin
+           if (execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-6] == 7'b1000000) begin
+               // vsetvl with rs2 as VLMUL
+               csr.vl_update_nxt = rs1_i > 8 * vlmul2lmul(rs2_i[2:0]) ? (8 * vlmul2lmul(rs2_i[2:0])) : rs1_i; // AVL > VLMAX (VLMAX = VLMUL x 8 elements/reg)
+           end else begin
+               // vset[i]vl with imm as VLMUL
+               csr.vl_update_nxt = rs1_i > 8 * vlmul2lmul(execute_engine.i_reg[22:20]) ? (8 * vlmul2lmul(execute_engine.i_reg[22:20])) : rs1_i; // AVL > VLMAX (VLMAX = VLMUL x 8 elements/reg)
+           end
+        // if AVL/IMM == 0 and rd != x0, VL is set to VLMAX
+        end else if ((decode_aux.rd_zero == 1'b0) && (decode_aux.rs1_zero == 1'b1)) begin
+           if (execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-6] == 7'b1000000) begin
+               // vsetvl with rs2 as VLMUL
+               csr.vl_update_nxt = 8 * vlmul2lmul(rs2_i[2:0]); // VLMAX = VLMUL x 8 elements/reg
+           end else begin
+               // vset[i]vl with imm as VLMUL
+               csr.vl_update_nxt = 8 * vlmul2lmul(execute_engine.i_reg[22:20]); // VLMAX = VLMUL x 8 elements/reg
+           end
+        // AVL == rd == x0 -> no VL update
+        end else begin
+           csr.vl_update_nxt = csr.vl; // no change to VL
+        end
+        // vtype update
+        if (execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-6] == 7'b1000000) begin
+           csr.vtype_update_nxt[08]    = rs2_i[XLEN-1]; // vill
+           csr.vtype_update_nxt[07]    = rs2_i[07];     // vma
+           csr.vtype_update_nxt[06]    = rs2_i[06];     // vta
+           csr.vtype_update_nxt[05:03] = rs2_i[05:03];  // vsew
+           csr.vtype_update_nxt[02:00] = rs2_i[02:00];  // vlmul
+        end else begin
+           csr.vtype_update_nxt[08]    = &execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-1] ? execute_engine.i_reg[29] :  execute_engine.i_reg[30]; // vill
+           csr.vtype_update_nxt[07]    = execute_engine.i_reg[27];    // vma
+           csr.vtype_update_nxt[06]    = execute_engine.i_reg[26];    // vta
+           csr.vtype_update_nxt[05:03] = execute_engine.i_reg[25:23]; // vsew
+           csr.vtype_update_nxt[02:00] = execute_engine.i_reg[22:20]; // vlmul
+        end
+    end : compute_vl_csr
+
     // Control and Status Registers - Write Access -----------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i or negedge rstn_i ) begin : csr_write_access
@@ -1787,6 +1881,17 @@ module cellrv32_cpu_control #(
          csr.fflags            <= '0;
          csr.frm               <= '0;
          //
+         csr.vstart            <= '0;
+         csr.vxrm              <= 2'b00;
+         csr.vxsat             <= 1'b0;
+         csr.vcsr              <= 3'b000;
+         csr.vl                <= '0;
+         csr.vtype_vill        <= 1'b1;
+         csr.vtype_vma         <= 1'b0;
+         csr.vtype_vta         <= 1'b0;
+         csr.vtype_sew         <= 3'b000;
+         csr.vtype_vlmul       <= 3'b000;
+         //
          csr.dcsr_ebreakm      <= 1'b0;
          csr.dcsr_ebreaku      <= 1'b0;
          csr.dcsr_step         <= 1'b0;
@@ -1801,7 +1906,8 @@ module cellrv32_cpu_control #(
          csr.tdata2            <= '0;
       end else begin
          /* write access? */
-         csr.we <= csr.we_nxt & (~trap_ctrl.exc_buf[exc_iillegal_c]); // write if not illegal instruction
+         csr.we        <= csr.we_nxt & (~trap_ctrl.exc_buf[exc_iillegal_c]); // write if not illegal instruction
+         csr.is_vsetvl <= csr.is_vsetvl_nxt & (~trap_ctrl.exc_buf[exc_iillegal_c]); // write if not illegal instruction
 
          /* defaults */
          csr.mip_firq_nclr <= '1; // active low
@@ -1825,6 +1931,36 @@ module cellrv32_cpu_control #(
                          end
                      end
                  end
+                 // ----------------------------------------------------------------------
+                 /* vector CSRs */
+                    if (CPU_EXTENSION_RISCV_V == 1) begin // vector CSR class
+                        if (csr.addr[11:4] == csr_class_vector_c) begin
+                            // R/W: vstart - vector start index
+                            if (csr.addr[3:0] == csr_vstart_c[3:0]) begin
+                                csr.vstart <= csr.wdata[$clog2(VLEN)-1:0];
+                            end
+                            // R/W: vxrm - vector fixed-point rounding mode
+                            if (csr.addr[3:0] == csr_vxrm_c[3:0]) begin
+                                csr.vxrm <= csr.wdata[1:0];
+                            end
+                            // R/W: vcsr - vector control and status register
+                            if (csr.addr[3:0] == csr_vcsr_c[3:0]) begin
+                                csr.vxrm  <= csr.wdata[2:1];
+                                csr.vxsat <= csr.wdata[0:0];
+                            end
+                        end
+                        //
+                        if (csr.is_vsetvl) begin
+                            // R/W*: vl - vector length register
+                            csr.vl <= csr.vl_update_nxt[XLEN-1:0];
+                            // R/W*: Vector type register
+                            csr.vtype_vill  <= csr.vtype_update_nxt[08];
+                            csr.vtype_vma   <= csr.vtype_update_nxt[07];
+                            csr.vtype_vta   <= csr.vtype_update_nxt[06];
+                            csr.vtype_sew   <= csr.vtype_update_nxt[05:03];
+                            csr.vtype_vlmul <= csr.vtype_update_nxt[02:00];
+                        end
+                    end
                  // ----------------------------------------------------------------------
                  // machine trap setup
                  if (csr.addr[11:3] == csr_class_setup_c) begin // trap setup CSR class
@@ -1989,6 +2125,14 @@ module cellrv32_cpu_control #(
                  // ----------------------------------------------------------------------
                  if ((CPU_EXTENSION_RISCV_Zfinx == 1) && (trap_ctrl.exc_buf[exc_iillegal_c] == 1'b0)) begin // no illegal instruction
                      csr.fflags <= csr.fflags | fpu_flags_i; // accumulate flags ("accrued exception flags")
+                 end
+
+                 // ----------------------------------------------------------------------
+                 // -- vector CSRS vill in vtype
+                 // ----------------------------------------------------------------------
+                 if (CPU_EXTENSION_RISCV_V == 1) begin
+                     csr.vtype_vill <= csr.vtype_vill | (csr.vtype_sew != 3'b010) | // invalid SEW (only 32-bit supported)
+                                       (csr.vtype_vlmul == 3'b100); // invalid VLMUL
                  end
 
                  // -- --------------------------------------------------------------------
@@ -2180,27 +2324,77 @@ module cellrv32_cpu_control #(
                  end
              end
              // -- --------------------------------------------------------------------
+             /* vector CSRs */
+             // -- --------------------------------------------------------------------
+             // vstart (r/w): vector start index 
+             csr_vstart_c : begin
+                 if (CPU_EXTENSION_RISCV_V) begin
+                     csr.rdata[$clog2(VLEN)-1:0] <= csr.vstart;
+                 end
+             end
+             // vxsat (r/-): vector fixed-point saturation flag
+             csr_vxsat_c : begin
+                 if (CPU_EXTENSION_RISCV_V) begin
+                     csr.rdata[0] <= csr.vxsat;
+                 end
+             end
+             // vxrm (r/w): vector fixed-point rounding mode
+             csr_vxrm_c : begin
+                 if (CPU_EXTENSION_RISCV_V) begin
+                     csr.rdata[1:0] <= csr.vxrm;
+                 end
+             end
+             // vcsr (r/w): vector control and status register
+             csr_vcsr_c : begin
+                 if (CPU_EXTENSION_RISCV_V) begin
+                     csr.rdata[2:0] <= {csr.vxrm, csr.vxsat};
+                 end
+             end
+             // vl (r/w*): vector length
+             csr_vl_c : begin
+                 if (CPU_EXTENSION_RISCV_V) begin
+                    csr.rdata[XLEN-1:0] <= csr.vl;
+                 end
+             end
+             // vtype (r/w*): vector type register
+             csr_vtype_c : begin
+                 if (CPU_EXTENSION_RISCV_V) begin
+                     csr.rdata[XLEN-1] <= csr.vtype_vill;
+                     csr.rdata[07]     <= csr.vtype_vma;
+                     csr.rdata[06]     <= csr.vtype_vta;
+                     csr.rdata[05:03]  <= csr.vtype_sew;
+                     csr.rdata[02:00]  <= csr.vtype_vlmul;
+                 end
+             end
+             // vlenb (r/-): vector length in bytes
+             csr_vlenb_c : begin
+                 if (CPU_EXTENSION_RISCV_V) begin
+                     csr.rdata[XLEN-1:0] <= VLEN/8;
+                 end
+             end
+             // -- --------------------------------------------------------------------
              /* machine trap setup */
              // -- --------------------------------------------------------------------
              // mstatus (r/w): machine status register - low word
              csr_mstatus_c : begin
-                 csr.rdata[03] <= csr.mstatus_mie; // MIE
-                 csr.rdata[07] <= csr.mstatus_mpie; // MPIE
+                 csr.rdata[03]    <= csr.mstatus_mie; // MIE
+                 csr.rdata[07]    <= csr.mstatus_mpie; // MPIE
                  csr.rdata[12:11] <= (csr.mstatus_mpp == 1'b1) ? '1 : '0; // MPP: machine previous privilege mode
-                 csr.rdata[17] <= csr.mstatus_mprv;
-                 csr.rdata[21] <= csr.mstatus_tw & logic'(CPU_EXTENSION_RISCV_U); // TW
+                 csr.rdata[17]    <= csr.mstatus_mprv;
+                 csr.rdata[21]    <= csr.mstatus_tw & logic'(CPU_EXTENSION_RISCV_U); // TW
              end
              //  misa (r/-): ISA and extensions
              csr_misa_c : begin
-                 csr.rdata[01] <=   CPU_EXTENSION_RISCV_B;   // B CPU extension
-                 csr.rdata[02] <=   CPU_EXTENSION_RISCV_C;   // C CPU extension
-                 csr.rdata[04] <=   CPU_EXTENSION_RISCV_E;   // E CPU extension
-                 csr.rdata[08] <= ~ CPU_EXTENSION_RISCV_E;   // I CPU extension (if not E)
-                 csr.rdata[12] <=   CPU_EXTENSION_RISCV_M;   // M CPU extension
-                 csr.rdata[20] <=   CPU_EXTENSION_RISCV_U;   // U CPU extension
-                 csr.rdata[23] <=   1'b1;                            // X CPU extension (non-standard extensions / CELLRV32-specific)
-                 csr.rdata[30] <=   1'b1; // 32-bit architecture (MXL lo)
-                 csr.rdata[31] <=   1'b0; // 32-bit architecture (MXL hi)
+                 csr.rdata[01] <=   CPU_EXTENSION_RISCV_B; // B CPU extension
+                 csr.rdata[02] <=   CPU_EXTENSION_RISCV_C; // C CPU extension
+                 csr.rdata[04] <=   CPU_EXTENSION_RISCV_E; // E CPU extension
+                 csr.rdata[08] <= ~ CPU_EXTENSION_RISCV_E; // I CPU extension (if not E)
+                 csr.rdata[12] <=   CPU_EXTENSION_RISCV_M; // M CPU extension
+                 csr.rdata[20] <=   CPU_EXTENSION_RISCV_U; // U CPU extension
+                 csr.rdata[21] <=   CPU_EXTENSION_RISCV_V; // V CPU extension
+                 csr.rdata[23] <=   1'b1;                  // X CPU extension (non-standard extensions / CELLRV32-specific)
+                 csr.rdata[30] <=   1'b1;                  // 32-bit architecture (MXL lo)
+                 csr.rdata[31] <=   1'b0;                  // 32-bit architecture (MXL hi)
              end
              // mie (r/w): machine interrupt-enable register
              csr_mie_c : begin
@@ -2450,7 +2644,7 @@ module cellrv32_cpu_control #(
     assign csr_raddr = (csr.re == 1'b1) ? {csr.addr[11:10], csr.addr[8], csr.addr[8], csr.addr[7:0]} : '0;
 
     /* CSR read data output */
-    assign csr_rdata_o = csr.rdata;
+    assign csr_rdata_o = csr.is_vsetvl ? csr.vl_update_nxt : csr.rdata;
 
     // ****************************************************************************************************************************
     // CPU Counters / HPMs
