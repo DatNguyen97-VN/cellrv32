@@ -7,8 +7,7 @@
 
 /**********************************************************************//**
  * @file cellrv32.h
- * @author Stephan Nolting
- *
+ * @author Stephan Nolting, Dat Nguyen
  * @brief Main CELLRV32 core library include file.
  **************************************************************************/
 
