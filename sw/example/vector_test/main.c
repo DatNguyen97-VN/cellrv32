@@ -150,7 +150,7 @@ int main() {
   test_cnt++;
 
 
-  cellrv32_uart0_printf("\n#%u: VL, VTYPE CSR...\n", test_cnt);
+  cellrv32_uart0_printf("\n#%u: vsetvl: VL, VTYPE CSR...\n", test_cnt);
   err_cnt = 0;
   for (i=0;i<(uint32_t)NUM_TEST_CASES; i++) {
     opa.binary_value = get_test_vector();
@@ -161,6 +161,40 @@ int main() {
     
     res_hw.binary_value = cellrv32_cpu_csr_read(CSR_VTYPE);
     err_cnt += verify_result(i, opa.binary_value, opb.binary_value, opb.binary_value, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  cellrv32_uart0_printf("\n#%u: vsetvli: VL, VTYPE CSR...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)1; i++) {
+    opa.binary_value = get_test_vector();
+    // vsetvli uses immediate operand for vtype
+    opc.binary_value = CUSTOM_INSTR_I_TYPE(0b010001010010, opa.binary_value, 0b111, 0b1010111);
+    res_hw.binary_value = cellrv32_cpu_csr_read(CSR_VL);
+    err_cnt += verify_result(i, opa.binary_value, 0, opc.binary_value, res_hw.binary_value);
+    
+    res_hw.binary_value = cellrv32_cpu_csr_read(CSR_VTYPE);
+    err_cnt += verify_result(i, opa.binary_value, 0, 0b010001010010, res_hw.binary_value);
+  }
+  print_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  cellrv32_uart0_printf("\n#%u: vsetivli: VL, VTYPE CSR...\n", test_cnt);
+  err_cnt = 0;
+  for (i=0;i<(uint32_t)1; i++) {
+    opa.binary_value = get_test_vector();
+    // vsetivli uses immediate operand for vtype and source
+    opc.binary_value = CUSTOM_INSTR_I_TYPE(0b111001010010, opa.binary_value, 0b111, 0b1010111);
+    res_hw.binary_value = cellrv32_cpu_csr_read(CSR_VL);
+    err_cnt += verify_result(i, opa.binary_value, 0, opc.binary_value, res_hw.binary_value);
+    
+    res_hw.binary_value = cellrv32_cpu_csr_read(CSR_VTYPE);
+    err_cnt += verify_result(i, opa.binary_value, 0, 0b111001010010, res_hw.binary_value);
   }
   print_report(err_cnt);
   err_cnt_total += err_cnt;

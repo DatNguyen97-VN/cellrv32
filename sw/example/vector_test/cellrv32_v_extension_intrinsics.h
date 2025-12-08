@@ -107,12 +107,9 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsetvl(int32_t rs
  * @param[in] zimm Source operand 2.
  * @return Result.
  **************************************************************************/
-inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsetvli(int32_t rs1, int32_t zimm) {
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsetvli(int32_t rs1, uint32_t zimm) {
   
-  uint16_t zimm5 = zimm & 0x1F; // only lower 5 bits are valid
-  uint16_t zimm6 = (zimm >> 5) & 0x3F; // only high 6 bits are valid
   
-  return CUSTOM_INSTR_R2_TYPE(zimm6, zimm5, rs1, 0b111, 0b1010111);
 }
 
 
@@ -125,10 +122,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsetvli(int32_t r
  **************************************************************************/
 inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsetivli(int32_t uimm, int32_t zimm) {
   
-  uint16_t zimm5 = zimm & 0x1F; // only lower 5 bits are valid
-  uint16_t zimm7 = ((zimm >> 5) & 0x1F) | (0x3 << 5); // only high 5 bits are valid
-  
-  return CUSTOM_INSTR_R2_TYPE(zimm7, zimm5, uimm, 0b111, 0b1010111);
+ 
 }
 
 
