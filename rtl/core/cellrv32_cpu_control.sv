@@ -1803,30 +1803,34 @@ module cellrv32_cpu_control #(
       endcase
     end : csr_write_data
 
+    logic [XLEN-1:0] vlmax;
+    logic [3:0] lmul;
+    //
+    always_comb begin : compute_vlmax
+        if (execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-6] == 7'b1000000) begin
+            // vsetvl with rs2 as VLMUL
+            lmul = vlmul2lmul(rs2_i[2:0]);
+        end else begin
+            // vset[i]vl with imm as VLMUL
+            lmul = vlmul2lmul(execute_engine.i_reg[22:20]);
+        end
+        // VLMAX = VLMUL x 8 elements/reg
+        vlmax = 8 * lmul;
+    end : compute_vlmax
+
     always_comb begin : compute_vl_csr
         // compute new VL value
         csr.vl_update_nxt    = '0;
         csr.vtype_update_nxt = '0;
         // if AVL/IMM != 0, VL is updated to min(AVL, VLMAX)
-        if ((decode_aux.rs1_zero == 1'b0) || (execute_engine.i_reg[instr_rs2_msb_c : instr_rs2_lsb_c] != 5'b00000)) begin
-           if (execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-6] == 7'b1000000) begin
-               // vsetvl with rs2 as VLMUL
-               csr.vl_update_nxt = rs1_i > 8 * vlmul2lmul(rs2_i[2:0]) ? (8 * vlmul2lmul(rs2_i[2:0])) : rs1_i; // AVL > VLMAX (VLMAX = VLMUL x 8 elements/reg)
-           end else begin
-               // vset[i]vl with imm as VLMUL
-               csr.vl_update_nxt = rs1_i > 8 * vlmul2lmul(execute_engine.i_reg[22:20]) ? (8 * vlmul2lmul(execute_engine.i_reg[22:20])) : rs1_i; // AVL > VLMAX (VLMAX = VLMUL x 8 elements/reg)
-           end
+        if (rs1_i != 0) begin
+           // AVL > VLMAX
+           csr.vl_update_nxt = rs1_i > vlmax ? vlmax : rs1_i;
         // if AVL/IMM == 0 and rd != x0, VL is set to VLMAX
-        end else if ((decode_aux.rd_zero == 1'b0) && (decode_aux.rs1_zero == 1'b1)) begin
-           if (execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-6] == 7'b1000000) begin
-               // vsetvl with rs2 as VLMUL
-               csr.vl_update_nxt = 8 * vlmul2lmul(rs2_i[2:0]); // VLMAX = VLMUL x 8 elements/reg
-           end else begin
-               // vset[i]vl with imm as VLMUL
-               csr.vl_update_nxt = 8 * vlmul2lmul(execute_engine.i_reg[22:20]); // VLMAX = VLMUL x 8 elements/reg
-           end
+        end else if ((decode_aux.rd_zero == 1'b0) && (rs1_i == 0)) begin
+           csr.vl_update_nxt = vlmax;
         // AVL == rd == x0 -> no VL update
-        end else begin
+        end else if ((decode_aux.rd_zero == 1'b1) && (rs1_i == 0)) begin
            csr.vl_update_nxt = csr.vl; // no change to VL
         end
         // vtype update
