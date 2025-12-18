@@ -16,7 +16,9 @@ module cellrv32_dmem #(
     input  logic [03:0] ben_i,  // byte write enable
     input  logic [31:0] addr_i, // address
     input  logic [31:0] data_i, // data in
+    input  logic [03:0] ticket_i, // request ticket
     output logic [31:0] data_o, // data out
+    output logic [03:0] ticket_o, // response ticket
     output logic        ack_o,  // transfer acknowledge
     output logic        err_o   // transfer error
 );
@@ -25,9 +27,9 @@ module cellrv32_dmem #(
     localparam int lo_abb_c = $clog2(DMEM_SIZE); // low address boundary bit
 
     /* local signals */
-    logic                                   acc_en;
-    logic [31:0]                            rdata;
-    logic                                   rden;
+    logic                             acc_en;
+    logic [31:0]                      rdata;
+    logic                             rden;
     logic [$clog2(DMEM_SIZE/4)-1 : 0] addr;
 
     /* -------------------------------------------------------------------------------------------------------------- */
@@ -89,6 +91,7 @@ module cellrv32_dmem #(
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i ) begin : bus_feedback
         rden  <= acc_en & rden_i;
+        ticket_o <= acc_en ? ticket_i : 4'b0000;
         ack_o <= acc_en &  (rden_i | wren_i);
         err_o <= acc_en & ~(rden_i | wren_i); // error on write or read access within acc_en not simultaneously
     end : bus_feedback

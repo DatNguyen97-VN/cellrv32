@@ -16,7 +16,7 @@ module cellrv32_cpu_bus #(
     /* global control */
     input  logic clk_i,       // global clock, rising edge
     input  logic rstn_i,      // global reset, low-active, async
-    input  ctrl_bus_t ctrl_i,   // main control bus
+    input  ctrl_bus_t ctrl_i, // main control bus
     /* cpu instruction fetch interface */
     input  logic [XLEN-1:0] fetch_pc_i, // PC for instruction fetch
     output logic i_pmp_fault_o,         // instruction fetch pmp fault
@@ -31,8 +31,16 @@ module cellrv32_cpu_bus #(
     output logic be_load_o,  // bus error on load data access
     output logic be_store_o, // bus error on store data access
     /* physical memory protection */
-    input logic [33:0] pmp_addr_i [15:0], // addresses
-    input logic [07:0] pmp_ctrl_i [15:0], // configs
+    input  logic [33:0] pmp_addr_i [15:0], // addresses
+    input  logic [07:0] pmp_ctrl_i [15:0], // configs
+    /* vector data interface */
+    input  logic           req_valid_i,        // request multi-access enable
+    input  vector_mem_req  mem_req_i,          // request data
+    output logic           resp_valid_o,       // response multi-access valid
+    output vector_mem_resp mem_resp_o,         // response data
+    output logic           d_bus_multi_en_o,   // multi-access ?
+    output logic [03:0]    d_bus_req_ticket_o, // request ticket
+    input  logic [03:0]    d_bus_resp_ticket_i,// response ticket
     /* data bus */
     output logic [XLEN-1:0]     d_bus_addr_o,  // bus access address
     input  logic [XLEN-1:0]     d_bus_rdata_i, // bus read data
@@ -95,25 +103,38 @@ module cellrv32_cpu_bus #(
     logic  ld_pmp_fault; // pmp load access fault
     logic  st_pmp_fault; // pmp store access fault
 
+    // Request Arbiter between normal and vector -------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    logic is_vector;
+    logic vector_req_valid;
+    logic [3:0] vector_req_ticket;
+    logic [XLEN-1:0] addr_data; // address request to data memory
+
+    assign is_vector = (ctrl_i.ir_opcode == opcode_vload_c || ctrl_i.ir_opcode == opcode_vstore_c) ? 1'b1 : 1'b0;
+    assign addr_data = (is_vector == 1'b1) ? mem_req_i.address : addr_i;
+
     // Access Address ----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     always_ff @( posedge clk_i ) begin : mem_adr_reg
-        if (ctrl_i.bus_mo_we == 1'b1) begin
-            mar <= addr_i; // memory address register
+        if ((ctrl_i.bus_mo_we == 1'b1) || (req_valid_i == 1'b1)) begin
+            mar <= addr_data; // memory address register
             //
             unique case (ctrl_i.ir_funct3[1:0]) // alignment check
                 2'b00 : misaligned <= 1'b0; // byte
-                2'b01 : misaligned <= addr_i[0]; // haLf-word
-                2'b10 : misaligned <= addr_i[1] | addr_i[0]; // word
+                2'b01 : misaligned <= addr_data[0]; // haLf-word
+                2'b10 : misaligned <= addr_data[1] | addr_data[0]; // word
                 default: begin // double-word
                     if (XLEN == 32) begin // RV32
                         misaligned <= 1'b0;
                     end else begin
-                        misaligned <= addr_i[2] | addr_i[1] | addr_i[0];
+                        misaligned <= addr_data[2] | addr_data[1] | addr_data[0];
                     end
                 end
             endcase
         end
+        //
+        vector_req_valid <= req_valid_i;
+        vector_req_ticket <= mem_req_i.ticket;
     end : mem_adr_reg
 
     /* address output */
@@ -126,39 +147,44 @@ module cellrv32_cpu_bus #(
     generate
         if (XLEN == 32) begin : mem_do_reg_rv32
             always_ff @( posedge clk_i ) begin : mem_do_reg
-                if (ctrl_i.bus_mo_we == 1'b1) begin
+                if ((ctrl_i.bus_mo_we == 1'b1) || (req_valid_i == 1'b1)) begin
                     d_bus_ben_o <= '0; // default
                     //
                     // data size
-                    unique case (ctrl_i.ir_funct3[1:0])
-                        // byte
-                        2'b00 : begin
-                            for (int i = 0; i < (XLEN/8); ++i) begin
-                                d_bus_wdata_o[i*8 +: 8] <= wdata_i[7:0];
+                    if (is_vector == 1'b1) begin
+                        d_bus_wdata_o <= mem_req_i.data;
+                        d_bus_ben_o   <= '1; // full word
+                    end else begin
+                        unique case (ctrl_i.ir_funct3[1:0])
+                            // byte
+                            2'b00 : begin
+                                for (int i = 0; i < (XLEN/8); ++i) begin
+                                    d_bus_wdata_o[i*8 +: 8] <= wdata_i[7:0];
+                                end
+                                //
+                                d_bus_ben_o[addr_data[1:0]] <= 1'b1;
                             end
-                            //
-                            d_bus_ben_o[addr_i[1:0]] <= 1'b1;
-                        end
-                        // half-word
-                        2'b01 : begin
-                            for (int i = 0; i < (XLEN/16); ++i) begin
-                                d_bus_wdata_o[i*16 +: 16] <= wdata_i[15:0];
+                            // half-word
+                            2'b01 : begin
+                                for (int i = 0; i < (XLEN/16); ++i) begin
+                                    d_bus_wdata_o[i*16 +: 16] <= wdata_i[15:0];
+                                end
+                                //
+                                if (addr_data[1] == 1'b0) begin
+                                    d_bus_ben_o <= 4'b0011; // low half-word
+                                end else begin
+                                    d_bus_ben_o <= 4'b1100; // high half-word
+                                end
                             end
-                            //
-                            if (addr_i[1] == 1'b0) begin
-                                d_bus_ben_o <= 4'b0011; // low half-word
-                            end else begin
-                                d_bus_ben_o <= 4'b1100; // high half-word
+                            default: begin // word
+                                for (int i = 0; i < (XLEN/32); ++i) begin
+                                    d_bus_wdata_o[i*32 +: 32] <= wdata_i[31:0];
+                                end
+                                //
+                                d_bus_ben_o <= '1; // full word
                             end
-                        end
-                        default: begin // word
-                            for (int i = 0; i < (XLEN/32); ++i) begin
-                                d_bus_wdata_o[i*32 +: 32] <= wdata_i[31:0];
-                            end
-                            //
-                            d_bus_ben_o <= '1; // full word
-                        end
-                    endcase
+                        endcase
+                    end
                 end
             end : mem_do_reg
         end : mem_do_reg_rv32
@@ -272,11 +298,20 @@ module cellrv32_cpu_bus #(
     assign ma_store_o = ((arbiter.pend == 1'b1) && (ctrl_i.ir_opcode[5] == 1'b1) && (misaligned  == 1'b1)) ? 1'b1 : 1'b0;
     assign be_store_o = ((arbiter.pend == 1'b1) && (ctrl_i.ir_opcode[5] == 1'b1) && (arbiter.err == 1'b1)) ? 1'b1 : 1'b0;
 
-    /* data bus control interface (all source signals are driven by registers) */
-    assign d_bus_we_o    = ctrl_i.bus_req & ( ctrl_i.ir_opcode[5]) & (~misaligned) & (~arbiter.pmp_w_err);
-    assign d_bus_re_o    = ctrl_i.bus_req & (~ctrl_i.ir_opcode[5]) & (~misaligned) & (~arbiter.pmp_r_err);
+    /* data bus control interface for both normal and vector (all source signals are driven by registers) */
+    assign d_bus_we_o    = (ctrl_i.bus_req | vector_req_valid) & ( ctrl_i.ir_opcode[5]) & (~misaligned) & (~arbiter.pmp_w_err);
+    assign d_bus_re_o    = (ctrl_i.bus_req | vector_req_valid) & (~ctrl_i.ir_opcode[5]) & (~misaligned) & (~arbiter.pmp_r_err);
     assign d_bus_fence_o = ctrl_i.bus_fence;
     assign d_bus_priv_o  = ctrl_i.bus_priv;
+
+    /* vector request ticket and multi-access */
+    assign d_bus_req_ticket_o = vector_req_ticket;
+    assign d_bus_multi_en_o   = vector_req_valid;
+
+    /* vector memory response */
+    assign mem_resp_o.data   = d_bus_rdata_i;
+    assign mem_resp_o.ticket = d_bus_resp_ticket_i;
+    assign resp_valid_o      = d_bus_ack_i;
 
     // RISC-V Physical Memory Protection (PMP) ---------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -292,8 +327,8 @@ module cellrv32_cpu_bus #(
             end else begin // use previous entry as base and current entry as bound
                 pmp.i_cmp_ge[r] = (fetch_pc_i[XLEN-1 : pmp_lsb_c] >= pmp_addr_i[r-1][XLEN-1 : pmp_lsb_c]);
                 pmp.i_cmp_lt[r] = (fetch_pc_i[XLEN-1 : pmp_lsb_c] <  pmp_addr_i[r-0][XLEN-1 : pmp_lsb_c]);
-                pmp.d_cmp_ge[r] = (    addr_i[XLEN-1 : pmp_lsb_c] >= pmp_addr_i[r-1][XLEN-1 : pmp_lsb_c]);
-                pmp.d_cmp_lt[r] = (    addr_i[XLEN-1 : pmp_lsb_c] <  pmp_addr_i[r-0][XLEN-1 : pmp_lsb_c]);
+                pmp.d_cmp_ge[r] = ( addr_data[XLEN-1 : pmp_lsb_c] >= pmp_addr_i[r-1][XLEN-1 : pmp_lsb_c]);
+                pmp.d_cmp_lt[r] = ( addr_data[XLEN-1 : pmp_lsb_c] <  pmp_addr_i[r-0][XLEN-1 : pmp_lsb_c]);
             end
         end
     end : pmp_check_address

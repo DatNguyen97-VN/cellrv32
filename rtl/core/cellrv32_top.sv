@@ -277,9 +277,14 @@ module cellrv32_top #(
         logic src;    // access source (1=instruction fetch, 0=data access)
         logic cached; // cached transfer
         logic priv;   // set when in privileged machine mode
+        logic multi_en; // set when multi-cycle access is in progress
+        logic multi_rsp;   // set when multi-cycle access response is valid
     } bus_d_interface_t;
     //
     bus_d_interface_t cpu_d, p_bus;
+    //
+    logic [3:0] d_bus_req_ticket;
+    logic [3:0] d_bus_resp_ticket;
 
     /* bus access error (from BUSKEEPER) */
     logic bus_error;
@@ -591,6 +596,10 @@ module cellrv32_top #(
         .d_bus_err_i   (cpu_d.err),   // bus transfer error
         .d_bus_fence_o (cpu_d.fence), // executed FENCE operation
         .d_bus_priv_o  (cpu_d.priv),  // current effective privilege level
+        .d_bus_multi_en_o (cpu_d.multi_en), // multi-cycle access in progress
+        .d_bus_multi_rsp_i   (cpu_d.multi_rsp),   // multi-cycle access response valid
+        .d_bus_req_ticket_o  (d_bus_req_ticket),  // data bus request ticket
+        .d_bus_resp_ticket_i (d_bus_resp_ticket), // data bus response ticket
         /* non-maskable interrupt */
         .msw_irq_i     (msw_irq_i),   // machine software interrupt
         .mext_irq_i    (mext_irq_i),  // machine external interrupt request
@@ -725,6 +734,8 @@ module cellrv32_top #(
         .ca_bus_re_i     (cpu_d.re),       // read enable
         .ca_bus_ack_o    (cpu_d.ack),      // bus transfer acknowledge
         .ca_bus_err_o    (cpu_d.err),      // bus transfer error
+        .ca_bus_multi_en_i (cpu_d.multi_en),       // multi-cycle transfer indicator
+        .ca_bus_multi_rsp_o (cpu_d.multi_rsp),       // multi-cycle transfer response
         /* controller interface b */
         .cb_bus_priv_i   (i_cache.priv),   // current privilege level
         .cb_bus_cached_i (i_cache.cached), // set if cached transfer
@@ -758,6 +769,8 @@ module cellrv32_top #(
         p_bus.rdata = '0;   // processor bus: CPU transfer data input
         p_bus.ack   = 1'b0; // processor bus: CPU transfer ACK input
         p_bus.err   = 1'b0; // processor bus: CPU transfer data bus error input
+        p_bus.multi_en = 1'b0; // processor bus: multi-cycle transfer indicator
+        p_bus.multi_rsp   = 1'b0; // processor bus: multi-cycle transfer response
         // OR all response signals: only the module that has actually
         // been accessed is allowed to *set* its bus output signals
         for (int i = 0; i < $size(resp_bus); ++i) begin
@@ -840,7 +853,9 @@ module cellrv32_top #(
                 .ben_i  (p_bus.ben),                 // byte write enable
                 .addr_i (p_bus.addr),                // address
                 .data_i (p_bus.wdata),               // data in
+                .ticket_i (d_bus_req_ticket),          // request ticket
                 .data_o (resp_bus[RESP_DMEM].rdata), // data out
+                .ticket_o (d_bus_resp_ticket),        // response ticket
                 .ack_o  (resp_bus[RESP_DMEM].ack),    // transfer acknowledge
                 .err_o  (resp_bus[RESP_DMEM].err)     // transfer error
             );

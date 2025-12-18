@@ -99,7 +99,7 @@ package cellrv32_package;
   // IO: Peripheral Devices ("IO") Area --
   // Control register(s) (including the device-enable flag) should be located at the base address of each device
   localparam logic [31:0] io_base_c = 32'hfffffe00;
-  localparam int      io_size_c = 512; // IO address space size in bytes, fixed!
+  localparam int          io_size_c = 512; // IO address space size in bytes, fixed!
 
   // Custom Functions Subsystem (CFS) --
   const logic [31:0] cfs_base_c           = 32'hfffffe00; // base address
@@ -351,8 +351,11 @@ package cellrv32_package;
   const logic [6:0] opcode_system_c = 7'b1110011; // system/csr access (type via funct3)
   // floating point operations --
   const logic [6:0] opcode_fop_c    = 7'b1010011; // dual/single operand instruction
-  // vector operations --
+  // vector access --
   const logic [6:0] opcode_vsetvl_c = 7'b1010111; // vector instruction 
+  // vector memory access --
+  const logic [6:0] opcode_vload_c  = 7'b0000111; // vector load instruction
+  const logic [6:0] opcode_vstore_c = 7'b0100111; // vector store instruction
   // official *custom* RISC-V opcodes - free for custom instructions --
   const logic [6:0] opcode_cust0_c  = 7'b0001011; // custom-0
   const logic [6:0] opcode_cust1_c  = 7'b0101011; // custom-1
@@ -715,7 +718,7 @@ package cellrv32_package;
 // CPU Control
 // ****************************************************************************************************************************
 
-  // Main CPU Control Bus -------------------------------------------------------------------
+  // Main CPU Control Bus ----------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
    typedef struct packed {
      /* register file */
@@ -732,7 +735,10 @@ package cellrv32_package;
      logic        alu_opb_mux;   // operand B select (0=rs2, 1=IMM)
      logic        alu_unsigned;  // is unsigned ALU operation
      logic [2:0]  alu_frm;       // FPU rounding mode
-     logic [6:0]  alu_cp_trig;   // co-processor trigger (one-hot)
+     logic        alu_reconfig;  // vector reconfiguration request
+     logic [31:0] alu_vlmax;     // vector maximum length
+     logic [31:0] alu_vl;        // vector length
+     logic [7:0]  alu_cp_trig;   // co-processor trigger (one-hot)
      /* bus interface */
      logic        bus_req;       // trigger memory request
      logic        bus_mo_we;     // memory address and data output register write enable
@@ -764,6 +770,9 @@ package cellrv32_package;
      alu_opb_mux  : '0,
      alu_unsigned : '0,
      alu_frm      : '0,
+     alu_reconfig : '0,
+     alu_vlmax    : '0,
+     alu_vl       : '0,
      alu_cp_trig  : '0,
      bus_req      : '0,
      bus_mo_we    : '0,
@@ -778,14 +787,132 @@ package cellrv32_package;
      cpu_trap     : '0,
      cpu_debug    : '0
    };
+  
+  // Main Vector ALU Control Bus ---------------------------------------------------------------
+  // -------------------------------------------------------------------------------------------
+  // Memory Unit definitions
+  parameter int MEM_OP_RANGE_HI = 7;
+  parameter int MEM_OP_RANGE_LO = 6;
+  
+  parameter logic[1:0] OP_UNIT_STRIDED = 2'b00;
+  parameter logic[1:0] OP_STRIDED      = 2'b10;
+  parameter logic[1:0] OP_INDEXED      = 2'b11;
 
+  // to Vector Pipeline
+  typedef struct packed {
+      logic        valid;
+  
+      logic [04:0] dst;
+      logic [04:0] src1;
+      logic [04:0] src2;
+  
+      logic [31:0] data1;
+      logic [31:0] data2;
+  
+      logic        reconfigure;
+      logic [11:0] ir_funct12;
+      logic [02:0] ir_funct3;
+      logic [06:0] microop;
+      logic [01:0] use_mask;
+  
+      logic [06:0] maxvl;
+      logic [06:0] vl;
+  } to_vector;
 
-  // Comparator Bus -------------------------------------------------------------------------
+  //--------------------------------------
+  //Remapped Vector Instruction
+  typedef struct packed {
+      logic        valid      ;
+  
+      logic [04:0] dst        ;
+      logic        dst_iszero ;
+      logic [04:0] src1       ;
+      logic        src1_iszero;
+      logic [04:0] src2       ;
+      logic        src2_iszero;
+      logic [04:0] mask_src   ;
+  
+      logic [31:0] data1      ;
+      logic [31:0] data2      ;
+  
+      logic        reconfigure;
+      logic [04:0] ticket     ;
+      logic [11:0] ir_funct12 ;
+      logic [02:0] ir_funct3  ;
+      logic [06:0] microop    ;
+      logic        use_mask   ;
+      logic [01:0] lock       ;
+  
+      logic [06:0] maxvl;
+      logic [06:0] vl;
+  } remapped_v_instr;
+
+  //--------------------------------------
+  //Remapped Memory Vector Instruction
+  typedef struct packed {
+      logic valid           ;
+  
+      logic [04:0] dst             ;
+      logic [04:0] src1            ;
+      logic [04:0] src2            ;
+
+      logic [31:0] data1           ;
+      logic [31:0] data2           ;
+
+      logic [04:0] ticket          ;
+      logic [04:0] last_ticket_src1;
+      logic [04:0] last_ticket_src2;
+      logic [06:0] microop         ;
+      logic        reconfigure     ;
+      logic [11:0] ir_funct12 ;
+  
+      logic [06:0] maxvl           ;
+      logic [06:0] vl              ;
+  } memory_remapped_v_instr;
+  
+  //--------------------------------------
+  //to_Execution Stage
+  typedef struct packed {
+      logic        valid    ;
+      logic        mask     ;
+  
+      logic [31:0] data1    ;
+      logic [31:0] data2    ;
+  } to_vector_exec;
+
+  typedef struct packed {
+      logic [04:0] dst     ;
+      logic [04:0] ticket  ;
+      logic [06:0] ir_funct7;
+      logic [02:0] ir_funct3;
+      logic [06:0] microop ;
+      logic [06:0] vl      ;
+      logic        head_uop;
+      logic        end_uop ;
+  } to_vector_exec_info;
+
+  //--------------------------------------
+  //Vector memory Request
+  typedef struct packed {
+      logic [31:0]  address;
+      logic [06:0]  microop;
+      logic [255:0] data;
+      logic [03:0]  ticket;
+  } vector_mem_req;
+
+  //--------------------------------------
+  //Vector memory response
+  typedef struct packed {
+      logic [03:0]  ticket;
+      logic [255:0] data;
+  } vector_mem_resp;
+
+  // Comparator Bus ----------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   localparam int cmp_equal_c = 0;
   localparam int cmp_less_c  = 1; // for signed and unsigned comparisons
 
-  // CPU Co-Processor IDs -------------------------------------------------------------------
+  // CPU Co-Processor IDs ----------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   localparam int cp_sel_shifter_c  = 0; // CP0: shift operations (base ISA)
   localparam int cp_sel_muldiv_c   = 1; // CP1: multiplication/division operations ('M' extensions)
@@ -931,7 +1058,7 @@ package cellrv32_package;
   // Functions
   // ****************************************************************************************************************************
 
-  // Function: calculate lmul -----------------------------------------------------------------
+  // Function: select lmul ---------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   function logic [3:0] vlmul2lmul (input logic [2:0] vlmul);
      case (vlmul)

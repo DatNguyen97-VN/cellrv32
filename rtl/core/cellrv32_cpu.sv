@@ -67,6 +67,10 @@ module cellrv32_cpu #(
     input  logic d_bus_err_i,          // bus transfer error
     output logic d_bus_fence_o,        // executed FENCE operation
     output logic d_bus_priv_o,         // current effective privilege level
+    output logic d_bus_multi_en_o,     // multi-cycle access in progress
+    input  logic d_bus_multi_rsp_i,    // multi-cycle access response valid
+    output logic [03:0] d_bus_req_ticket_o,   // data bus access request ticket
+    input  logic [03:0] d_bus_resp_ticket_i,  // data bus access response ticket
     /* interrupts (risc-v compliant) */
     input logic msw_irq_i,   // machine software interrupt
     input logic mext_irq_i,  // machine external interrupt
@@ -86,8 +90,8 @@ module cellrv32_cpu #(
     localparam logic regfile_rs4_en_c = CPU_EXTENSION_RISCV_Zxcfu; // 4th register file read port (rs4)
 
     /* local constant: instruction prefetch buffer depth */
-    localparam logic   ipb_override_c = (CPU_EXTENSION_RISCV_C == 1) & (CPU_IPB_ENTRIES < 2); // override IPB size: set to 2?
-    localparam int ipb_depth_c    = cond_sel_natural_f(ipb_override_c, 2, CPU_IPB_ENTRIES);
+    localparam logic ipb_override_c = (CPU_EXTENSION_RISCV_C == 1) & (CPU_IPB_ENTRIES < 2); // override IPB size: set to 2?
+    localparam int   ipb_depth_c    = cond_sel_natural_f(ipb_override_c, 2, CPU_IPB_ENTRIES);
 
     /* local signals */
     ctrl_bus_t ctrl; // main control bus
@@ -118,6 +122,12 @@ module cellrv32_cpu #(
     /* pmp interface */
     pmp_addr_if_t pmp_addr;
     pmp_ctrl_if_t pmp_ctrl;
+
+    /* vector memory interface */
+    vector_mem_req  mem_req;
+    vector_mem_resp mem_resp;
+    logic           req_valid;
+    logic           resp_valid;
 
     // Sanity Checks -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -381,6 +391,7 @@ module cellrv32_cpu #(
         /* RISC-V CPU Extensions */
         .CPU_EXTENSION_RISCV_B      (CPU_EXTENSION_RISCV_B),       // implement bit-manipulation extension?
         .CPU_EXTENSION_RISCV_M      (CPU_EXTENSION_RISCV_M),       // implement mul/div extension?
+        .CPU_EXTENSION_RISCV_V      (CPU_EXTENSION_RISCV_V),       // implement vector extension?
         .CPU_EXTENSION_RISCV_Zmmul  (CPU_EXTENSION_RISCV_Zmmul),   // implement multiply-only M sub-extension?
         .CPU_EXTENSION_RISCV_Zfinx  (CPU_EXTENSION_RISCV_Zfinx),   // implement 32-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zhinx  (CPU_EXTENSION_RISCV_Zhinx),   // implement 16-bit floating-point extension (using INT reg!)
@@ -406,6 +417,12 @@ module cellrv32_cpu #(
         .res_o       (alu_res),   // ALU result
         .add_o       (alu_add),   // address computation result
         .fpu_flags_o (fpu_flags), // FPU exception flags
+        /* vector memory interface */
+        .mem_req_o    (mem_req),
+        .req_valid_o  (req_valid),
+        .mem_resp_i   (mem_resp),
+        .resp_valid_i (resp_valid),
+        .multi_rsp_i  (d_bus_multi_rsp_i),
         /* status */
         .exc_o       (alu_exc),   // ALU exception
         .cp_done_o   (cp_done)    // iterative processing units done?
@@ -419,35 +436,44 @@ module cellrv32_cpu #(
         .PMP_MIN_GRANULARITY (PMP_MIN_GRANULARITY) // minimal region granularity in bytes, has to be a power of 2, min 4 bytes
     ) cellrv32_cpu_bus_inst (
         /* global control */
-        .clk_i         (clk_i),         // global clock, rising edge
-        .rstn_i        (rstn_i),        // global reset, low-active, async
-        .ctrl_i        (ctrl  ),        // main control bus
+        .clk_i               (clk_i),         // global clock, rising edge
+        .rstn_i              (rstn_i),        // global reset, low-active, async
+        .ctrl_i              (ctrl  ),        // main control bus
         /* cpu instruction fetch interface */
-        .fetch_pc_i    (fetch_pc),      // PC for instruction fetch
-        .i_pmp_fault_o (i_pmp_fault),   // instruction fetch pmp fault
+        .fetch_pc_i          (fetch_pc),      // PC for instruction fetch
+        .i_pmp_fault_o       (i_pmp_fault),   // instruction fetch pmp fault
         /* cpu data access interface */
-        .addr_i        (alu_add),       // ALU.add result -> access address
-        .wdata_i       (rs2),           // write data
-        .rdata_o       (mem_rdata),     // read data
-        .mar_o         (mar),           // current memory address register
-        .d_wait_o      (bus_d_wait),    // wait for access to complete
-        .ma_load_o     (ma_load),       // misaligned load data address
-        .ma_store_o    (ma_store),      // misaligned store data address
-        .be_load_o     (be_load),       // bus error on load data access
-        .be_store_o    (be_store),      // bus error on store data access
+        .addr_i              (alu_add),       // ALU.add result -> access address
+        .wdata_i             (rs2),           // write data
+        .rdata_o             (mem_rdata),     // read data
+        .mar_o               (mar),           // current memory address register
+        .d_wait_o            (bus_d_wait),    // wait for access to complete
+        .ma_load_o           (ma_load),       // misaligned load data address
+        .ma_store_o          (ma_store),      // misaligned store data address
+        .be_load_o           (be_load),       // bus error on load data access
+        .be_store_o          (be_store),      // bus error on store data access
         /* physical memory protection */
-        .pmp_addr_i    (pmp_addr),      // addresses
-        .pmp_ctrl_i    (pmp_ctrl),      // configurations
+        .pmp_addr_i          (pmp_addr),      // addresses
+        .pmp_ctrl_i          (pmp_ctrl),      // configurations
+        /* vector data interface */
+        .req_valid_i         (req_valid),
+        .mem_req_i           (mem_req),
+        .resp_valid_o        (resp_valid),
+        .mem_resp_o          (mem_resp),
+        .d_bus_multi_en_o    (d_bus_multi_en_o),
+        .d_bus_req_ticket_o  (d_bus_req_ticket_o),
+        .d_bus_resp_ticket_i (d_bus_resp_ticket_i),
         /* data bus */
-        .d_bus_addr_o  (d_bus_addr_o),  // bus access address
-        .d_bus_rdata_i (d_bus_rdata_i), // bus read data
-        .d_bus_wdata_o (d_bus_wdata_o), // bus write data
-        .d_bus_ben_o   (d_bus_ben_o),   // byte enable
-        .d_bus_we_o    (d_bus_we_o),    // write enable
-        .d_bus_re_o    (d_bus_re_o),    // read enable
-        .d_bus_ack_i   (d_bus_ack_i),   // bus transfer acknowledge
-        .d_bus_err_i   (d_bus_err_i),   // bus transfer error
-        .d_bus_fence_o (d_bus_fence_o), // fence operation
-        .d_bus_priv_o  (d_bus_priv_o)   // current effective privilege level
+        .d_bus_addr_o        (d_bus_addr_o),  // bus access address
+        .d_bus_rdata_i       (d_bus_rdata_i), // bus read data
+        .d_bus_wdata_o       (d_bus_wdata_o), // bus write data
+        .d_bus_ben_o         (d_bus_ben_o),   // byte enable
+        .d_bus_we_o          (d_bus_we_o),    // write enable
+        .d_bus_re_o          (d_bus_re_o),    // read enable
+        .d_bus_ack_i         (d_bus_ack_i),   // bus transfer acknowledge
+        .d_bus_err_i         (d_bus_err_i),   // bus transfer error
+        .d_bus_fence_o       (d_bus_fence_o), // fence operation
+        .d_bus_priv_o        (d_bus_priv_o)   // current effective privilege level
     );
+
 endmodule

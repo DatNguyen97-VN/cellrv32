@@ -9,10 +9,14 @@
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_alu #(
-    parameter int XLEN = 32, // data path width
+    parameter int XLEN             = 32,  // data path width
+    parameter int VLEN             = 256, // vector length
+    parameter int VECTOR_LANES     = 8,   // Number of SIMD lanes (width of vector datapath)
+	parameter int VECTOR_REGISTERS = 32,  // Number of architectural vector registers
     /* RISC-V CPU Extensions */
     parameter int CPU_EXTENSION_RISCV_B      = 0, // implement bit-manipulation extension?
     parameter int CPU_EXTENSION_RISCV_M      = 0, // implement mul/div extension?
+    parameter int CPU_EXTENSION_RISCV_V      = 0, // implement vector extension?
     parameter int CPU_EXTENSION_RISCV_Zmmul  = 0, // implement multiply-only M sub-extension?
     parameter int CPU_EXTENSION_RISCV_Zfinx  = 0, // implement 32-bit floating-point extension (using INT reg!)
     parameter int CPU_EXTENSION_RISCV_Zhinx  = 0, // implement 16-bit floating-point extension (using INT reg!)
@@ -20,7 +24,8 @@ module cellrv32_cpu_alu #(
     parameter int CPU_EXTENSION_RISCV_Zicond = 0, // implement conditional operations extension?
     /* Extension Options */
     parameter int FAST_MUL_EN                = 0,  // use DSPs for M extension's multiplier
-    parameter int FAST_SHIFT_EN              = 0   // use barrel shifter for shift operations
+    parameter int FAST_SHIFT_EN              = 0,  // use barrel shifter for shift operations
+    parameter int VECTOR_FP_ALU              = 0   // Enable floating-point lanes
 )(
     /* global control */
     input  logic            clk_i,       // global clock, rising edge
@@ -38,6 +43,12 @@ module cellrv32_cpu_alu #(
     output logic [XLEN-1:0] res_o,       // ALU result
     output logic [XLEN-1:0] add_o,       // address computation result
     output logic [4:0]      fpu_flags_o, // FPU exception flags
+    /* vector memory interface */
+    output vector_mem_req   mem_req_o,   // Address bus output (for load/store data)
+    output logic            req_valid_o, // Indicates a valid memory request
+    input  vector_mem_resp  mem_resp_i,  // Data bus
+    input  logic            resp_valid_i,// Indicates a valid memory response
+    input  logic            multi_rsp_i, // multi-cycle response valid
     /* status */
     output logic            exc_o,       // ALU exception
     output logic            cp_done_o    // co-processor operation done?
@@ -68,8 +79,8 @@ module cellrv32_cpu_alu #(
     /* co-processor interface */
     typedef logic [XLEN-1:0] cp_data_if_t [6:0];
     cp_data_if_t cp_result; // co-processor result
-    logic [6:0] cp_start;   // trigger co-processor
-    logic [6:0] cp_valid;   // co-processor done
+    logic [7:0] cp_start;   // trigger co-processor
+    logic [7:0] cp_valid;   // co-processor done
     logic [4:0] fpu32_flags; // fp32 flags
     logic [4:0] fpu16_flags; // fp16 flags
  
@@ -454,5 +465,41 @@ module cellrv32_cpu_alu #(
     // -------------------------------------------------------------------------------------------
     // Co-Processor 7: Vector Operations ('V' Extension) -----------------------------------------
     // -------------------------------------------------------------------------------------------
+    generate  
+        if (CPU_EXTENSION_RISCV_V == 1) begin : cellrv32_cpu_cp_vector_inst_ON
+                cellrv32_cpu_cp_vector #(
+                .VECTOR_REGISTERS  (VECTOR_REGISTERS),
+                .VECTOR_LANES      (VECTOR_LANES),
+                .DATA_WIDTH        (XLEN),
+                .VECTOR_REQ_WIDTH  (VLEN)
+            ) cellrv32_cpu_cp_vector_inst (
+                // global control
+                .clk_i            (clk_i),
+                .rstn_i           (rstn_i),
+                .vector_idle_o    ( ),
+                .valid_in         (cp_start[cp_sel_vector_c]), // trigger operation
+                .pop              (),
+                .ctrl_i           (ctrl_i),
+                /* data input */
+                .rs1_i            (rs1_i), // rf source 1
+                .rs2_i            (rs2_i), // rf source 2
+                //Cache Request Interface
+                .mem_req_valid_o  ( req_valid_o),
+                .mem_req_o        (mem_req_o),
+                .cache_ready_i    (multi_rsp_i),
+                //Cache Response Interface
+                .mem_resp_valid_i (resp_valid_i ),
+                .mem_resp_i       (mem_resp_i),
+                /* result and status */
+                .valid_o(cp_valid[cp_sel_vector_c]) // data output valid
+            );
+        end : cellrv32_cpu_cp_vector_inst_ON
+    endgenerate
+
+    generate
+        if (CPU_EXTENSION_RISCV_V == 0) begin : cellrv32_cpu_cp_vector_inst_OFF
+            assign cp_valid[cp_sel_vector_c] = 1'b0;
+        end : cellrv32_cpu_cp_vector_inst_OFF
+    endgenerate
 
 endmodule

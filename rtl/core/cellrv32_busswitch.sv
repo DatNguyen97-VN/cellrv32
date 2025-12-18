@@ -27,6 +27,8 @@ module cellrv32_busswitch #(
     input  logic ca_bus_re_i,           // read enable
     output logic ca_bus_ack_o,          // bus transfer acknowledge
     output logic ca_bus_err_o,          // bus transfer error
+    input  logic ca_bus_multi_en_i,     // bus multi-cycle access indicator
+    output logic ca_bus_multi_rsp_o,    // bus multi-cycle response indicator
     // controller interface b //
     input  logic cb_bus_priv_i,         // current privilege level
     input  logic cb_bus_cached_i,       // set if cached transfer
@@ -57,9 +59,10 @@ module cellrv32_busswitch #(
     logic cb_rd_req_buf,  cb_wr_req_buf;
     logic ca_req_current, ca_req_pending;
     logic cb_req_current, cb_req_pending;
+    logic multi_cycle_delay;
 
     // internal bus lines //
-    logic p_bus_we,   p_bus_re;
+    logic p_bus_we, p_bus_re;
 
     // access arbiter //
     typedef enum logic [3:0] {IDLE, A_BUSY, A_RETIRE, B_BUSY, B_RETIRE} arbiter_state_t;
@@ -71,6 +74,8 @@ module cellrv32_busswitch #(
         logic           we_trig;
     } arbiter_t;
     arbiter_t arbiter;
+
+    logic falledge_detected;
 
     // Access Arbiter ----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -92,13 +97,28 @@ module cellrv32_busswitch #(
         end
     end : arbiter_sync
 
-    // any current requests? //
+    // end of multi-cycle access
+    always_ff @( posedge clk_i or negedge rstn_i ) begin : end_multi_detect
+        if (rstn_i == 1'b0) begin
+            multi_cycle_delay <= 1'b0;
+            falledge_detected <= 1'b0;
+        end else begin
+            multi_cycle_delay <= ca_bus_multi_en_i;
+            falledge_detected <= multi_cycle_delay & ~ca_bus_multi_en_i;
+        end  
+    end : end_multi_detect
+
+    // any current requests ? //
     assign ca_req_current = (PORT_CA_READ_ONLY == 1'b0) ? (ca_bus_re_i | ca_bus_we_i) : ca_bus_re_i;
     assign cb_req_current = (PORT_CB_READ_ONLY == 1'b0) ? (cb_bus_re_i | cb_bus_we_i) : cb_bus_re_i;
 
-    // any pending requests? //
+    // any pending requests ? //
     assign ca_req_pending = (PORT_CA_READ_ONLY == 1'b0) ? (ca_rd_req_buf | ca_wr_req_buf) : ca_rd_req_buf;
     assign cb_req_pending = (PORT_CB_READ_ONLY == 1'b0) ? (cb_rd_req_buf | cb_wr_req_buf) : cb_rd_req_buf;
+
+    // multi-cycle ? //
+    assign ca_bus_multi_rsp_o = (arbiter.state == IDLE  ) ? ~cb_req_current : 
+                                (arbiter.state == A_BUSY) ? 1'b1 : 1'b0;
 
     // FSM //
     always_comb begin : arbiter_comb
@@ -112,7 +132,7 @@ module cellrv32_busswitch #(
             // port A or B access
             IDLE : begin
                 // current request from port A?
-                if (ca_req_current) begin
+                if (ca_req_current || multi_cycle_delay) begin
                     arbiter.bus_sel = 1'b0;
                     arbiter.state_nxt = A_BUSY;
                 // pending request from port A?
@@ -131,9 +151,9 @@ module cellrv32_busswitch #(
             end
             // port A pending access
             A_BUSY : begin
-                // access from port A
+                // access from port A or end of multi-cycle access
                 arbiter.bus_sel = 1'b0;
-                if (p_bus_err_i || p_bus_ack_i) begin
+                if (p_bus_err_i || p_bus_ack_i || falledge_detected) begin
                     arbiter.state_nxt = IDLE;
                 end
             end

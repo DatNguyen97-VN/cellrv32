@@ -318,7 +318,7 @@ module cellrv32_cpu_control #(
         logic vtype_vta;                 // vtype (R/W*): vector tail agnostic
         logic [2:0] vtype_sew;           // vtype (R/W*): selected element width
         logic [2:0] vtype_vlmul;         // vtype (R/W*): vector register group multiplier
-        //logic [XLEN-1:0] vlenb;          // vlenb (R/-): vector register length in bytes
+        logic [XLEN-1:0] vlmax;          // vlmax (R/-): maximum vector length
         //
         logic            dcsr_ebreakm;  // dcsr.ebreakm (R/W): behavior of ebreak instruction in m-mode
         logic            dcsr_ebreaku;  // dcsr.ebreaku (R/W): behavior of ebreak instruction in u-mode
@@ -384,6 +384,10 @@ module cellrv32_cpu_control #(
     /* misc */
     logic [06:0] imm_opcode; // simplified opcode for immediate generator
     logic [11:0] csr_raddr;  // CSR read address (AND-gated)
+
+    /* vector csrs */
+    logic [XLEN-1:0] vlmax;
+    logic [3:0] lmul;
     
     // ****************************************************************************************************************************
     // Instruction Fetch (always fetch 32-bit-aligned 32-bit chunks of data)
@@ -760,6 +764,9 @@ module cellrv32_cpu_control #(
      ctrl_o.alu_opb_mux  = ctrl.alu_opb_mux;
      ctrl_o.alu_unsigned = ctrl.alu_unsigned;
      ctrl_o.alu_frm      = csr.frm;
+     ctrl_o.alu_reconfig = ctrl.alu_reconfig;
+     ctrl_o.alu_vlmax    = csr.vlmax;
+     ctrl_o.alu_vl       = csr.vl;
      ctrl_o.alu_cp_trig  = ctrl.alu_cp_trig;
      /* bus interface */
      ctrl_o.bus_req    = ctrl.bus_req;
@@ -925,6 +932,8 @@ module cellrv32_cpu_control #(
      ctrl_nxt        = ctrl_bus_zero_c; // all off by default
      ctrl_nxt.alu_op = alu_op_add_c;    // default ALU operation: ADD
      ctrl_nxt.rf_mux = rf_mux_alu_c;    // default RF input: ALU
+     ctrl_nxt.alu_cp_trig  = '0;
+     ctrl_nxt.alu_reconfig = 1'b0;
 
      /* ALU sign control */
      if (execute_engine.i_reg[instr_opcode_lsb_c+4] == 1'b1) begin // ALU ops
@@ -1083,11 +1092,17 @@ module cellrv32_cpu_control #(
                      execute_engine.state_nxt = DISPATCH;
                  end
                  // --------------------------------------------------------------
-                 // load/store
+                 // scalar load/store
                  opcode_load_c, opcode_store_c : begin
                      ctrl_nxt.alu_opb_mux     = 1'b1; // use IMM as ALU.OPB
                      ctrl_nxt.bus_mo_we       = 1'b1; // write memory output registers (data & address)
                      execute_engine.state_nxt = MEM_REQ;
+                 end
+                 // --------------------------------------------------------------
+                 // vector load/store
+                 opcode_vload_c, opcode_vstore_c : begin
+                     ctrl_nxt.alu_cp_trig[cp_sel_vector_c] = 1'b1; // trigger VECTOR CP
+                     execute_engine.state_nxt = ALU_WAIT;
                  end
                  // --------------------------------------------------------------
                  // branch / jump and link (with register)
@@ -1150,6 +1165,7 @@ module cellrv32_cpu_control #(
                  // --------------------------------------------------------------
                  // vector CSR access
                  opcode_vsetvl_c : begin
+                     ctrl_nxt.alu_reconfig = 1'b1; // reconfigure ALU for vector operation
                      csr.re_nxt = 1'b1; // always read CSR, only relevant for CSR access
                      //
                      if ((CPU_EXTENSION_RISCV_V == 1) && (CPU_EXTENSION_RISCV_Zicsr == 1)) begin
@@ -1168,10 +1184,10 @@ module cellrv32_cpu_control #(
          // --------------------------------------------------------------
          // wait for multi-cycle ALU operation (ALU co-processor) to finish
          ALU_WAIT : begin
-             ctrl_nxt.alu_op = alu_op_cp_c;
+             ctrl_nxt.alu_op = alu_op_cp_c; // only for scalar operations
              // wait for completion or abort on illegal instruction exception (the co-processor will also terminate operations)
              if ((alu_cp_done_i == 1'b1) || (trap_ctrl.exc_buf[exc_iillegal_c] == 1'b1)) begin
-                 ctrl_nxt.rf_wb_en        = 1'b1; // valid RF write-back (won't happen in case of an illegal instruction)
+                 ctrl_nxt.rf_wb_en        = 1'b1; // only for scalar operations, valid RF write-back (won't happen in case of an illegal instruction)
                  execute_engine.state_nxt = DISPATCH;
              end
          end
@@ -1470,6 +1486,12 @@ module cellrv32_cpu_control #(
              endcase
              //
              illegal_reg = execute_engine.i_reg[instr_rs2_msb_c] | execute_engine.i_reg[instr_rs1_msb_c]; // illegal 'E' register?
+         end
+         // --------------------------------------------------------------
+         // check VECTOR LOAD/STORE (only check actual OPCODE)
+         opcode_vload_c, opcode_vstore_c : begin
+            illegal_cmd = ~(CPU_EXTENSION_RISCV_V == 1) | csr.vtype_vill; // illegal if no vector extension or vill CSR bit set
+            illegal_reg = execute_engine.i_reg[instr_rs2_msb_c] | execute_engine.i_reg[instr_rs1_msb_c] | execute_engine.i_reg[instr_rd_msb_c]; // illegal 'E' register?
          end
          // --------------------------------------------------------------
          // check ALU.funct3 & ALU.funct7
@@ -1803,9 +1825,6 @@ module cellrv32_cpu_control #(
       endcase
     end : csr_write_data
 
-    logic [XLEN-1:0] vlmax;
-    logic [3:0] lmul;
-    //
     always_comb begin : compute_vlmax
         if (execute_engine.i_reg[instr_imm20_msb_c : instr_imm20_msb_c-6] == 7'b1000000) begin
             // vsetvl with rs2 as VLMUL
@@ -1895,6 +1914,7 @@ module cellrv32_cpu_control #(
          csr.vtype_vta         <= 1'b0;
          csr.vtype_sew         <= 3'b000;
          csr.vtype_vlmul       <= 3'b000;
+         csr.vlmax             <= '0;
          //
          csr.dcsr_ebreakm      <= 1'b0;
          csr.dcsr_ebreaku      <= 1'b0;
@@ -1963,6 +1983,7 @@ module cellrv32_cpu_control #(
                             csr.vtype_vta   <= csr.vtype_update_nxt[06];
                             csr.vtype_sew   <= csr.vtype_update_nxt[05:03];
                             csr.vtype_vlmul <= csr.vtype_update_nxt[02:00];
+                            csr.vlmax       <= vlmax;
                         end
                     end
                  // ----------------------------------------------------------------------
