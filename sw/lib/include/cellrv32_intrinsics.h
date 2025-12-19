@@ -35,7 +35,7 @@
 //  in the Software without restriction, including without limitation the rights
 //  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 //  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
+//  furnished to do so, subject to the following conditions: 
 //
 //  The above copyright notice and this permission notice shall be included in all
 //  copies or substantial portions of the Software.
@@ -158,6 +158,61 @@ asm(".set RISCV_OPCODE_CUSTOM3 , 0b1111011");
       : "r" (rs1)                                                 \
     );                                                            \
     __return;                                                     \
+})
+
+
+/**********************************************************************//**
+ * @name R2-type instruction format
+ * @warning NOT RISC-V-standard, CELLRV32-specific!
+ **************************************************************************/
+#define CUSTOM_VECTOR_INSTR_R2_TYPE(funct12, vs3, rs1, funct3, opcode) \
+({                                                                     \
+    asm volatile (                                                     \
+      ""                                                               \
+      :                                                                \
+      : [input_i] "r" (vs3),                                           \
+        [input_j] "r" (rs1)                                            \
+    );                                                                 \
+    asm volatile (                                                     \
+      ".word (                                                         \
+        (((" #funct12") & 0x7f) << 20) |                               \
+        ((( regnum_%1 ) & 0x1f) << 15) |                               \
+        (((" #funct3 ") & 0x07) << 12) |                               \
+        ((( regnum_%0 ) & 0x1f) <<  7) |                               \
+        (((" #opcode ") & 0x7f) <<  0)                                 \
+      );"                                                              \
+      :                                                                \
+      : "r" (vs3),                                                     \
+        "r" (rs1)                                                      \
+    );                                                                 \
+})
+
+
+/**********************************************************************//**
+ * @name R2-type instruction format
+ * @warning NOT RISC-V-standard, CELLRV32-specific!
+ **************************************************************************/
+#define CUSTOM_VECTOR_INSTR_IMM_TYPE(funct7, vs2, imm, funct3, opcode) \
+({                                                                     \
+    uint32_t __return;                                                 \
+    asm volatile (                                                     \
+      ""                                                               \
+      : [output] "=r" (__return)                                       \
+      : [input_i] "r" (vs2)                                            \
+    );                                                                 \
+    asm volatile (                                                     \
+      ".word (                                                         \
+        (((" #funct7 ") & 0x7f) << 25) |                               \
+        ((( regnum_%1 ) & 0x1f) << 20) |                               \
+        (((" #imm    ") & 0x1f) << 15) |                               \
+        (((" #funct3 ") & 0x07) << 12) |                               \
+        ((( regnum_%0 ) & 0x1f) <<  7) |                               \
+        (((" #opcode ") & 0x7f) <<  0)                                 \
+      );"                                                              \
+      : [rd] "=r" (__return)                                           \
+      : "r" (vs2)                                                      \
+    );                                                                 \
+    __return;                                                          \
 })
 
 
