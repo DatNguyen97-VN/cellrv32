@@ -7,6 +7,7 @@
 1. [Overview](#1-Overview)
    * [Key Features](#Key-Features)
    * [Project Status](#Project-Status)
+   * [Progress](#Progress)
 2. [Features](#2-Features)
 3. [FPGA Implementation Results](#3-FPGA-Implementation-Results)
 4. [Performance](#4-Performance)
@@ -47,3 +48,10 @@ informed via _precise and resumable_ hardware exceptions.
 | FPGA implementations         | [![Implementation](https://img.shields.io/badge/passing-00FF00?style=plastic&logo=amazonec2&logoColor=DC7633&label=Implementation)](https://github.com/DatNguyen97-VN/cellrv32/tree/main) |
 | Prebuilt GCC toolchains      | [![Prebuilt_Toolchains](https://img.shields.io/badge/passing-00FF00?style=plastic&logo=amazondynamodb&label=Prebuilt%20GCC%20toolchains)](https://github.com/stnolting/riscv-gcc-prebuilt) |
 | RISCOF core verification     | [![RISCOF core verification](https://img.shields.io/badge/failing-FF0000?style=plastic&logo=amazoncloudwatch&label=cellrv32-riscof)](https://github.com/DatNguyen97-VN/cellrv32-riscof.git)|
+
+### Progress
+
+- [x] Stage 1: The purpose is to learn how to design a risc-v processor with basic peripherals and the RISC-V instruction set architecture.
+
+- [ ] Stage 2: Designed a custom RISC-V MCU-class multi-core CPU with lightweight
+snooping-based cache coherence and heterogeneous acceleration, integrating multiple CPU cores, vector extensions, scratchpad memory, DMA engine, an INT16/INT32 NPU, and a lightweight programmable GPU with parallel compute cores.
