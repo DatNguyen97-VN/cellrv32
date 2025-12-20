@@ -52,7 +52,7 @@ module cellrv32_cpu_cp_vector #(
 	logic vmu_idle;
 	logic finished;
 
-	assign vector_idle_o = vrrm_idle & vis_idle & vmu_idle & rstn_i;
+	assign vector_idle_o = vrrm_idle & vis_idle & vex_idle & vmu_idle & rstn_i;
 	//////////////////////////////////////////////////
 	//                 vRRM STAGE                   //
 	//////////////////////////////////////////////////
@@ -82,12 +82,13 @@ module cellrv32_cpu_cp_vector #(
                         instr_in.dst         <= ctrl_i.rf_rd;
                         instr_in.src1        <= ctrl_i.rf_rs1;
                         instr_in.src2        <= ctrl_i.rf_rs2;
+						instr_in.immediate   <= ctrl_i.rf_rs1;
                         instr_in.data1       <= rs1_i;
                         instr_in.data2       <= rs2_i;
                         instr_in.ir_funct12  <= ctrl_i.ir_funct12;
 						instr_in.ir_funct3   <= ctrl_i.ir_funct3;
                         instr_in.microop     <= ctrl_i.ir_opcode;
-                        instr_in.use_mask    <= '0;
+                        instr_in.use_mask    <= 2'b00;
                         // next state
                         state                <= S_PUSH;
                     end
@@ -145,9 +146,9 @@ module cellrv32_cpu_cp_vector #(
 		.m_ready_i  (m_ready_r     )  // Ready handshake
 	);
 
-	//////////////////////////////////////////////////
-	//           vRR/vIS PIPELINE REGISTER          //
-	//////////////////////////////////////////////////
+	// ================================================
+	//           vRR/vIS PIPELINE REGISTER          
+	// ================================================
 	remapped_v_instr        instr_remapped_o;
 	logic                   r_valid_o;
 	logic                   i_ready;
@@ -282,9 +283,10 @@ module cellrv32_cpu_cp_vector #(
 		.unlock_reg_b_o     (unlock_reg_b     ),
 		.unlock_ticket_o    (unlock_ticket    )
 	);
-	//////////////////////////////////////////////////
-	//                 ISSUE STAGE                  //
-	//////////////////////////////////////////////////
+
+	// ================================================
+	//                 ISSUE STAGE                  
+	// ================================================
 	logic [            VECTOR_LANES-1:0]                 frw_a_en     ;
 	logic [$clog2(VECTOR_REGISTERS)-1:0]                 frw_a_addr   ;
 	logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_a_data   ;
@@ -309,8 +311,8 @@ module cellrv32_cpu_cp_vector #(
 		.DATA_WIDTH        (DATA_WIDTH        ),
 		.VECTOR_TICKET_BITS(VECTOR_TICKET_BITS)
 	) vis (
-		.clk_i             (clk_i          ),
-		.rstn_i           (rstn_i          ),
+		.clk_i            (clk_i           ),
+		.rstn_i          (rstn_i           ),
 		.is_idle_o       (vis_idle         ),
 		.exec_finished_o (finished         ),
 		//Instruction in
@@ -321,7 +323,7 @@ module cellrv32_cpu_cp_vector #(
 		.valid_o         (iss_valid        ),
 		.data_to_exec    (iss_to_exec_data ),
 		.info_to_exec    (iss_to_exec_info ),
-		.ready_i         (1'b1     ),
+		.ready_i         (iss_ex_ready     ),
 		//Memory Unit read port
 		.mem_addr_0      (mem_addr_0       ),
 		.mem_data_0      (mem_data_0       ),
@@ -365,85 +367,94 @@ module cellrv32_cpu_cp_vector #(
 		.wr_data         (wrtbck_data      ),
 		.wr_ticket       (wrtbck_ticket    )
 	);
-	//////////////////////////////////////////////////
-	//           vIS/vEX PIPELINE REGISTER          //
-	//////////////////////////////////////////////////
-	localparam int EX_VINSTR_DATA_SIZE = $bits(iss_to_exec_data);
-	localparam int EX_VINSTR_INFO_SIZE = $bits(iss_to_exec_info);
+
+	// ================================================
+	//           vIS/vEX PIPELINE REGISTER          
 	to_vector_exec [ VECTOR_LANES-1:0] exec_data_o;
 	to_vector_exec_info                exec_info_o;
 	logic exec_valid, exec_ready;
 
-	eb_buff_generic #(
-		.DW       (EX_VINSTR_DATA_SIZE),
-		.BUFF_TYPE(1                  ),
-		.DEPTH    (                   )
-	) vIS_vEX_data (
-		.clk_i    (clk_i             ),
-		.rstn_i    (~rstn_i          ),
-
-		.data_i (iss_to_exec_data),
-		.valid_i(iss_valid       ),
-		.ready_o(iss_ex_ready    ),
-
-		.data_o (exec_data_o     ),
-		.valid_o(exec_valid      ),
-		.ready_i(exec_ready      )
-	);
-	eb_buff_generic #(
-		.DW       (EX_VINSTR_INFO_SIZE),
-		.BUFF_TYPE(1                  ),
-		.DEPTH    (                   )
-	) vIS_vEX_info (
-		.clk_i    (clk_i             ),
-		.rstn_i    (~rstn_i          ),
-
-		.data_i (iss_to_exec_info),
-		.valid_i(iss_valid       ),
-		.ready_o(                ),
-
-		.data_o (exec_info_o     ),
-		.valid_o(                ),
-		.ready_i(exec_ready      )
-	);
+	cellrv32_fifo #(
+         .FIFO_DEPTH (1),                       // number of fifo entries; has to be a power of two; min 1
+         .FIFO_WIDTH ($bits(iss_to_exec_data)), // size of data elements in fifo
+         .FIFO_RSYNC (0),                       // we NEED to read data asynchronously
+         .FIFO_SAFE  (0),                       // no safe access required (ensured by FIFO-external control)
+         .FIFO_GATE  (0)                        // no output gate required
+	) vIS_vEX_data_buffer_inst (
+         /* control */
+         .clk_i   (clk_i),                      // clock, rising edge
+         .rstn_i  (rstn_i),                     // async reset, low-active
+         .clear_i (1'b0),                       // sync reset, high-active
+         .half_o  (    ),                       // at least half full
+         /* write port */
+         .wdata_i (iss_to_exec_data),           // write data: Remapped instruction input to vEX stage
+         .we_i    (iss_valid),                  // write enable
+         .free_o  (iss_ex_ready),               // at least one entry is free when set, Valid handshake between vIS and vEX Stages
+         /* read port */
+         .re_i    (exec_ready),                 // read enable
+         .rdata_o (exec_data_o),                // read data: Remapped instruction output to vEX stage
+         .avail_o (exec_valid)                  // data available when set, Valid handshake between vIS and vEX Stages
+     ); 
+	
+	cellrv32_fifo #(
+         .FIFO_DEPTH (1),                       // number of fifo entries; has to be a power of two; min 1
+         .FIFO_WIDTH ($bits(iss_to_exec_info)), // size of data elements in fifo
+         .FIFO_RSYNC (0),                       // we NEED to read data asynchronously
+         .FIFO_SAFE  (0),                       // no safe access required (ensured by FIFO-external control)
+         .FIFO_GATE  (0)                        // no output gate required
+	) vIS_vEX_info_buffer_inst (
+         /* control */
+         .clk_i   (clk_i),                      // clock, rising edge
+         .rstn_i  (rstn_i),                     // async reset, low-active
+         .clear_i (1'b0),                       // sync reset, high-active
+         .half_o  (    ),                       // at least half full
+         /* write port */
+         .wdata_i (iss_to_exec_info),           // write data: Remapped instruction input to vEX stage
+         .we_i    (iss_valid),                  // write enable
+         .free_o  ( ),                          // at least one entry is free when set, Valid handshake between vIS and vEX Stages
+         /* read port */
+         .re_i    (exec_ready),                 // read enable
+         .rdata_o (exec_info_o),                // read data: Remapped instruction output to vEX stage
+         .avail_o ( )                           // data available when set, Valid handshake between vIS and vEX Stages
+     ); 
 	//////////////////////////////////////////////////
 	//                   EX STAGE                   //
 	//////////////////////////////////////////////////
-	//vex #(
-	//	.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-	//	.VECTOR_LANES      (VECTOR_LANES      ),
-	//	.ADDR_WIDTH        (ADDR_WIDTH        ),
-	//	.DATA_WIDTH        (DATA_WIDTH        ),
-	//	.MICROOP_WIDTH     (MICROOP_WIDTH     ),
-	//	.VECTOR_TICKET_BITS(VECTOR_TICKET_BITS),
-	//	.FWD_POINT_A       (FWD_POINT_A       ),
-	//	.FWD_POINT_B       (FWD_POINT_B       ),
-	//	.VECTOR_FP_ALU     (VECTOR_FP_ALU     ),
-	//	.VECTOR_FXP_ALU    (VECTOR_FXP_ALU    )
-	//) vex (
-	//	.clk         (clk          ),
-	//	.rst_n       (rst_n        ),
-	//	.vex_idle_o  (vex_idle     ),
-	//	//Issue Interface
-	//	.valid_i     (exec_valid   ),
-	//	.exec_data_i (exec_data_o  ),
-	//	.exec_info_i (exec_info_o  ),
-	//	.ready_o     (exec_ready   ),
-	//	//Forward Point #1
-	//	.frw_a_en    (frw_a_en     ),
-	//	.frw_a_addr  (frw_a_addr   ),
-	//	.frw_a_data  (frw_a_data   ),
-	//	.frw_a_ticket(frw_a_ticket ),
-	//	//Forward Point #2
-	//	.frw_b_en    (frw_b_en     ),
-	//	.frw_b_addr  (frw_b_addr   ),
-	//	.frw_b_data  (frw_b_data   ),
-	//	.frw_b_ticket(frw_b_ticket ),
-	//	//Writeback
-	//	.wr_en       (wrtbck_en    ),
-	//	.wr_addr     (wrtbck_addr  ),
-	//	.wr_data     (wrtbck_data  ),
-	//	.wr_ticket   (wrtbck_ticket)
-	//);
+	vex #(
+		.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
+		.VECTOR_LANES      (VECTOR_LANES      ),
+		.ADDR_WIDTH        (ADDR_WIDTH        ),
+		.DATA_WIDTH        (DATA_WIDTH        ),
+		.MICROOP_WIDTH     (MICROOP_WIDTH     ),
+		.VECTOR_TICKET_BITS(VECTOR_TICKET_BITS),
+		.FWD_POINT_A       (FWD_POINT_A       ),
+		.FWD_POINT_B       (FWD_POINT_B       ),
+		.VECTOR_FP_ALU     (VECTOR_FP_ALU     ),
+		.VECTOR_FXP_ALU    (VECTOR_FXP_ALU    )
+	) vex (
+		.clk         (clk_i        ),
+		.rst_n       (rstn_i       ),
+		.vex_idle_o  (vex_idle     ),
+		//Issue Interface
+		.valid_i     (exec_valid   ),
+		.exec_data_i (exec_data_o  ),
+		.exec_info_i (exec_info_o  ),
+		.ready_o     (exec_ready   ),
+		//Forward Point #1
+		.frw_a_en    (frw_a_en     ),
+		.frw_a_addr  (frw_a_addr   ),
+		.frw_a_data  (frw_a_data   ),
+		.frw_a_ticket(frw_a_ticket ),
+		//Forward Point #2
+		.frw_b_en    (frw_b_en     ),
+		.frw_b_addr  (frw_b_addr   ),
+		.frw_b_data  (frw_b_data   ),
+		.frw_b_ticket(frw_b_ticket ),
+		//Writeback
+		.wr_en       (wrtbck_en    ),
+		.wr_addr     (wrtbck_addr  ),
+		.wr_data     (wrtbck_data  ),
+		.wr_ticket   (wrtbck_ticket)
+	);
 
 endmodule
