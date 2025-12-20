@@ -19,6 +19,7 @@ module cellrv32_tb_simple #(
     parameter logic CPU_EXTENSION_RISCV_E        = 1'b0,
     parameter logic CPU_EXTENSION_RISCV_M        = 1'b1,
     parameter logic CPU_EXTENSION_RISCV_U        = 1'b1,
+    parameter logic CPU_EXTENSION_RISCV_V        = 1'b1,
     parameter logic CPU_EXTENSION_RISCV_Zicsr    = 1'b1,
     parameter logic CPU_EXTENSION_RISCV_Zifencei = 1'b1,
     parameter logic EXT_IMEM_C                   = 1'b0,   // false: use and boot from proc-internal IMEM, true: use and boot from external (initialized) simulated IMEM (ext. mem A)
@@ -30,7 +31,7 @@ module cellrv32_tb_simple #(
     // -------------------------------------------------------------------------------------------
     /* general */
     localparam logic ext_dmem_c                  = 1'b0;      // false: use proc-internal DMEM, true: use external simulated DMEM (ext. mem B)
-    localparam int   dmem_size_c                 = 8*1024;    // size in bytes of processor-internal DMEM / external mem B
+    localparam int   dmem_size_c                 = 32*1024;    // size in bytes of processor-internal DMEM / external mem B
     localparam int   f_clock_c                   = 100000000; // main clock in Hz
     localparam int   baud0_rate_c                = 19200;     // simulation UART0 (primary UART) baud rate
     localparam int   baud1_rate_c                = 19200;     // simulation UART1 (secondary UART) baud rate
@@ -166,6 +167,7 @@ module cellrv32_tb_simple #(
         .CPU_EXTENSION_RISCV_E        (CPU_EXTENSION_RISCV_E), // implement embedded RF extension?
         .CPU_EXTENSION_RISCV_M        (CPU_EXTENSION_RISCV_M), // implement mul/div extension?
         .CPU_EXTENSION_RISCV_U        (CPU_EXTENSION_RISCV_U), // implement user mode extension?
+        .CPU_EXTENSION_RISCV_V        (CPU_EXTENSION_RISCV_V), // implement vector extension?
         .CPU_EXTENSION_RISCV_Zfinx    (1'b1),          // implement 32-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zhinx    (1'b1),          // implement 16-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zicsr    (CPU_EXTENSION_RISCV_Zicsr), // implement CSR system?
