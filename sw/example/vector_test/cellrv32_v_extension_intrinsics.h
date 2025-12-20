@@ -37,7 +37,7 @@
 /**********************************************************************//**
  * Sanity check
  **************************************************************************/
-#if defined __riscv_f || (__riscv_flen == 32)
+#if defined __riscv_f || (__riscv_flen == 32) || __riscv_v
   #error Application programs using the Zfinx intrinsic library have to be compiled WITHOUT the <F> MARCH ISA attribute!
 #endif
 
@@ -126,6 +126,119 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsetivli(int32_t 
 }
 
 
+/**********************************************************************//**
+ * Vector Unit-Stride Load 32-bit elements
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vle32v(int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000000, 0b00000, rs1, 0b010, 0b0000111);
+}
+
+
+/**********************************************************************//**
+ * Vector Unit-Stride Store 32-bit elements
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline void __attribute__ ((always_inline)) riscv_intrinsic_vse32v(int32_t rs1, int32_t vs3) {
+
+  CUSTOM_VECTOR_INSTR_R2_TYPE(0b000000000000, vs3, rs1, 0b010, 0b0100111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Addition: Vector-Vector
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vaddvv(int32_t vs1, int32_t vs2) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000000, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Addition: Vector-Scalar
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vaddvx(int32_t rs1, int32_t vs2) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000000, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Addition: Vector-Immediate
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vaddvi(uint16_t imm, int32_t vs2) {
+
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0000000, vs2, imm, 0b011, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Subtract: Vector-Vector
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsubvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000100, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Subtract: Vector-Scalar
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsubvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000100, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Reverse Subtract: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vrsubvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000110, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Reverse Subtract: Vector-Immediate
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vrsubvi(int32_t vs2, int16_t imm) {
+
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0000110, vs2, imm, 0b011, 0b1010111);
+}
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################
