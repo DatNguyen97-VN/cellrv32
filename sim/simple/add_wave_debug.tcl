@@ -55,5 +55,6 @@ add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_int_dmem_inst_ON" -group "cellrv32_int_dmem_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_dmem_inst_ON/cellrv32_int_dmem_inst/mem_ram_b2
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_int_dmem_inst_ON" -group "cellrv32_int_dmem_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_dmem_inst_ON/cellrv32_int_dmem_inst/mem_ram_b3
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" /cellrv32_tb_simple/cellrv32_top_inst/resp_bus
+add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_cpu_inst" -group "cellrv32_cpu_alu_inst" -group "cellrv32_cpu_cp_vector_inst_ON" -group "cellrv32_cpu_cp_vector_inst" -group "vis" -group "vrf" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_alu_inst/cellrv32_cpu_cp_vector_inst_ON/cellrv32_cpu_cp_vector_inst/vis/vrf/memory
 # Output the completion message
 puts "Added waves for signals in entire design"
