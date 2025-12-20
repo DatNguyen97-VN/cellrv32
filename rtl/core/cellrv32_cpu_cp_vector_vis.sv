@@ -88,8 +88,10 @@ module vis #(
     logic                        pop               ;
     logic                        start_new_instr   ;
     logic                        instr_is_rdc      ;
+    logic                        is_operand_imm    ;
+    logic                        is_operand_scalar ;
 
-    logic [$clog2(VECTOR_REGISTERS*VECTOR_LANES):0] total_remaining_elements;
+    logic [6:0] total_remaining_elements;
     logic [VECTOR_LANES-1:0][DATA_WIDTH-1:0] data_1, data_2;
     logic [VREG_ADDR_WIDTH-1:0] src_1, src_2, dst, mask_src;
     logic [  VREG_ADDR_WIDTH:0] max_expansion;
@@ -104,7 +106,7 @@ module vis #(
     logic [   VECTOR_LANES-1:0] mask;
 
     //Check if instr is memory operation
-    assign memory_instr = valid_in ? |instr_in.lock : 1'b0;
+    assign memory_instr = (instr_in.microop == opcode_vload_c) || (instr_in.microop == opcode_vstore_c) ? valid_in : 1'b0;
 
     assign start_new_instr = do_issue & ~|current_exp_loop;
 
@@ -160,9 +162,8 @@ module vis #(
 
     // Struct containing control flow signals
     assign valid_o                 = |valid_output;
-    assign info_to_exec.ir_funct7  = instr_in.ir_funct12[11:05];
+    assign info_to_exec.ir_funct6  = instr_in.ir_funct12[11:06];
     assign info_to_exec.ir_funct3  = instr_in.ir_funct3;
-    assign info_to_exec.microop    = instr_in.microop;
     assign info_to_exec.ticket     = instr_in.ticket;
     assign info_to_exec.dst        = dst;
     assign info_to_exec.head_uop   = start_new_instr;
@@ -172,7 +173,8 @@ module vis #(
 
     assign mask_src = instr_in.mask_src + current_exp_loop;
 
-    assign instr_is_rdc = (instr_in.ir_funct12 == 3'b10) & (instr_in.microop[6:5] == 2'b10);
+    assign instr_is_rdc = ((instr_in.microop == opcode_vector_c) && (instr_in.ir_funct3 == funct3_opmvv_c)) ||
+                          ((instr_in.microop == opcode_vector_c) && (instr_in.ir_funct3 == funct3_opmvx_c)) ? 1'b1 : 1'b0;
 
     //Create the src/dst identifiers
     // For reductions we trick the destination pointer. We need a result only on element#0 of the base register,
@@ -206,19 +208,25 @@ module vis #(
     end
 
     // Struct containing Data
+    assign is_operand_imm = (instr_in.ir_funct3 == funct3_opivi_c) ? 1'b1 : 1'b0;
+    assign is_operand_scalar = (instr_in.ir_funct3 == funct3_opivx_c) || 
+                               (instr_in.ir_funct3 == funct3_opfvx_c) ||
+                               (instr_in.ir_funct3 == funct3_opmvx_c) ? 1'b1 : 1'b0;
+    //
     generate for (genvar k = 0; k < VECTOR_LANES; k++) begin : g_data_selection
         assign data_to_exec[k].valid     = valid_output[k];
         //DATA 1 Selection
-        assign data_to_exec[k].data1  = ({32{frw_a_src_1[k]}}     & frw_a_data[k]) |
-                                        ({32{frw_b_src_1[k]}}     & frw_b_data[k]) |
-                                        ({32{frw_c_src_1[k]}}     & wr_data[k])    |
-                                        ({32{~pending[src_1][k]}} & data_1[k]);
+        assign data_to_exec[k].data1  = is_operand_imm    ? {{27{instr_in.immediate[4]}}, instr_in.immediate} :
+                                        is_operand_scalar ? instr_in.data1                                    :
+                                                            ({32{frw_a_src_1[k]}}     & frw_a_data[k]) |
+                                                            ({32{frw_b_src_1[k]}}     & frw_b_data[k]) |
+                                                            ({32{frw_c_src_1[k]}}     & wr_data[k])    |
+                                                            ({32{~pending[src_1][k]}} & data_1[k]);
         //DATA 2 Selection
-        assign data_to_exec[k].data2  = ({32{frw_a_src_2[k]}}     & frw_a_data[k]) |
-                                        ({32{frw_b_src_2[k]}}     & frw_b_data[k]) |
-                                        ({32{frw_c_src_2[k]}}     & wr_data[k])    |
-                                        ({32{~pending[src_2][k]}} & data_2[k]);
-
+        assign data_to_exec[k].data2 = ({32{frw_a_src_2[k]}}     & frw_a_data[k]) |
+                                       ({32{frw_b_src_2[k]}}     & frw_b_data[k]) |
+                                       ({32{frw_c_src_2[k]}}     & wr_data[k])    |
+                                       ({32{~pending[src_2][k]}} & data_2[k]);
         // Reductions mask all the elements for all the uops, except element#0 for the last uop
         assign data_to_exec[k].mask   = (instr_is_rdc & expansion_finished) ? (k == 0)   : // only element#0 of last uop will writeback a result
                                         (instr_is_rdc)                      ?  1'b0      : // no middle uop will write a result
