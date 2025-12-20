@@ -104,6 +104,7 @@ module cellrv32_fifo #(
             assign fifo.match = (fifo.r_pnt[0] == fifo.w_pnt[0]) ? 1'b1 : 1'b0;
             assign fifo.full  = ~fifo.match;
             assign fifo.empty =  fifo.match;
+            assign level_diff = 1'b0;
         end : check_small
     endgenerate
     //
@@ -180,9 +181,9 @@ module cellrv32_fifo #(
         if (FIFO_RSYNC == 1'b1) begin : fifo_read_sync
             always_ff @( posedge clk_i ) begin : fifo_read
                 if (FIFO_DEPTH == 1) begin
-                    rdata = fifo.buffer;
+                    rdata <= fifo.buffer;
                 end else begin
-                    rdata = fifo.data[fifo.r_pnt[$bits(fifo.r_pnt)-2 : 0]];
+                    rdata <= fifo.data[fifo.r_pnt[$bits(fifo.r_pnt)-2 : 0]];
                 end
             end : fifo_read
         end : fifo_read_sync
@@ -194,4 +195,5 @@ module cellrv32_fifo #(
     // ensure the output data is always *defined* (by setting the output to all-zero if
     // not valid data is available).
     assign rdata_o = ((FIFO_GATE == 0) || (fifo.avail == 1'b1)) ? rdata : '0;
+    
 endmodule
