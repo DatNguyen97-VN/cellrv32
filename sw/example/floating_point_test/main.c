@@ -84,11 +84,11 @@ int main() {
   uint32_t i = 0;
   float_conv_t opa;
   float_conv_t opb;
-  float_conv_t opc;
+  
   float_conv_t res_hw;
   float_conv_t res_sw;
 
-   // initialize CELLRV32 run-time environment
+  // initialize CELLRV32 run-time environment
   cellrv32_rte_setup();
 
   // setup UART at default baud rate, no interrupts

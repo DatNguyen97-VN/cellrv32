@@ -298,7 +298,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmins(int16_t rs1
 
 
 /**********************************************************************//**
- * Single-precision floating-point maximum
+ * Half-precision floating-point maximum
  *
  * @param[in] rs1 Source operand 1.
  * @param[in] rs2 Source operand 2.
@@ -359,7 +359,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fcvt_hw(int32_t r
 
 
 /**********************************************************************//**
- * Single-precision floating-point equal comparison
+ * Half-precision floating-point equal comparison
  *
  * @param[in] rs1 Source operand 1.
  * @param[in] rs2 Source operand 2.
@@ -372,7 +372,7 @@ inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_feqs(int16_t rs1
 
 
 /**********************************************************************//**
- * Single-precision floating-point less-than comparison
+ * Half-precision floating-point less-than comparison
  *
  * @param[in] rs1 Source operand 1.
  * @param[in] rs2 Source operand 2.
@@ -385,7 +385,7 @@ inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_flts(int16_t rs1
 
 
 /**********************************************************************//**
- * Single-precision floating-point less-than-or-equal comparison
+ * Half-precision floating-point less-than-or-equal comparison
  *
  * @param[in] rs1 Source operand 1.
  * @param[in] rs2 Source operand 2.
@@ -398,7 +398,7 @@ inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fles(int16_t rs1
 
 
 /**********************************************************************//**
- * Single-precision floating-point sign-injection
+ * Half-precision floating-point sign-injection
  *
  * @param[in] rs1 Source operand 1.
  * @param[in] rs2 Source operand 2.
@@ -411,7 +411,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fsgnjs(int16_t rs
 
 
 /**********************************************************************//**
- * Single-precision floating-point sign-injection NOT
+ * Half-precision floating-point sign-injection NOT
  *
  * @param[in] rs1 Source operand 1.
  * @param[in] rs2 Source operand 2.
@@ -424,7 +424,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fsgnjns(int16_t r
 
 
 /**********************************************************************//**
- * Single-precision floating-point sign-injection XOR
+ * Half-precision floating-point sign-injection XOR
  *
  * @param[in] rs1 Source operand 1.
  * @param[in] rs2 Source operand 2.
@@ -437,7 +437,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fsgnjxs(int16_t r
 
 
 /**********************************************************************//**
- * Single-precision floating-point number classification
+ * Half-precision floating-point number classification
  *
  * @param[in] rs1 Source operand 1.
  * @return Result.
@@ -453,7 +453,7 @@ inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fclasss(int16_t 
 // ################################################################################################
 
 /**********************************************************************//**
- * Single-precision floating-point fused multiply-add
+ * Half-precision floating-point fused multiply-add
  *
  * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
  *
@@ -469,7 +469,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmadds(int16_t rs
 
 
 /**********************************************************************//**
- * Single-precision floating-point fused multiply-sub
+ * Half-precision floating-point fused multiply-sub
  *
  * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
  *
@@ -485,7 +485,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fmsubs(int16_t rs
 
 
 /**********************************************************************//**
- * Single-precision floating-point fused negated multiply-sub
+ * Half-precision floating-point fused negated multiply-sub
  *
  * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
  *
@@ -501,7 +501,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fnmsubs(int16_t r
 
 
 /**********************************************************************//**
- * Single-precision floating-point fused negated multiply-add
+ * Half-precision floating-point fused negated multiply-add
  *
  * @warning This instruction is not supported and should raise an illegal instruction exception when executed.
  *
