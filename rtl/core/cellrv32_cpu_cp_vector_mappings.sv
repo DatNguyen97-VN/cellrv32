@@ -68,6 +68,7 @@ module vrrm #(
     assign instr_out.ticket      = next_ticket;
     assign instr_out.data1       = instr_in.data1;
     assign instr_out.data2       = instr_in.data2;
+    assign instr_out.immediate   = instr_in.immediate;
     assign instr_out.src1_iszero = 1'b0;
     assign instr_out.src2_iszero = 1'b0;
     assign instr_out.dst_iszero  = store_instr & (~load_instr); // store instructions reconfig
