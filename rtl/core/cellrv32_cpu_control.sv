@@ -153,6 +153,7 @@ module cellrv32_cpu_control #(
 
     /* instruction decoding helper logic */
     typedef struct {
+        logic is_v_op;
         logic is_f_op;  
         logic is_h_op; 
         logic is_m_mul;  
@@ -794,8 +795,11 @@ module cellrv32_cpu_control #(
 
     // Decoding Helper Logic ---------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
+    logic is_int_vec; // integer vector
+    //
     always_comb begin : decode_helper
      /* defaults */
+     decode_aux.is_v_op   = 1'b0;
      decode_aux.is_f_op   = 1'b0;
      decode_aux.is_h_op   = 1'b0;
      decode_aux.is_m_mul  = 1'b0;
@@ -805,6 +809,8 @@ module cellrv32_cpu_control #(
      decode_aux.is_zicond = 1'b0;
      decode_aux.rs1_zero  = 1'b0;
      decode_aux.rd_zero   = 1'b0;
+     //
+     is_int_vec = 1'b0;
 
      /* is BITMANIP instruction? */
      /* pretty complex as we have to check the already-crowded ALU/ALUI instruction space */
@@ -867,6 +873,21 @@ module cellrv32_cpu_control #(
             end
         end
      end
+
+     /* vector operations (V) */
+     if (CPU_EXTENSION_RISCV_V == 1) begin // Vector is implemented at all ?
+        if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivv_c) || 
+            (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivi_c) ||
+            (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivx_c)) begin
+            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vadd_c ||      // vadd
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsub_c ||      // vsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrsub_c) begin // vrsub
+                is_int_vec = 1'b1;
+            end
+        end
+     end
+     //
+     decode_aux.is_v_op = is_int_vec;
 
      /* int MUL (M/Zmmul) / DIV (M) operation */
      if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c] == 7'b0000001) begin
@@ -1102,7 +1123,12 @@ module cellrv32_cpu_control #(
                  // vector load/store
                  opcode_vload_c, opcode_vstore_c : begin
                      ctrl_nxt.alu_cp_trig[cp_sel_vector_c] = 1'b1; // trigger VECTOR CP
-                     execute_engine.state_nxt = ALU_WAIT;
+                     //
+                     if (CPU_EXTENSION_RISCV_V == 1) begin
+                        execute_engine.state_nxt = ALU_WAIT;
+                     end else begin
+                        execute_engine.state_nxt = DISPATCH;
+                     end
                  end
                  // --------------------------------------------------------------
                  // branch / jump and link (with register)
@@ -1163,15 +1189,27 @@ module cellrv32_cpu_control #(
                      end
                  end
                  // --------------------------------------------------------------
-                 // vector CSR access
-                 opcode_vsetvl_c : begin
-                     ctrl_nxt.alu_reconfig = 1'b1; // reconfigure ALU for vector operation
-                     csr.re_nxt = 1'b1; // always read CSR, only relevant for CSR access
-                     //
-                     if ((CPU_EXTENSION_RISCV_V == 1) && (CPU_EXTENSION_RISCV_Zicsr == 1)) begin
-                         execute_engine.state_nxt = SYSTEM;
+                 // vector CSR access / ALU
+                 opcode_vector_c : begin
+                     // is configuration instrucion
+                     if (decode_aux.is_v_op == 1'b0) begin
+                        ctrl_nxt.alu_reconfig = 1'b1; // reconfigure ALU for vector operation
+                        csr.re_nxt = 1'b1; // always read CSR, only relevant for CSR access
+                        //
+                        if ((CPU_EXTENSION_RISCV_V == 1) && (CPU_EXTENSION_RISCV_Zicsr == 1)) begin
+                            execute_engine.state_nxt = SYSTEM;
+                        end else begin
+                            execute_engine.state_nxt = DISPATCH;
+                        end
                      end else begin
-                         execute_engine.state_nxt = DISPATCH;
+                        // vector ALU operations
+                        ctrl_nxt.alu_cp_trig[cp_sel_vector_c] = 1'b1; // trigger VECTOR CP
+                        //
+                        if (CPU_EXTENSION_RISCV_V == 1) begin
+                            execute_engine.state_nxt = ALU_WAIT;
+                        end else begin
+                            execute_engine.state_nxt = DISPATCH;
+                        end
                      end
                  end
                  // --------------------------------------------------------------
@@ -1272,7 +1310,7 @@ module cellrv32_cpu_control #(
                      end
                  endcase
              end else if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_csrrci_c) && 
-                           execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c] == opcode_vsetvl_c) begin // only for VSET[I]VL[I] CSR access
+                           execute_engine.i_reg[instr_opcode_msb_c : instr_opcode_lsb_c] == opcode_vector_c) begin // only for VSET[I]VL[I] CSR access
                  execute_engine.state_nxt = DISPATCH;
                  csr.we_nxt = 1'b1;
                  csr.is_vsetvl_nxt = 1'b1;
@@ -1580,10 +1618,19 @@ module cellrv32_cpu_control #(
              end
          end
          // --------------------------------------------------------------
-         // Vector Configuration-Setting Instructions (vsetvli/vsetivli/vsetvl)
-         opcode_vsetvl_c : begin
-             illegal_cmd = ~(logic'(CPU_EXTENSION_RISCV_V)); // vector extension implemented?
-             illegal_reg = execute_engine.i_reg[instr_rs1_msb_c] | execute_engine.i_reg[instr_rd_msb_c]; // illegal 'E' register?
+         opcode_vector_c : begin
+             // Vector Configuration-Setting Instructions (vsetvli/vsetivli/vsetvl)
+             if (((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opcfg_c) &&
+                 ((execute_engine.i_reg[instr_funct12_msb_c] == 1'b0) || // vsetvli
+                  (execute_engine.i_reg[instr_funct12_msb_c : instr_funct12_msb_c-1] == 2'b11) || // vsetivli
+                  (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c] == 7'b1000000))) || // vsetvl
+                  (decode_aux.is_v_op == 1'b1)) begin // alu operations
+                illegal_cmd = ~(logic'(CPU_EXTENSION_RISCV_V)) | csr.vtype_vill & decode_aux.is_v_op; // vector extension implemented?
+                illegal_reg = execute_engine.i_reg[instr_rs1_msb_c] | execute_engine.i_reg[instr_rd_msb_c]; // illegal 'E' register?
+             end else begin
+                illegal_cmd = 1'b1;
+                illegal_reg = 1'b0;
+             end
          end
          // --------------------------------------------------------------
          // floating point operations - single/dual operands
