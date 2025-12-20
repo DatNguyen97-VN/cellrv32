@@ -351,8 +351,8 @@ package cellrv32_package;
   const logic [6:0] opcode_system_c = 7'b1110011; // system/csr access (type via funct3)
   // floating point operations --
   const logic [6:0] opcode_fop_c    = 7'b1010011; // dual/single operand instruction
-  // vector access --
-  const logic [6:0] opcode_vsetvl_c = 7'b1010111; // vector instruction 
+  // vector operation --
+  const logic [6:0] opcode_vector_c = 7'b1010111; // vector instruction 
   // vector memory access --
   const logic [6:0] opcode_vload_c  = 7'b0000111; // vector load instruction
   const logic [6:0] opcode_vstore_c = 7'b0100111; // vector store instruction
@@ -404,6 +404,27 @@ package cellrv32_package;
   // fence --
   const logic [2:0] funct3_fence_c  = 3'b000; // fence - order IO/memory access
   const logic [2:0] funct3_fencei_c = 3'b001; // fence.i - instruction stream sync
+  // vector arithmetic
+  const logic [2:0] funct3_opivv_c  = 3'b000; // integer vector-vector
+  const logic [2:0] funct3_opivi_c  = 3'b011; // integer vector-immediate
+  const logic [2:0] funct3_opivx_c  = 3'b100; // integer vector-scalar
+  const logic [2:0] funct3_opfvv_c  = 3'b001; // fp32 vector-vector
+  const logic [2:0] funct3_opfvx_c  = 3'b101; // fp32 vector-scalar
+  const logic [2:0] funct3_opmvv_c  = 3'b010; // integer reduction vector-scalar
+  const logic [2:0] funct3_opmvx_c  = 3'b110; // integer reduction vector-scalar
+  const logic [2:0] funct3_opcfg_c  = 3'b111; // Conguration-Setting Instructions
+
+  // RISC-V Funct6 --------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------------------
+  // integer alu
+  const logic [5:0] funct6_vadd_c  = 6'b000000; // Vector Single-Width Integer Add
+  const logic [5:0] funct6_vsub_c  = 6'b000010; // Vector Single-Width Integer Sub
+  const logic [5:0] funct6_vrsub_c = 6'b000011; // Vector Single-Width Integer Reverse Sub
+  // integer reduction
+  const logic [5:0] funct6_vredsum_c = 6'b000000;
+  const logic [5:0] funct6_vredand_c = 6'b000001;
+  const logic [5:0] funct6_vredor_c  = 6'b000010;
+  const logic [5:0] funct6_vredxor_c = 6'b000011;
 
   // RISC-V Funct12 -------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -794,9 +815,9 @@ package cellrv32_package;
   parameter int MEM_OP_RANGE_HI = 7;
   parameter int MEM_OP_RANGE_LO = 6;
   
-  parameter logic[1:0] OP_UNIT_STRIDED = 2'b00;
-  parameter logic[1:0] OP_STRIDED      = 2'b10;
-  parameter logic[1:0] OP_INDEXED      = 2'b11;
+  const logic[1:0] OP_UNIT_STRIDED = 2'b00;
+  const logic[1:0] OP_STRIDED      = 2'b10;
+  const logic[1:0] OP_INDEXED      = 2'b11;
 
   // to Vector Pipeline
   typedef struct packed {
@@ -805,6 +826,7 @@ package cellrv32_package;
       logic [04:0] dst;
       logic [04:0] src1;
       logic [04:0] src2;
+      logic [04:0] immediate;
   
       logic [31:0] data1;
       logic [31:0] data2;
@@ -830,6 +852,7 @@ package cellrv32_package;
       logic        src1_iszero;
       logic [04:0] src2       ;
       logic        src2_iszero;
+      logic [04:0] immediate;
       logic [04:0] mask_src   ;
   
       logic [31:0] data1      ;
@@ -883,9 +906,8 @@ package cellrv32_package;
   typedef struct packed {
       logic [04:0] dst     ;
       logic [04:0] ticket  ;
-      logic [06:0] ir_funct7;
+      logic [05:0] ir_funct6;
       logic [02:0] ir_funct3;
-      logic [06:0] microop ;
       logic [06:0] vl      ;
       logic        head_uop;
       logic        end_uop ;
