@@ -53,5 +53,5 @@ informed via _precise and resumable_ hardware exceptions.
 
 - [x] Stage 1: The purpose is to learn how to design a risc-v processor with basic peripherals and the RISC-V instruction set architecture.
 
-- [ ] Stage 2: Designed a custom RISC-V MCU-class multi-core CPU with lightweight
-snooping-based cache coherence and heterogeneous acceleration, integrating multiple CPU cores, vector extensions, scratchpad memory, DMA engine, an INT16/INT32 NPU, and a lightweight programmable GPU with parallel compute cores.
+- [ ] Stage 2: Designed a custom RISC-V MCU-class with lightweight
+snooping-based cache coherence and heterogeneous acceleration: integrating multiple CPU cores, vector extensions, scratchpad memory, DMA engine, an INT16/INT32 NPU, and a lightweight programmable GPU with parallel compute cores.
