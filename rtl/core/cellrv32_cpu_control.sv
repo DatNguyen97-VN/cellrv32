@@ -879,9 +879,13 @@ module cellrv32_cpu_control #(
         if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivv_c) || 
             (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivi_c) ||
             (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivx_c)) begin
-            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vadd_c ||      // vadd
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsub_c ||      // vsub
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrsub_c) begin // vrsub
+            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vadd_c  || // vadd
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsub_c  || // vsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrsub_c || // vrsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vand_c  || // vand
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vor_c   || // vor
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vxor_c     // vxor
+            ) begin
                 is_int_vec = 1'b1;
             end
         end

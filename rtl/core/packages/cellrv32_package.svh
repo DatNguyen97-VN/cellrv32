@@ -420,6 +420,9 @@ package cellrv32_package;
   const logic [5:0] funct6_vadd_c  = 6'b000000; // Vector Single-Width Integer Add
   const logic [5:0] funct6_vsub_c  = 6'b000010; // Vector Single-Width Integer Sub
   const logic [5:0] funct6_vrsub_c = 6'b000011; // Vector Single-Width Integer Reverse Sub
+  const logic [5:0] funct6_vand_c  = 6'b001001; // Vector Single-Width Integer AND
+  const logic [5:0] funct6_vor_c   = 6'b001010; // Vector Single-Width Integer OR
+  const logic [5:0] funct6_vxor_c  = 6'b001011; // Vector Single-Width Integer XOR
   // integer reduction
   const logic [5:0] funct6_vredsum_c = 6'b000000;
   const logic [5:0] funct6_vredand_c = 6'b000001;

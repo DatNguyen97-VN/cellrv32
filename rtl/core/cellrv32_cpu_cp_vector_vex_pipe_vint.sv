@@ -122,6 +122,21 @@ module v_int_alu #(
                 result_int    = data_a_u_ex1 - data_b_u_ex1;
                 valid_int_ex1 = valid_i;
             end
+            // vand.vv, vand.vx, vand.vi
+            funct6_vand_c : begin
+                result_int    = data_a_u_ex1 & data_b_u_ex1;
+                valid_int_ex1 = valid_i;
+            end
+            // vor.vv, vor.vx, vor.vi
+            funct6_vor_c : begin
+                result_int    = data_a_u_ex1 | data_b_u_ex1;
+                valid_int_ex1 = valid_i;
+            end
+            // vxor.vv, vxor.vx, vxor.vi
+            funct6_vxor_c : begin
+                result_int    = data_a_u_ex1 ^ data_b_u_ex1;
+                valid_int_ex1 = valid_i;
+            end
             //7'b0000010 : begin
             //    // VADDI
             //    result_int    = data_a_u_ex1 + imm_u_ex1;
