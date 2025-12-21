@@ -239,6 +239,126 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vrsubvi(int32_t v
 
   return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0000110, vs2, imm, 0b011, 0b1010111);
 }
+
+
+/**********************************************************************//**
+ * Vector And Bitwise Logical: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vandvv(int32_t vs2, int32_t vs1) {
+  
+  return CUSTOM_INSTR_R3_TYPE(0b0010010, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector And Bitwise Logical: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vandvx(int32_t vs2, int32_t rs1) {
+  
+  return CUSTOM_INSTR_R3_TYPE(0b0010010, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector And Bitwise Logical: Vector-Immediate
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] imm Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vandvi(int32_t vs2, int16_t imm) {
+  
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0010010, vs2, imm, 0b011, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector Or Bitwise Logical: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vorvv(int32_t vs2, int32_t vs1) {
+  
+  return CUSTOM_INSTR_R3_TYPE(0b0010100, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector Or Bitwise Logical: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vorvx(int32_t vs2, int32_t rs1) {
+  
+  return CUSTOM_INSTR_R3_TYPE(0b0010100, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector Or Bitwise Logical: Vector-Immediate
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] imm Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vorvi(int32_t vs2, int16_t imm) {
+  
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0010100, vs2, imm, 0b011, 0b1010111);
+}
+
+
+
+/**********************************************************************//**
+ * Vector Xor Bitwise Logical: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vxorvv(int32_t vs2, int32_t vs1) {
+  
+  return CUSTOM_INSTR_R3_TYPE(0b0010110, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector Xor Bitwise Logical: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vxorvx(int32_t vs2, int32_t rs1) {
+  
+  return CUSTOM_INSTR_R3_TYPE(0b0010110, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector Xor Bitwise Logical: Vector-Immediate
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] imm Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vxorvi(int32_t vs2, int16_t imm) {
+  
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0010110, vs2, imm, 0b011, 0b1010111);
+}
+
+
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################
