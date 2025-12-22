@@ -29,15 +29,15 @@ SEARCH_DIR("=/usr/lib")
 /* ************************************************************************************************* */
 
 /* Default rom/ram (IMEM/DMEM) sizes */
-__cellrv32_rom_size = DEFINED(__cellrv32_rom_size) ? __cellrv32_rom_size : 2048M;
-__cellrv32_ram_size = DEFINED(__cellrv32_ram_size) ? __cellrv32_ram_size : 8K;
+__cellrv32_rom_size = DEFINED(__cellrv32_rom_size) ? __cellrv32_rom_size : 32k;
+__cellrv32_ram_size = DEFINED(__cellrv32_ram_size) ? __cellrv32_ram_size : 32K;
 
 /* Default HEAP size (= 0; no heap at all) */
 __cellrv32_heap_size = DEFINED(__cellrv32_heap_size) ? __cellrv32_heap_size : 0;
 
 /* Default section base addresses - do not change this unless the hardware-defined address space layout is changed! */
-__cellrv32_rom_base = DEFINED(__cellrv32_rom_base) ? __cellrv32_rom_base : 0x00000000; /* = VHDL package's "ispace_base_c" */
-__cellrv32_ram_base = DEFINED(__cellrv32_ram_base) ? __cellrv32_ram_base : 0x80000000; /* = VHDL package's "dspace_base_c" */
+__cellrv32_rom_base = DEFINED(__cellrv32_rom_base) ? __cellrv32_rom_base : 0x00000000; /* = SystemVerilog package's "ispace_base_c" */
+__cellrv32_ram_base = DEFINED(__cellrv32_ram_base) ? __cellrv32_ram_base : 0x80000000; /* = SystemVerilog package's "dspace_base_c" */
 
 
 /* ************************************************************************************************* */
@@ -46,7 +46,7 @@ __cellrv32_ram_base = DEFINED(__cellrv32_ram_base) ? __cellrv32_ram_base : 0x800
 /* ************************************************************************************************* */
 MEMORY
 {
-  rom   (rx) : ORIGIN = DEFINED(make_bootloader) ? 0xFFFF0000 : __cellrv32_rom_base, LENGTH = DEFINED(make_bootloader) ? 32K : __cellrv32_rom_size
+  rom   (rx) : ORIGIN = DEFINED(make_bootloader) ? 0xFFFF0000 : __cellrv32_rom_base, LENGTH = DEFINED(make_bootloader) ? 16K : __cellrv32_rom_size
   ram  (rwx) : ORIGIN = __cellrv32_ram_base, LENGTH = DEFINED(make_bootloader) ? 512 : __cellrv32_ram_size
   iodev (rw) : ORIGIN = 0xFFFFFE00, LENGTH = 512 /* this is hardware-defined and should not be modified! */
 }
