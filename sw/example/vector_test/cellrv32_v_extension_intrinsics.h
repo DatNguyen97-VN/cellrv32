@@ -359,6 +359,225 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vxorvi(int32_t vs
 }
 
 
+/**********************************************************************//**
+ * Vector single-width Logical Shift Left: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsllvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001010, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Logical Shift Left: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsllvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001010, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Logical Shift Left: Vector-Immediate
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] imm Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsllvi(int32_t vs2, uint16_t imm) {
+
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b1001010, vs2, imm, 0b011, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Logical Shift Right: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsrlvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1010000, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Logical Shift Right: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsrlvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1010000, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Logical Shift Right: Vector-Immediate
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] imm Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsrlvi(int32_t vs2, uint16_t imm) {
+
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b1010000, vs2, imm, 0b011, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Arithmetic Shift Right: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsravv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1010010, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Arithmetic Shift Right: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsravx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1010010, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Arithmetic Shift Right: Vector-Immediate
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] imm Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vsravi(int32_t vs2, uint16_t imm) {
+
+  return CUSTOM_VECTOR_INSTR_IMM_TYPE(0b1010010, vs2, imm, 0b011, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Minimum Unsigned: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vminuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001000, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Minimum Unsigned: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vminuvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001000, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Minimum Signed: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vminvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001010, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Minimum Signed: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vminvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001010, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Maximum Unsigned: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmaxuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001100, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Maximum Unsigned: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmaxuvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001100, vs2, rs1, 0b100, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Maximum Signed: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmaxvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001110, vs2, vs1, 0b000, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Maximum Signed: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmaxvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001110, vs2, rs1, 0b100, 0b1010111);
+}
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################

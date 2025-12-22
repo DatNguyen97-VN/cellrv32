@@ -34,19 +34,27 @@
 /** UART BAUD rate */
 #define BAUD_RATE 19200
 //** Silent mode (only show actual errors when != 0) */
-#define SILENT_MODE          (1)
+#define SILENT_MODE           (1)
 //** Number of test cases for each instruction */
-#define NUM_TEST_CASES       (235)
+#define NUM_TEST_CASES        (235)
 //** Number of element for each array */
-#define NUM_ELEM_ARRAY       (234)
+#define NUM_ELEM_ARRAY        (300)
 //** Run Vector CSR tests when != 0 */
-#define RUN_CSR_TESTS        (0)
+#define RUN_CSR_TESTS         (0)
 //** Run Load/Store tests when != 0 */
-#define RUN_LOAD_STORE_TESTS (0)
+#define RUN_LOADSTORE_TESTS   (0)
 //** Run Add/Sub tests when != 0 */
-#define RUN_ADD_SUB_TESTS    (0)
+#define RUN_ADDSUB_TESTS      (0)
 //** Run Bitwise tests when != 0 */
-#define RUN_BITWISE_TESTS    (1)
+#define RUN_BITWISE_TESTS     (0)
+//** Run Logical Shift Left tests when != 0 */
+#define RUN_SHIFTLEFT_TESTS   (0)
+//** Run Logical Shift Right tests when != 0 */
+#define RUN_SHIFTRIGHT_TESTS  (0)
+//** Run Arithmetic Shift Left tests when != 0 */
+#define RUN_ASHIFTRIGHT_TESTS (0)
+//** Run Min/Max tests when != 0 */
+#define RUN_MINMAX_TESTS      (0)
 /**@}*/
 
 // Prototypes
@@ -241,7 +249,7 @@ int main() {
 #endif
 
 
-#if (RUN_LOAD_STORE_TESTS != 0)
+#if (RUN_LOADSTORE_TESTS != 0)
   // ----------------------------------------------------------------------------
   // Load/Store Tests
   // ----------------------------------------------------------------------------
@@ -375,7 +383,7 @@ int main() {
 #endif
 
 
-#if (RUN_ADD_SUB_TESTS != 0)
+#if (RUN_ADDSUB_TESTS != 0)
   // ----------------------------------------------------------------------------
   // Add/Sub Tests
   // ----------------------------------------------------------------------------
@@ -587,7 +595,7 @@ int main() {
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
     ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
-    // ================== ADD PHASE ==================
+    // ================== SUB PHASE ==================
     oph.binary_value = riscv_intrinsic_vsubvv(ope.binary_value, opd.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -636,7 +644,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== SUB PHASE ==================
     oph.binary_value = riscv_intrinsic_vsubvx(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -684,7 +692,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== RSUB PHASE ==================
     oph.binary_value = riscv_intrinsic_vrsubvx(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -732,7 +740,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== RSUB PHASE ==================
     //oph.binary_value = riscv_intrinsic_vrsubvi(opd.binary_value, 0x0007);
     oph.binary_value = CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0000110, opd.binary_value, 0x0007, 0b011, 0b1010111);
     // ================== STORE PHASE ==================
@@ -826,7 +834,7 @@ int main() {
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
     ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
-    // ================== ADD PHASE ==================
+    // ================== AND PHASE ==================
     oph.binary_value = riscv_intrinsic_vandvv(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -874,7 +882,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== AND PHASE ==================
     oph.binary_value = riscv_intrinsic_vandvx(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -922,7 +930,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== AND PHASE ==================
     //oph.binary_value = riscv_intrinsic_vandvi(opd.binary_value, 0x0007);
     oph.binary_value = CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0010010, opd.binary_value, 0x000F, 0b011, 0b1010111);
     // ================== STORE PHASE ==================
@@ -972,7 +980,7 @@ int main() {
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
     ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
-    // ================== ADD PHASE ==================
+    // ================== OR PHASE ==================
     oph.binary_value = riscv_intrinsic_vorvv(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -1020,7 +1028,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== OR PHASE ==================
     oph.binary_value = riscv_intrinsic_vorvx(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -1068,7 +1076,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== OR PHASE ==================
     //oph.binary_value = riscv_intrinsic_vorvi(opd.binary_value, 0x000F);
     oph.binary_value = CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0010100, opd.binary_value, 0x000F, 0b011, 0b1010111);
     // ================== STORE PHASE ==================
@@ -1117,7 +1125,7 @@ int main() {
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
     ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
-    // ================== ADD PHASE ==================
+    // ================== XOR PHASE ==================
     oph.binary_value = riscv_intrinsic_vxorvv(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -1165,7 +1173,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== XOR PHASE ==================
     oph.binary_value = riscv_intrinsic_vxorvx(opd.binary_value, ope.binary_value);
     // ================== STORE PHASE ==================
     riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
@@ -1213,7 +1221,7 @@ int main() {
     opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
     // ================== LOAD PHASE ==================
     opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
-    // ================== ADD PHASE ==================
+    // ================== XOR PHASE ==================
     //oph.binary_value = riscv_intrinsic_vxorvi(opd.binary_value, 0x000F);
     oph.binary_value = CUSTOM_VECTOR_INSTR_IMM_TYPE(0b0010110, opd.binary_value, 0xFFFF, 0b011, 0b1010111);
     // ================== STORE PHASE ==================
@@ -1236,6 +1244,1028 @@ int main() {
   }
 
   cellrv32_uart0_printf("\n\n[INF]: Vector VXOR.VI Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+#if (RUN_SHIFTLEFT_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Shift Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
+  cellrv32_uart0_printf("\n#%u: Vector Logical Shift Left Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem1_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem2_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  
+  cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 2 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_ELEM_ARRAY-1]);
+
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+  // ===================================================
+  // VSLL.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSLL.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== SHIFT PHASE ==================
+    oph.binary_value = riscv_intrinsic_vsllvv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSLL.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = vec_mem1_load[i] << (vec_mem2_load[i] & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i] & 0x0000001F, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSLL.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  // ===================================================
+  // VSLL.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSLL.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== SHIFT PHASE ==================
+    oph.binary_value = riscv_intrinsic_vsllvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSLL.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = vec_mem1_load[i] << (ope.binary_value & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSLL.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  
+  // ===================================================
+  // VSLL.VI
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSLL.VI Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = 0x0000000F;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== SHIFT PHASE ==================
+    //oph.binary_value = riscv_intrinsic_vsllvi(opd.binary_value, 0x000F);
+    oph.binary_value = CUSTOM_VECTOR_INSTR_IMM_TYPE(0b1001010, opd.binary_value, 0x000F, 0b011, 0b1010111);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSLL.VI Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = vec_mem1_load[i] << (ope.binary_value & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value & 0x0000001F, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSLL.VI Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+#if (RUN_SHIFTRIGHT_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Shift Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
+  cellrv32_uart0_printf("\n#%u: Vector Logical Shift Right Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem1_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem2_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  
+  cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 2 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_ELEM_ARRAY-1]);
+
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+  // ===================================================
+  // VSRL.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSRL.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== SHIFT PHASE ==================
+    oph.binary_value = riscv_intrinsic_vsrlvv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSRL.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = (uint32_t)vec_mem1_load[i] >> (vec_mem2_load[i] & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i] & 0x0000001F, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSRL.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  // ===================================================
+  // VSRL.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSRL.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== SHIFT PHASE ==================
+    oph.binary_value = riscv_intrinsic_vsrlvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSRL.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = (uint32_t)vec_mem1_load[i] >> (ope.binary_value & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSRL.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  
+  // ===================================================
+  // VSRL.VI
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSRL.VI Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = 0x0000000F;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== SHIFT PHASE ==================
+    //oph.binary_value = riscv_intrinsic_vsrlvi(opd.binary_value, 0x000F);
+    oph.binary_value = CUSTOM_VECTOR_INSTR_IMM_TYPE(0b1010000, opd.binary_value, 0x000F, 0b011, 0b1010111);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSRL.VI Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = (uint32_t)vec_mem1_load[i] >> (ope.binary_value & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value & 0x0000001F, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSRL.VI Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+
+#if (RUN_ASHIFTRIGHT_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Shift Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
+  cellrv32_uart0_printf("\n#%u: Vector Arithmetic Shift Right Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem1_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem2_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  
+  cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 2 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_ELEM_ARRAY-1]);
+
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+
+  // ===================================================
+  // VSRA.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSRA.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== SHIFT PHASE ==================
+    oph.binary_value = riscv_intrinsic_vsravv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSRA.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = vec_mem1_load[i] >> (vec_mem2_load[i] & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i] & 0x0000001F, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSRA.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VSRA.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSRA.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== SHIFT PHASE ==================
+    oph.binary_value = riscv_intrinsic_vsravx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSRA.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = vec_mem1_load[i] >> (ope.binary_value & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSRA.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  
+  // ===================================================
+  // VSRA.VI
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVSRA.VI Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = 0x0000000F;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== SHIFT PHASE ==================
+    //oph.binary_value = riscv_intrinsic_vsravi(opd.binary_value, 0x000F);
+    oph.binary_value = CUSTOM_VECTOR_INSTR_IMM_TYPE(0b1010010, opd.binary_value, 0x000F, 0b011, 0b1010111);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VSRA.VI Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    // only the lower 5 bits are valid for shift amount
+    // because SEW=32, max shift mount is 31
+    res_sw.binary_value = vec_mem1_load[i] >> (ope.binary_value & 0x0000001F);
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value & 0x0000001F, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VSRA.VI Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+#if (RUN_MINMAX_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Min/Max Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
+  cellrv32_uart0_printf("\n#%u: Vector Min/Max Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem1_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem2_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 2 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_ELEM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+
+  // ===================================================
+  // VMINU.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMINU.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== MINU PHASE ==================
+    oph.binary_value = riscv_intrinsic_vminuvv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMINU.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = (uint32_t)vec_mem1_load[i] < (uint32_t)vec_mem2_load[i] ? vec_mem1_load[i] : vec_mem2_load[i];
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i], res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMINU.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VMINU.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMINU.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== MINU PHASE ==================
+    oph.binary_value = riscv_intrinsic_vminuvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMINU.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = (uint32_t)vec_mem1_load[i] < ope.binary_value ? vec_mem1_load[i] : ope.binary_value;
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMINU.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VMIN.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMIN.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== MIN PHASE ==================
+    oph.binary_value = riscv_intrinsic_vminvv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMIN.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = vec_mem1_load[i] < vec_mem2_load[i] ? vec_mem1_load[i] : vec_mem2_load[i];
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i], res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMIN.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VMIN.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMIN.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== MIN PHASE ==================
+    oph.binary_value = riscv_intrinsic_vminvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMIN.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = vec_mem1_load[i] < (int32_t)ope.binary_value ? vec_mem1_load[i] : ope.binary_value;
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMIN.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VMAXU.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMAXU.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== MAXU PHASE ==================
+    oph.binary_value = riscv_intrinsic_vmaxuvv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMAXU.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = (uint32_t)vec_mem1_load[i] > (uint32_t)vec_mem2_load[i] ? vec_mem1_load[i] : vec_mem2_load[i];
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i], res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMAXU.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VMAXU.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMAXU.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== MAXU PHASE ==================
+    oph.binary_value = riscv_intrinsic_vmaxuvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMAXU.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = (uint32_t)vec_mem1_load[i] > ope.binary_value ? vec_mem1_load[i] : ope.binary_value;
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMAXU.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VMAX.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMAX.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== MAX PHASE ==================
+    oph.binary_value = riscv_intrinsic_vmaxvv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMAX.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = vec_mem1_load[i] > vec_mem2_load[i] ? vec_mem1_load[i] : vec_mem2_load[i];
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i], res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMAX.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VMAX.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVMAX.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== MAX PHASE ==================
+    oph.binary_value = riscv_intrinsic_vmaxvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VMAX.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = vec_mem1_load[i] > (int32_t)ope.binary_value ? vec_mem1_load[i] : ope.binary_value;
+    err_cnt += verify_result(i, vec_mem1_load[i], ope.binary_value, res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VMAX.VX Instructions completed.\n");
   print_vector_report(err_cnt);
   err_cnt_total += err_cnt;
   test_cnt++;
