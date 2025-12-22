@@ -33,7 +33,7 @@ package cellrv32_package;
   // Architecture consts (do not modify!) ------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   const logic [31:0] hw_version_c = 32'h01080202; // CELLRV32 version
-  const int archid_c = 19; // official RISC-V architecture ID
+  const int archid_c = 5'bx; // official RISC-V architecture ID
 
   // Check if we're inside the Matrix ----------------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -423,6 +423,13 @@ package cellrv32_package;
   const logic [5:0] funct6_vand_c  = 6'b001001; // Vector Single-Width Integer AND
   const logic [5:0] funct6_vor_c   = 6'b001010; // Vector Single-Width Integer OR
   const logic [5:0] funct6_vxor_c  = 6'b001011; // Vector Single-Width Integer XOR
+  const logic [5:0] funct6_vsll_c  = 6'b100101; // Vector Single-Width Integer Shift Logical Left
+  const logic [5:0] funct6_vsrl_c  = 6'b101000; // Vector Single-Width Integer Shift Logical Right
+  const logic [5:0] funct6_vsra_c  = 6'b101001; // Vector Single-Width Integer Shift Arithmetic Right
+  const logic [5:0] funct6_vminu_c = 6'b000100; // Vector Single-Width Integer Minimum Unsigned
+  const logic [5:0] funct6_vmin_c  = 6'b000101; // Vector Single-Width Integer Minimum Signed
+  const logic [5:0] funct6_vmaxu_c = 6'b000110; // Vector Single-Width Integer Maximum Unsigned
+  const logic [5:0] funct6_vmax_c  = 6'b000111; // Vector Single-Width Integer Maximum Signed
   // integer reduction
   const logic [5:0] funct6_vredsum_c = 6'b000000;
   const logic [5:0] funct6_vredand_c = 6'b000001;

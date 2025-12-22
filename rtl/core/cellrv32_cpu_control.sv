@@ -884,7 +884,14 @@ module cellrv32_cpu_control #(
                 execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrsub_c || // vrsub
                 execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vand_c  || // vand
                 execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vor_c   || // vor
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vxor_c     // vxor
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vxor_c  || // vxor
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsll_c  || // vsll
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsrl_c  || // vsrl
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsra_c  || // vsra
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vminu_c || // vminu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmin_c  || // vmin
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmaxu_c || // vmaxu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmax_c     // vmax
             ) begin
                 is_int_vec = 1'b1;
             end
@@ -2664,7 +2671,7 @@ module cellrv32_cpu_control #(
              // -- --------------------------------------------------------------------
              /* machine information registers */
              // -- --------------------------------------------------------------------
-             csr_marchid_c : csr.rdata[4:0] <= 5'b10011; // marchid (r/-): arch ID - official RISC-V open-source arch ID
+             csr_marchid_c : csr.rdata[4:0] <= archid_c; // marchid (r/-): arch ID - official RISC-V open-source arch ID
              csr_mimpid_c  : csr.rdata <= hw_version_c; // mimpid (r/-): implementation ID -- CELLRV32 hardware version
              csr_mhartid_c : csr.rdata <= HW_THREAD_ID; // mhartid (r/-): hardware thread ID
              // -- --------------------------------------------------------------------

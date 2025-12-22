@@ -137,130 +137,42 @@ module v_int_alu #(
                 result_int    = data_a_u_ex1 ^ data_b_u_ex1;
                 valid_int_ex1 = valid_i;
             end
-            //7'b0000010 : begin
-            //    // VADDI
-            //    result_int    = data_a_u_ex1 + imm_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0000011 : begin
-            //    // VADDW
-            //    result_int    = data_a_wu_ex1 + data_b_wu_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0000100 : begin
-            //    // VADDIW
-            //    result_int    = data_a_wu_ex1 + imm_wu_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0000101 : begin
-            //    // VSUB
-            //    result_int    = data_a_u_ex1 - data_b_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0000110 : begin
-            //    // VSUBW
-            //    result_int    = data_a_wu_ex1 - data_b_wu_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010000 : begin
-            //    // VSLL
-            //    result_int    = data_a_u_ex1 << data_b_u_ex1[4:0];
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010001 : begin
-            //    // VSLLI
-            //    result_int    = data_a_s_ex1 << imm_u_ex1[4:0];
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010010 : begin
-            //    // VSRA
-            //    result_int    = data_a_u_ex1 >>> data_b_u_ex1[4:0];
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010011 : begin
-            //    // VSRAI
-            //    result_int    = data_a_s_ex1 >>> imm_u_ex1[4:0];
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010100 : begin
-            //    // VSRL
-            //    result_int    = data_a_u_ex1 >> data_b_u_ex1[4:0];
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010101 : begin
-            //    // VSRLI
-            //    result_int    = data_a_s_ex1 >> imm_u_ex1[4:0];
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010110 : begin
-            //    // VAND
-            //    result_int    = data_a_u_ex1 & data_b_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0010111 : begin
-            //    // VANDI
-            //    result_int    = data_a_u_ex1 & imm_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0011000 : begin
-            //    // VOR
-            //    result_int    = data_a_u_ex1 | data_b_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0011001 : begin
-            //    // VORI
-            //    result_int    = data_a_u_ex1 | imm_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0011010 : begin
-            //    // VXOR
-            //    result_int    = data_a_u_ex1 ^ data_b_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0011011 : begin
-            //    // VXORI
-            //    result_int    = data_a_u_ex1 ^ imm_u_ex1;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0011100 : begin
-            //    // VSEQ
-            //    result_int    = (data_a_ex1_i === data_b_ex1_i);
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0011101 : begin
-            //    // VSLT
-            //    result_int    = (data_a_ex1_i < data_b_ex1_i);
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0011110 : begin
-            //    // VSLTU
-            //    result_int    = (data_a_u_ex1 < data_b_u_ex1);
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0100000 : begin
-            //    // VRELU
-            //    result_int    = (data_a_s_ex1 > 0) ? data_a_u_ex1 : '0;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0100001 : begin
-            //    // VSTEP
-            //    result_int    = (data_a_s_ex1 >= 0) ? 'd1 : 'd0;
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0100010 : begin
-            //    // VBRELU
-            //    if (~data_a_s_ex1[0]) begin //imod2==0 -> relu
-            //        result_int = (data_a_s_ex1 > 0) ? data_a_u_ex1 : '0;
-            //    end else begin              //imod2!=0 -> inverse relu
-            //        result_int = (data_a_s_ex1 > 0) ? '0           : ~data_a_ex1_i +1 ;
-            //    end
-            //    valid_int_ex1 = valid_i;
-            //end
-            //7'b0100011 : begin
-            //    // VPRELU
-            //    result_int    = data_a_ex1_i;
-            //    valid_int_ex1 = valid_i & (data_a_s_ex1 >= 0);
-            //end
+            // vsll.vv, vsll.vx, vsll.vi
+            funct6_vsll_c : begin
+                result_int    = data_b_u_ex1 << data_a_u_ex1[4:0];
+                valid_int_ex1 = valid_i;
+            end
+            // vsrl.vv, vsrl.vx, vsrl.vi
+            funct6_vsrl_c : begin
+                result_int    = data_b_u_ex1 >> data_a_u_ex1[4:0];
+                valid_int_ex1 = valid_i;
+            end
+            // vsra.vv, vsra.vx, vsra.vi
+            funct6_vsra_c : begin
+                result_int    = $signed(data_b_ex1_i) >>> data_a_u_ex1[4:0];
+                valid_int_ex1 = valid_i;
+            end
+            // vminu.vv, vminu.vx
+            funct6_vminu_c : begin
+                result_int    = (data_b_u_ex1 < data_a_u_ex1) ? data_b_u_ex1 : data_a_u_ex1;
+                valid_int_ex1 = valid_i;
+            end
+            // vmin.vv, vmin.vx
+            funct6_vmin_c : begin
+                result_int    = ($signed(data_b_ex1_i) < $signed(data_a_ex1_i)) ? data_b_ex1_i : data_a_ex1_i;
+                valid_int_ex1 = valid_i;
+            end
+            // vmaxu.vv, vmaxu.vx
+            funct6_vmaxu_c : begin
+                result_int    = (data_b_u_ex1 > data_a_u_ex1) ? data_b_u_ex1 : data_a_u_ex1;
+                valid_int_ex1 = valid_i;
+            end
+            // vmax.vv, vmax.vx
+            funct6_vmax_c : begin
+                result_int    = ($signed(data_b_ex1_i) > $signed(data_a_ex1_i)) ? data_b_ex1_i : data_a_ex1_i;
+                valid_int_ex1 = valid_i;
+            end
+            // unknown funct6
             default : begin
                 result_int    = 'x;
                 valid_int_ex1 = 1'b0;
