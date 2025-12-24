@@ -878,20 +878,30 @@ module cellrv32_cpu_control #(
      if (CPU_EXTENSION_RISCV_V == 1) begin // Vector is implemented at all ?
         if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivv_c) || 
             (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivi_c) ||
-            (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivx_c)) begin
-            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vadd_c  || // vadd
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsub_c  || // vsub
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrsub_c || // vrsub
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vand_c  || // vand
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vor_c   || // vor
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vxor_c  || // vxor
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsll_c  || // vsll
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsrl_c  || // vsrl
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsra_c  || // vsra
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vminu_c || // vminu
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmin_c  || // vmin
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmaxu_c || // vmaxu
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmax_c     // vmax
+            (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivx_c) ||
+            (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opmvv_c) ||
+            (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opmvx_c)) begin
+            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vadd_c    || // vadd
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsub_c    || // vsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrsub_c   || // vrsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vand_c    || // vand
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vor_c     || // vor
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vxor_c    || // vxor
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsll_c    || // vsll
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsrl_c    || // vsrl
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vsra_c    || // vsra
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vminu_c   || // vminu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmin_c    || // vmin
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmaxu_c   || // vmaxu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmax_c    || // vmax
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmul_c    || // vmul
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmulh_c   || // vmulh
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmulhu_c  || // vmulhu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmulhsu_c || // vmulhsu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vdivu_c   || // vdivu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vdiv_c    || // vdiv
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vremu_c   || // vremu
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrem_c       // vrem
             ) begin
                 is_int_vec = 1'b1;
             end

@@ -110,10 +110,11 @@ module vex_pipe #(
     logic [      5:0] rdc_op_ex4;
 
     assign ready_o        = valid_i; // so far no multi-cycle blocking ops exist
-    assign valid_int_ex1  = (funct3_i == funct3_opivv_c) | (funct3_i == funct3_opivi_c) | (funct3_i == funct3_opivx_c) ? valid_i : 1'b0; // integer op
+    assign valid_int_ex1  = (funct3_i == funct3_opivv_c) | (funct3_i == funct3_opivi_c) | (funct3_i == funct3_opivx_c) |
+                            (funct3_i == funct3_opmvv_c) | (funct3_i == funct3_opmvx_c) ? valid_i : 1'b0; // integer op
     //assign valid_fp_ex1   = valid_i ? (fu_i === `FP_FU)  : 1'b0; // floating point op
     //assign valid_fxp_ex1  = valid_i ? (fu_i === `FXP_FU) : 1'b0; // fixed point op
-    assign use_reduce_tree_ex1 = (funct3_i == funct3_opmvv_c) || (funct3_i == funct3_opmvx_c) ? 1'b1 : 1'b0;
+    assign use_reduce_tree_ex1 = 1'b0;
     
     //-----------------------------------------------
     // Integer ALU

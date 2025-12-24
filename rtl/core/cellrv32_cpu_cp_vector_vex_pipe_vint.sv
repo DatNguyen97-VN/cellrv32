@@ -56,7 +56,7 @@ module v_int_alu #(
     output logic [                              EX4_W-1:0] result_ex4_o
 );
 
-    localparam int PARTIAL_SUM_W   = DATA_WIDTH +8             ;
+    localparam int PARTIAL_SUM_W   = DATA_WIDTH + 8            ;
     localparam int DIV_CALC_CYCLES = 4                         ;
     localparam int DIV_BIT_GROUPS  = DATA_WIDTH/DIV_CALC_CYCLES;
 
@@ -75,6 +75,8 @@ module v_int_alu #(
     logic valid_div_ex2;
     logic valid_div_ex3;
     logic valid_div_ex4;
+    logic is_multi_cycle;
+    logic is_single_cycle;
 
     logic [EX1_W-1:0] result_int_ex1;
 
@@ -101,6 +103,9 @@ module v_int_alu #(
     assign data_a_wu_ex1 = {{16{1'b0}},data_a_u_ex1[15:0]};
     assign data_b_wu_ex1 = {{16{1'b0}},data_b_u_ex1[15:0]};
 
+    assign is_multi_cycle = (funct3_i == funct3_opmvv_c) || (funct3_i == funct3_opmvx_c) ? 1'b1 : 1'b0;
+    assign is_single_cycle = ~is_multi_cycle & valid_i;
+
     //================================================
     // INT Section (no mul/div)
     //================================================
@@ -110,67 +115,67 @@ module v_int_alu #(
             // vadd.vv, vadd.vx, vadd.vi
             funct6_vadd_c : begin
                 result_int    = data_a_u_ex1 + data_b_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vsub.vv, vsub.vx
             funct6_vsub_c : begin
                 result_int    = data_b_u_ex1 - data_a_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vrsub.vx, vrsub.vi
             funct6_vrsub_c : begin
                 result_int    = data_a_u_ex1 - data_b_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vand.vv, vand.vx, vand.vi
             funct6_vand_c : begin
                 result_int    = data_a_u_ex1 & data_b_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vor.vv, vor.vx, vor.vi
             funct6_vor_c : begin
                 result_int    = data_a_u_ex1 | data_b_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vxor.vv, vxor.vx, vxor.vi
             funct6_vxor_c : begin
                 result_int    = data_a_u_ex1 ^ data_b_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vsll.vv, vsll.vx, vsll.vi
             funct6_vsll_c : begin
                 result_int    = data_b_u_ex1 << data_a_u_ex1[4:0];
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vsrl.vv, vsrl.vx, vsrl.vi
             funct6_vsrl_c : begin
                 result_int    = data_b_u_ex1 >> data_a_u_ex1[4:0];
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vsra.vv, vsra.vx, vsra.vi
             funct6_vsra_c : begin
                 result_int    = $signed(data_b_ex1_i) >>> data_a_u_ex1[4:0];
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vminu.vv, vminu.vx
             funct6_vminu_c : begin
                 result_int    = (data_b_u_ex1 < data_a_u_ex1) ? data_b_u_ex1 : data_a_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vmin.vv, vmin.vx
             funct6_vmin_c : begin
                 result_int    = ($signed(data_b_ex1_i) < $signed(data_a_ex1_i)) ? data_b_ex1_i : data_a_ex1_i;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vmaxu.vv, vmaxu.vx
             funct6_vmaxu_c : begin
                 result_int    = (data_b_u_ex1 > data_a_u_ex1) ? data_b_u_ex1 : data_a_u_ex1;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // vmax.vv, vmax.vx
             funct6_vmax_c : begin
                 result_int    = ($signed(data_b_ex1_i) > $signed(data_a_ex1_i)) ? data_b_ex1_i : data_a_ex1_i;
-                valid_int_ex1 = valid_i;
+                valid_int_ex1 = is_single_cycle;
             end
             // unknown funct6
             default : begin
@@ -190,50 +195,39 @@ module v_int_alu #(
     logic                    sign_mul_ex1   ;
     logic                    sign_ex2       ;
     logic                    sign_ex3       ;
+    logic                    valid_mul      ;
+
+    assign valid_mul = is_multi_cycle & valid_i;
 
     always_comb begin
         case (funct6_i)
-            7'b0000111 : begin
+            funct6_vmul_c : begin
                 // VMUL
                 sign_mul_ex1  = 1'b1;
-                valid_mul_ex1 = valid_i;
+                valid_mul_ex1 = valid_mul;
                 diff_type     = 1'b0;
                 upper_part    = 1'b0;
             end
-            7'b0001000 : begin
+            funct6_vmulh_c : begin
                 // VMULH
                 sign_mul_ex1  = 1'b1;
-                valid_mul_ex1 = valid_i;
+                valid_mul_ex1 = valid_mul;
                 diff_type     = 1'b0;
                 upper_part    = 1'b1;
             end
-            7'b0001001 : begin
+            funct6_vmulhsu_c : begin
                 // VMULHSU
                 sign_mul_ex1  = 1'b0;
-                valid_mul_ex1 = valid_i;
+                valid_mul_ex1 = valid_mul;
                 diff_type     = 1'b1;
                 upper_part    = 1'b1;
             end
-            7'b0001010 : begin
+            funct6_vmulhu_c : begin
                 // VMULHU
                 sign_mul_ex1  = 1'b0;
-                valid_mul_ex1 = valid_i;
+                valid_mul_ex1 = valid_mul;
                 diff_type     = 1'b0;
                 upper_part    = 1'b1;
-            end
-            7'b0001011 : begin
-                // VMULWDN
-                sign_mul_ex1  = 1'b1;
-                valid_mul_ex1 = valid_i;
-                diff_type     = 1'b0;
-                upper_part    = 1'b0;
-            end
-            7'b0100100 : begin
-                // VPRELU
-                sign_mul_ex1  = 1'b1;
-                valid_mul_ex1 = valid_i & (data_a_s_ex1 < 0);
-                diff_type     = 1'b0;
-                upper_part    = 1'b0;
             end
             default : begin
                 sign_mul_ex1  = 1'bx;
@@ -250,20 +244,24 @@ module v_int_alu #(
     logic [DATA_WIDTH-1+8:0] part_1, part_2, part_3, part_4;
     logic [  DATA_WIDTH-1:0] data_a, data_b;
 
-    assign data_a         = (sign_mul_ex1 || data_a_ex1_i[31]) ? ~data_a_ex1_i + 1'b1 : data_a_ex1_i;
-    assign data_b         = (sign_mul_ex1 || data_b_ex1_i[31]) ? ~data_b_ex1_i + 1'b1 : data_b_ex1_i;
+    assign data_a         = (sign_mul_ex1 && data_a_ex1_i[31]) ? ~data_a_ex1_i + 1'b1 : data_a_ex1_i;
+    assign data_b         = ((sign_mul_ex1 || (funct6_i == funct6_vmulhsu_c)) && data_b_ex1_i[31]) ? ~data_b_ex1_i + 1'b1 : data_b_ex1_i;
+    
     //Create Partial Products
-    assign part_1         = data_a * data_b[7:0];
-    assign part_2         = data_a * data_b[15:8];
+    assign part_1         = data_a * data_b[07:00];
+    assign part_2         = data_a * data_b[15:08];
     assign part_3         = data_a * data_b[23:16];
     assign part_4         = data_a * data_b[31:24];
     assign result_mul_ex1 = {part_4, part_3, part_2, part_1};
+
+    // Sign and Upper part for next stage
     always_ff @(posedge clk) begin
         if (valid_mul_ex1) begin
-            sign_ex2       <= diff_type ? data_a_ex1_i[31] : sign_mul_ex1 & (data_a_ex1_i[31]^data_b_ex1_i[31]);
+            sign_ex2       <= diff_type ? data_b_ex1_i[31] : sign_mul_ex1 & (data_a_ex1_i[31] ^ data_b_ex1_i[31]);
             upper_part_ex2 <= upper_part;
         end
     end
+
     always_ff @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             valid_mul_ex2 <= 0;
@@ -283,10 +281,10 @@ module v_int_alu #(
     assign part_2_ex2   = data_ex2_i[PARTIAL_SUM_W   +: PARTIAL_SUM_W];
     assign part_3_ex2   = data_ex2_i[2*PARTIAL_SUM_W +: PARTIAL_SUM_W];
     assign part_4_ex2   = data_ex2_i[3*PARTIAL_SUM_W +: PARTIAL_SUM_W];
-    assign extended_1   = {24*{1'b0}, part_1_ex2};
-    assign extended_2   = {16*{1'b0}, part_2_ex2, 08*{1'b0}};
-    assign extended_3   = {08*{1'b0}, part_3_ex2, 16*{1'b0}};
-    assign extended_4   = {part_4_ex2, 24*{1'b0}};
+    assign extended_1   = {{24{1'b0}}, part_1_ex2};
+    assign extended_2   = {{16{1'b0}}, part_2_ex2, {08{1'b0}}};
+    assign extended_3   = {{08{1'b0}}, part_3_ex2, {16{1'b0}}};
+    assign extended_4   = {part_4_ex2, {24{1'b0}}};
     assign extended_sum = extended_1 + extended_2 + extended_3 + extended_4;
 
     assign result_mul_ex2 = {{EX2_W-2*DATA_WIDTH{1'b0}}, extended_sum};
@@ -322,30 +320,33 @@ module v_int_alu #(
     logic sign_div_ex2, sign_res_div_ex2, is_rem_ex2;
     logic sign_div_ex3, sign_res_div_ex3, is_rem_ex3;
     logic sign_div_ex4, sign_res_div_ex4, is_rem_ex4;
+    logic valid_div;
+
+    assign valid_div = is_multi_cycle & valid_i;
 
     always_comb begin
         case (funct6_i)
-            7'b0001100 : begin
+            funct6_vdiv_c : begin
                 // VDIV
-                valid_div_ex1 = valid_i;
+                valid_div_ex1 = valid_div;
                 sign_div_ex1  = 1'b1;
                 is_rem_ex1    = 1'b0;
             end
-            7'b0001101 : begin
+            funct6_vdivu_c : begin
                 // VDIVU
-                valid_div_ex1 = valid_i;
+                valid_div_ex1 = valid_div;
                 sign_div_ex1  = 1'b0;
                 is_rem_ex1    = 1'b0;
             end
-            7'b0001110 : begin
+            funct6_vrem_c : begin
                 // VREM
-                valid_div_ex1 = valid_i;
+                valid_div_ex1 = valid_div;
                 sign_div_ex1  = 1'b1;
                 is_rem_ex1    = 1'b1;
             end
-            7'b0001111 : begin
+            funct6_vremu_c : begin
                 // VREMU
-                valid_div_ex1 = valid_i;
+                valid_div_ex1 = valid_div;
                 sign_div_ex1  = 1'b0;
                 is_rem_ex1    = 1'b1;
             end
@@ -365,12 +366,12 @@ module v_int_alu #(
     logic [DATA_WIDTH-1:0] remainder_ex1, quotient_ex1;
     logic [  DATA_WIDTH:0] diff_ex1;
 
-    assign dividend = data_a_ex1_i;
-    assign divider  = data_b_ex1_i;
+    assign dividend = data_b_ex1_i;
+    assign divider  = data_a_ex1_i;
 
-    assign quotient_init_ex1  = (sign_div_ex1 || dividend[31]) ? ~dividend + 1'b1 : dividend;
+    assign quotient_init_ex1  = (sign_div_ex1 && dividend[31]) ? ~dividend + 1'b1 : dividend;
     assign remainder_init_ex1 = '0;
-    assign divider_init_ex1   = (sign_div_ex1 || divider[31])  ? ~divider + 1'b1 : divider;
+    assign divider_init_ex1   = (sign_div_ex1 && divider[31])  ? ~divider + 1'b1 : divider;
 
     always_comb begin : division_ex1
         remainder_ex1 = {remainder_init_ex1[DATA_WIDTH-2:0], quotient_init_ex1[DATA_WIDTH-1]};
@@ -592,7 +593,7 @@ module v_int_alu #(
     logic valid_rdc_ex1, valid_rdc_ex2, valid_rdc_ex3, valid_rdc_ex4;
 
     logic is_rdc_tree;
-    assign is_rdc_tree = (funct3_i == funct3_opmvv_c) || (funct3_i == funct3_opmvx_c) ? valid_i : 1'b0;
+    assign is_rdc_tree = 1'b0;
 
     generate if (!VECTOR_LANE_NUM[0]) begin: g_rdc_ex1
         logic odd_rdc_override;

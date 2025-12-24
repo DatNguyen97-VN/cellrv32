@@ -417,19 +417,27 @@ package cellrv32_package;
   // RISC-V Funct6 --------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   // integer alu
-  const logic [5:0] funct6_vadd_c  = 6'b000000; // Vector Single-Width Integer Add
-  const logic [5:0] funct6_vsub_c  = 6'b000010; // Vector Single-Width Integer Sub
-  const logic [5:0] funct6_vrsub_c = 6'b000011; // Vector Single-Width Integer Reverse Sub
-  const logic [5:0] funct6_vand_c  = 6'b001001; // Vector Single-Width Integer AND
-  const logic [5:0] funct6_vor_c   = 6'b001010; // Vector Single-Width Integer OR
-  const logic [5:0] funct6_vxor_c  = 6'b001011; // Vector Single-Width Integer XOR
-  const logic [5:0] funct6_vsll_c  = 6'b100101; // Vector Single-Width Integer Shift Logical Left
-  const logic [5:0] funct6_vsrl_c  = 6'b101000; // Vector Single-Width Integer Shift Logical Right
-  const logic [5:0] funct6_vsra_c  = 6'b101001; // Vector Single-Width Integer Shift Arithmetic Right
-  const logic [5:0] funct6_vminu_c = 6'b000100; // Vector Single-Width Integer Minimum Unsigned
-  const logic [5:0] funct6_vmin_c  = 6'b000101; // Vector Single-Width Integer Minimum Signed
-  const logic [5:0] funct6_vmaxu_c = 6'b000110; // Vector Single-Width Integer Maximum Unsigned
-  const logic [5:0] funct6_vmax_c  = 6'b000111; // Vector Single-Width Integer Maximum Signed
+  const logic [5:0] funct6_vadd_c    = 6'b000000; // Vector Single-Width Integer Add
+  const logic [5:0] funct6_vsub_c    = 6'b000010; // Vector Single-Width Integer Sub
+  const logic [5:0] funct6_vrsub_c   = 6'b000011; // Vector Single-Width Integer Reverse Sub
+  const logic [5:0] funct6_vand_c    = 6'b001001; // Vector Single-Width Integer AND
+  const logic [5:0] funct6_vor_c     = 6'b001010; // Vector Single-Width Integer OR
+  const logic [5:0] funct6_vxor_c    = 6'b001011; // Vector Single-Width Integer XOR
+  const logic [5:0] funct6_vsll_c    = 6'b100101; // Vector Single-Width Integer Shift Logical Left
+  const logic [5:0] funct6_vsrl_c    = 6'b101000; // Vector Single-Width Integer Shift Logical Right
+  const logic [5:0] funct6_vsra_c    = 6'b101001; // Vector Single-Width Integer Shift Arithmetic Right
+  const logic [5:0] funct6_vminu_c   = 6'b000100; // Vector Single-Width Integer Minimum Unsigned
+  const logic [5:0] funct6_vmin_c    = 6'b000101; // Vector Single-Width Integer Minimum Signed
+  const logic [5:0] funct6_vmaxu_c   = 6'b000110; // Vector Single-Width Integer Maximum Unsigned
+  const logic [5:0] funct6_vmax_c    = 6'b000111; // Vector Single-Width Integer Maximum Signed
+  const logic [5:0] funct6_vmul_c    = 6'b100101; // Vector Single-Width Integer Multiply Signed
+  const logic [5:0] funct6_vmulh_c   = 6'b100111; // Vector Single-Width Integer Multiply High Signed
+  const logic [5:0] funct6_vmulhu_c  = 6'b100100; // Vector Single-Width Integer Multiply High Unsigned
+  const logic [5:0] funct6_vmulhsu_c = 6'b100110; // Vector Single-Width Integer Multiply High Signed/Unsigned
+  const logic [5:0] funct6_vdiv_c    = 6'b100001; // Vector Single-Width Integer Divide Signed
+  const logic [5:0] funct6_vdivu_c   = 6'b100000; // Vector Single-Width Integer Divide Unsigned
+  const logic [5:0] funct6_vrem_c    = 6'b100011; // Vector Single-Width Integer Remainder Signed
+  const logic [5:0] funct6_vremu_c   = 6'b100010; // Vector Single-Width Integer Remainder Unsigned
   // integer reduction
   const logic [5:0] funct6_vredsum_c = 6'b000000;
   const logic [5:0] funct6_vredand_c = 6'b000001;
