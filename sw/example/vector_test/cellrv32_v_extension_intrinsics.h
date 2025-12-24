@@ -578,6 +578,214 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmaxvx(int32_t vs
 
   return CUSTOM_INSTR_R3_TYPE(0b0001110, vs2, rs1, 0b100, 0b1010111);
 }
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Multiply: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001010, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Multiply: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001010, vs2, rs1, 0b110, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer High Multiply: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulhvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001110, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer High Multiply: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulhvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001110, vs2, rs1, 0b110, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Unsigned Integer High Multiply: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulhuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001000, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Unsigned Integer High Multiply: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulhuvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001000, vs2, rs1, 0b110, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed/Unsigned Integer High Multiply: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulhsuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001100, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed/Unsigned Integer High Multiply: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmulhsuvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001100, vs2, rs1, 0b110, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Unsigned Integer Divide: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vdivuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000000, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Unsigned Integer Divide: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vdivuvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000000, vs2, rs1, 0b110, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Divide: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vdivvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000010, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Divide: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vdivvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000010, vs2, rs1, 0b110, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Unsigned Integer Remainder: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vremuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000100, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Unsigned Integer Remainder: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vremuvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000100, vs2, rs1, 0b110, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Remainder: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vremvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000110, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Remainder: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vremvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000110, vs2, rs1, 0b110, 0b1010111);
+}
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################
