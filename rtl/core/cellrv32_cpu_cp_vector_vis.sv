@@ -92,7 +92,7 @@ module vis #(
     logic                        is_operand_scalar ;
 
     logic [6:0] total_remaining_elements;
-    logic [VECTOR_LANES-1:0][DATA_WIDTH-1:0] data_1, data_2;
+    logic [VECTOR_LANES-1:0][DATA_WIDTH-1:0] data_1, data_2, data_3;
     logic [VREG_ADDR_WIDTH-1:0] src_1, src_2, dst, mask_src;
     logic [  VREG_ADDR_WIDTH:0] max_expansion;
     logic [   VECTOR_LANES-1:0] no_hazards, no_hazards_m;
@@ -173,8 +173,7 @@ module vis #(
 
     assign mask_src = instr_in.mask_src + current_exp_loop;
 
-    assign instr_is_rdc = ((instr_in.microop == opcode_vector_c) && (instr_in.ir_funct3 == funct3_opmvv_c)) ||
-                          ((instr_in.microop == opcode_vector_c) && (instr_in.ir_funct3 == funct3_opmvx_c)) ? 1'b1 : 1'b0;
+    assign instr_is_rdc = 1'b0;
 
     //Create the src/dst identifiers
     // For reductions we trick the destination pointer. We need a result only on element#0 of the base register,
@@ -228,11 +227,11 @@ module vis #(
                                        ({32{frw_c_src_2[k]}}     & wr_data[k])    |
                                        ({32{~pending[src_2][k]}} & data_2[k]);
         // Reductions mask all the elements for all the uops, except element#0 for the last uop
-        assign data_to_exec[k].mask   = (instr_is_rdc & expansion_finished) ? (k == 0)   : // only element#0 of last uop will writeback a result
-                                        (instr_is_rdc)                      ?  1'b0      : // no middle uop will write a result
-                                        (instr_in.use_mask == 2'b10)        ? mask[k]    : // Use v1’s elements lsb as the mask
-                                        (instr_in.use_mask == 2'b11)        ? ~mask[k]   : // Use ~v1’s elements lsb as the mask
-                                                                               1'b1;       // No masking (== assume masking is 0xFFFF…FFFF)
+        assign data_to_exec[k].mask  = (instr_is_rdc & expansion_finished) ? (k == 0) : // only element#0 of last uop will writeback a result
+                                       (instr_is_rdc)                      ?  1'b0    : // no middle uop will write a result
+                                       (instr_in.use_mask == 2'b10)        ? mask[k]  : // Use v1’s elements lsb as the mask
+                                       (instr_in.use_mask == 2'b11)        ? ~mask[k] : // Use ~v1’s elements lsb as the mask
+                                                                               1'b1;    // No masking (== assume masking is 0xFFFF…FFFF)
     end endgenerate
 
     // Forwarding Logic
