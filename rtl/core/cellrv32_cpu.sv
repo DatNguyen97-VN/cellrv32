@@ -255,7 +255,7 @@ module cellrv32_cpu #(
         // -------------------------------------------------------------------------------------------
         /* Vector Extension */
         assert (!(CPU_EXTENSION_RISCV_V == 1'b1))
-        else $info("CELLRV32 CPU CONFIG NOTE: Vector Extension <V> enabled with <VLEN> = %d and <ELEN> = %d.", VLEN, ELEN);
+        else $info("CELLRV32 CPU CONFIG NOTE: Vector Extension <V> enabled with <VLEN> = %0d and <ELEN> = %0d.", VLEN, ELEN);
         //
         assert ((CPU_EXTENSION_RISCV_V != 1'b1) || (is_power_of_two_f(VLEN) != 1'b0)) else
         $warning("CELLRV32 PROCESSOR CONFIG WARNING! VLEN should be a power of 2 to follow hardware design.");
