@@ -60,6 +60,39 @@
  * // MIT License: https://github.com/SpinalHDL/SaxonSoc/blob/dev-0.1/LICENSE
  **************************************************************************/
 /**@{*/
+asm(".set regnum_v0  ,  0");
+asm(".set regnum_v1  ,  1");
+asm(".set regnum_v2  ,  2");
+asm(".set regnum_v3  ,  3");
+asm(".set regnum_v4  ,  4");
+asm(".set regnum_v5  ,  5");
+asm(".set regnum_v6  ,  6");
+asm(".set regnum_v7  ,  7");
+asm(".set regnum_v8  ,  8");
+asm(".set regnum_v9  ,  9");
+asm(".set regnum_v10 , 10");
+asm(".set regnum_v11 , 11");
+asm(".set regnum_v12 , 12");
+asm(".set regnum_v13 , 13");
+asm(".set regnum_v14 , 14");
+asm(".set regnum_v15 , 15");
+asm(".set regnum_v16 , 16");
+asm(".set regnum_v17 , 17");
+asm(".set regnum_v18 , 18");
+asm(".set regnum_v19 , 19");
+asm(".set regnum_v20 , 20");
+asm(".set regnum_v21 , 21");
+asm(".set regnum_v22 , 22");
+asm(".set regnum_v23 , 23");
+asm(".set regnum_v24 , 24");
+asm(".set regnum_v25 , 25");
+asm(".set regnum_v26 , 26");
+asm(".set regnum_v27 , 27");
+asm(".set regnum_v28 , 28");
+asm(".set regnum_v29 , 29");
+asm(".set regnum_v30 , 30");
+asm(".set regnum_v31 , 31");
+
 asm(".set regnum_x0  ,  0");
 asm(".set regnum_x1  ,  1");
 asm(".set regnum_x2  ,  2");
