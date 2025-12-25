@@ -901,7 +901,10 @@ module cellrv32_cpu_control #(
                 execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vdivu_c   || // vdivu
                 execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vdiv_c    || // vdiv
                 execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vremu_c   || // vremu
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrem_c       // vrem
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vrem_c    || // vrem
+               (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vmv_c     && // vmv
+                execute_engine.i_reg[instr_funct7_lsb_c] == 1'b1                                    && // vm = 1, masked
+                execute_engine.i_reg[instr_rs2_msb_c : instr_rs2_lsb_c] == 5'b00000                )   // vs2 = v0
             ) begin
                 is_int_vec = 1'b1;
             end

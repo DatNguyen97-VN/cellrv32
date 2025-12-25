@@ -177,6 +177,11 @@ module v_int_alu #(
                 result_int    = ($signed(data_b_ex1_i) > $signed(data_a_ex1_i)) ? data_b_ex1_i : data_a_ex1_i;
                 valid_int_ex1 = is_single_cycle;
             end
+            // vmv.v.v, vmv.v.x, vmv.v.i
+            funct6_vmv_c : begin
+                result_int    = data_a_ex1_i;
+                valid_int_ex1 = is_single_cycle;
+            end
             // unknown funct6
             default : begin
                 result_int    = 'x;

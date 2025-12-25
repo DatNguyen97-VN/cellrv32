@@ -438,6 +438,7 @@ package cellrv32_package;
   const logic [5:0] funct6_vdivu_c   = 6'b100000; // Vector Single-Width Integer Divide Unsigned
   const logic [5:0] funct6_vrem_c    = 6'b100011; // Vector Single-Width Integer Remainder Signed
   const logic [5:0] funct6_vremu_c   = 6'b100010; // Vector Single-Width Integer Remainder Unsigned
+  const logic [5:0] funct6_vmv_c     = 6'b010111; // Vector Single-Width Integer Move
   // integer reduction
   const logic [5:0] funct6_vredsum_c = 6'b000000;
   const logic [5:0] funct6_vredand_c = 6'b000001;
