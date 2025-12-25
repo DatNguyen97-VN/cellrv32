@@ -786,6 +786,102 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vremvx(int32_t vs
 
   return CUSTOM_INSTR_R3_TYPE(0b1000110, vs2, rs1, 0b110, 0b1010111);
 }
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Move: Vector-Vector
+ *
+ * @param[in] vs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmvvv(int32_t vs1) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs1)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x2f ) & 0x7f) << 25) |      \
+                ((( 0x00 ) & 0x1f) << 20) |      \
+                ((( regnum_%1 ) & 0x1f) << 15) | \
+                ((( 0x00) & 0x07) << 12) |       \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs1)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Move: Vector-Scalar
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmvvx(int32_t rs1) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (rs1)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x2f ) & 0x7f) << 25) |      \
+                ((( 0x00 ) & 0x1f) << 20) |      \
+                ((( regnum_%1 ) & 0x1f) << 15) | \
+                ((( 0x04) & 0x07) << 12) |       \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (rs1)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Move: Vector-Immediate
+ *
+ * @param[in] imm Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmvvi(int16_t imm) {
+
+  return ({                                       \
+            uint32_t __return;                    \
+            asm volatile (                        \
+              ""                                  \
+              : [output] "=r" (__return)          \
+              : [input_i] "i" (imm)               \
+            );                                    \
+            asm volatile (                        \
+              ".word (                            \
+                ((( 0x2f ) & 0x7f) << 25)      |  \
+                ((( 0x00 ) & 0x1f) << 20)      |  \
+                ((( %1   ) & 0x1f) << 15)      |  \
+                ((( 0x03 ) & 0x07) << 12)      |  \
+                ((( regnum_%0 ) & 0x1f) <<  7) |  \
+                ((( 0x57 ) & 0x7f) <<  0)         \
+              );"                                 \
+              : [rd] "=r" (__return)              \
+              : "i" (imm)                         \
+            );                                    \
+            __return;                             \
+        });
+}
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################
