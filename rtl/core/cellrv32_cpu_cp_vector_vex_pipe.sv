@@ -349,6 +349,22 @@ module vex_pipe #(
                     // VRXOR
                     nxt_tmp_rslt = temp_rdc_result_ex4 ^ selected_second_operand;
                 end
+                funct6_vredminu_c : begin
+                    // VRMINU
+                    nxt_tmp_rslt = (temp_rdc_result_ex4 < selected_second_operand) ? temp_rdc_result_ex4 : selected_second_operand;
+                end
+                funct6_vredmin_c : begin
+                    // VRMIN
+                    nxt_tmp_rslt = ($signed(temp_rdc_result_ex4) < $signed(selected_second_operand)) ? temp_rdc_result_ex4 : selected_second_operand;
+                end
+                funct6_vredmaxu_c : begin
+                    // VRMAXU
+                    nxt_tmp_rslt = (temp_rdc_result_ex4 > selected_second_operand) ? temp_rdc_result_ex4 : selected_second_operand;
+                end
+                funct6_vredmax_c : begin
+                    // VRMAX
+                    nxt_tmp_rslt = ($signed(temp_rdc_result_ex4) > $signed(selected_second_operand)) ? temp_rdc_result_ex4 : selected_second_operand;
+                end
                 default : begin
                     nxt_tmp_rslt = 'x;
                 end
@@ -437,6 +453,26 @@ module vex_pipe #(
                 funct6_vredxor_c : begin
                     // VRXOR
                     wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] ^ data_a_i;
+                end
+                funct6_vredminu_c : begin
+                    // VRMINU
+                    wr_data_o = ( $unsigned(temp_rdc_result_ex4[0 +: DATA_WIDTH]) < $unsigned(data_a_i) ) ?
+                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
+                end
+                funct6_vredmin_c : begin
+                    // VRMIN
+                    wr_data_o = ( $signed(temp_rdc_result_ex4[0 +: DATA_WIDTH]) < $signed(data_a_i) ) ?
+                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
+                end
+                funct6_vredmaxu_c : begin
+                    // VRMAXU
+                    wr_data_o = ( $unsigned(temp_rdc_result_ex4[0 +: DATA_WIDTH]) > $unsigned(data_a_i) ) ?
+                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
+                end
+                funct6_vredmax_c : begin
+                    // VRMAX
+                    wr_data_o = ( $signed(temp_rdc_result_ex4[0 +: DATA_WIDTH]) > $signed(data_a_i) ) ?
+                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
                 end
                 default : begin
                     wr_data_o = 'x;

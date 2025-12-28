@@ -633,6 +633,38 @@ module v_int_alu #(
                     valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
                     rdc_op_ex1      = funct6_vredxor_c;
                 end
+                funct6_vredminu_c : begin
+                    // VRMINU
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i :
+                                      (data_b_u_ex1 < rdc_data_ex1_i) ? data_b_ex1_i : rdc_data_ex1_i;
+                    active_rdc_ex1  = is_rdc_i;
+                    valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
+                    rdc_op_ex1      = funct6_vredminu_c;
+                end
+                funct6_vredmin_c : begin
+                    // VRMIN
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i :
+                                      ($signed(data_b_ex1_i) < $signed(rdc_data_ex1_i)) ? data_b_ex1_i : rdc_data_ex1_i;
+                    active_rdc_ex1  = is_rdc_i;
+                    valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
+                    rdc_op_ex1      = funct6_vredmin_c;
+                end
+                funct6_vredmaxu_c : begin
+                    // VRMAXU
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i :
+                                      (data_b_u_ex1 > rdc_data_ex1_i) ? data_b_ex1_i : rdc_data_ex1_i;
+                    active_rdc_ex1  = is_rdc_i;
+                    valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
+                    rdc_op_ex1      = funct6_vredmaxu_c;
+                end
+                funct6_vredmax_c : begin
+                    // VRMAX
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i :
+                                      ($signed(data_b_ex1_i) > $signed(rdc_data_ex1_i)) ? data_b_ex1_i : rdc_data_ex1_i;
+                    active_rdc_ex1  = is_rdc_i;
+                    valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
+                    rdc_op_ex1      = funct6_vredmax_c;
+                end
                 default : begin
                     tree_result_ex1 = 'x;
                     active_rdc_ex1  = 1'b0;
@@ -688,6 +720,22 @@ module v_int_alu #(
                     // VRXOR
                     tree_result_ex2 = data_ex2_i[0 +: DATA_WIDTH] ^ rdc_data_ex2_i;
                 end
+                funct6_vredminu_c : begin
+                    // VRMINU
+                    tree_result_ex2 = (data_ex2_i[0 +: DATA_WIDTH] < rdc_data_ex2_i) ? data_ex2_i[0 +: DATA_WIDTH] : rdc_data_ex2_i;
+                end
+                funct6_vredmin_c : begin
+                    // VRMIN
+                    tree_result_ex2 = ($signed(data_ex2_i[0 +: DATA_WIDTH]) < $signed(rdc_data_ex2_i)) ? data_ex2_i[0 +: DATA_WIDTH] : rdc_data_ex2_i;
+                end
+                funct6_vredmaxu_c : begin
+                    // VRMAXU
+                    tree_result_ex2 = (data_ex2_i[0 +: DATA_WIDTH] > rdc_data_ex2_i) ? data_ex2_i[0 +: DATA_WIDTH] : rdc_data_ex2_i;
+                end
+                funct6_vredmax_c : begin
+                    // VRMAX
+                    tree_result_ex2 = ($signed(data_ex2_i[0 +: DATA_WIDTH]) > $signed(rdc_data_ex2_i)) ? data_ex2_i[0 +: DATA_WIDTH] : rdc_data_ex2_i;
+                end
                 default : begin
                     tree_result_ex2 = 'x;
                 end
@@ -741,6 +789,22 @@ module v_int_alu #(
                     // VRXOR
                     tree_result_ex3 = data_ex3_i[0 +: DATA_WIDTH] ^ rdc_data_ex3_i;
                 end
+                funct6_vredminu_c : begin
+                    // VRMINU
+                    tree_result_ex3 = (data_ex3_i[0 +: DATA_WIDTH] < rdc_data_ex3_i) ? data_ex3_i[0 +: DATA_WIDTH] : rdc_data_ex3_i;
+                end
+                funct6_vredmin_c : begin
+                    // VRMIN
+                    tree_result_ex3 = ($signed(data_ex3_i[0 +: DATA_WIDTH]) < $signed(rdc_data_ex3_i)) ? data_ex3_i[0 +: DATA_WIDTH] : rdc_data_ex3_i;
+                end
+                funct6_vredmaxu_c : begin
+                    // VRMAXU
+                    tree_result_ex3 = (data_ex3_i[0 +: DATA_WIDTH] > rdc_data_ex3_i) ? data_ex3_i[0 +: DATA_WIDTH] : rdc_data_ex3_i;
+                end
+                funct6_vredmax_c : begin
+                    // VRMAX
+                    tree_result_ex3 = ($signed(data_ex3_i[0 +: DATA_WIDTH]) > $signed(rdc_data_ex3_i)) ? data_ex3_i[0 +: DATA_WIDTH] : rdc_data_ex3_i;
+                end
                 default : begin
                     tree_result_ex3 = 'x;
                 end
@@ -793,6 +857,22 @@ module v_int_alu #(
                 funct6_vredxor_c : begin
                     // VRXOR
                     tree_result_ex4 = data_ex4_i[0 +: DATA_WIDTH] ^ rdc_data_ex4_i;
+                end
+                funct6_vredminu_c : begin
+                    // VRMINU
+                    tree_result_ex4 = (data_ex4_i[0 +: DATA_WIDTH] < rdc_data_ex4_i) ? data_ex4_i[0 +: DATA_WIDTH] : rdc_data_ex4_i;
+                end
+                funct6_vredmin_c : begin
+                    // VRMIN
+                    tree_result_ex4 = ($signed(data_ex4_i[0 +: DATA_WIDTH]) < $signed(rdc_data_ex4_i)) ? data_ex4_i[0 +: DATA_WIDTH] : rdc_data_ex4_i;
+                end
+                funct6_vredmaxu_c : begin
+                    // VRMAXU
+                    tree_result_ex4 = (data_ex4_i[0 +: DATA_WIDTH] > rdc_data_ex4_i) ? data_ex4_i[0 +: DATA_WIDTH] : rdc_data_ex4_i;
+                end
+                funct6_vredmax_c : begin
+                    // VRMAX
+                    tree_result_ex4 = ($signed(data_ex4_i[0 +: DATA_WIDTH]) > $signed(rdc_data_ex4_i)) ? data_ex4_i[0 +: DATA_WIDTH] : rdc_data_ex4_i;
                 end
                 default : begin
                     tree_result_ex4 = 'x;
