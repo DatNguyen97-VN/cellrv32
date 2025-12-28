@@ -934,6 +934,58 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredxorvv(int32_t
 
   return CUSTOM_INSTR_R3_TYPE(0b0000110, vs2, vs1, 0b010, 0b1010111);
 }
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction Minu: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredminuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001000, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction Min: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredminvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001010, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction Maxu: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredmaxuvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001100, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction Max: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredmaxvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001110, vs2, vs1, 0b010, 0b1010111);
+}
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################

@@ -34,7 +34,7 @@
 /** UART BAUD rate */
 #define BAUD_RATE 19200
 //** Silent mode (only show actual errors when != 0) */
-#define SILENT_MODE           (1)
+#define SILENT_MODE           (0)
 //** Number of test cases for each instruction */
 #define NUM_TEST_CASES        (235)
 //** Number of element for each array */
@@ -62,7 +62,7 @@
 //** Run Move tests when != 0 */
 #define RUN_MOV_TESTS         (0)
 //** Run Reduction Compute tests when != 0 */
-#define RUN_RDCCOMP_TESTS     (1)
+#define RUN_RDCCOMP_TESTS     (0)
 //** Run Reduction Compare tests when != 0 */
 #define RUN_RDCCOMPR_TESTS    (1)
 /**@}*/
@@ -3324,10 +3324,10 @@ int main() {
 
 #if (RUN_RDCCOMP_TESTS != 0)
   // ----------------------------------------------------------------------------
-  // Reduction Compute Tests
+  // Reduction Computation Tests
   // ----------------------------------------------------------------------------
   cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
-  cellrv32_uart0_printf("\n#%u: Vector Reduction Compute Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("\n#%u: Vector Reduction Computation Instructions...\n", test_cnt);
   cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
   err_cnt = 0;
 
@@ -3542,6 +3542,241 @@ int main() {
   err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
 
   cellrv32_uart0_printf("\n\n[INF]: Vector VREDXOR.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+#if (RUN_RDCCOMPR_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Reduction Comparison Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
+  cellrv32_uart0_printf("\n#%u: Vector Reduction Comparison Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem1_load[i] = i; // only lower 24-bit prevent to overflow in sum
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  //
+  int32_t offset = 15;
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+
+  // ===================================================
+  // VREDMINU.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVREDMINU.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  vec_mem1_store[0] = offset;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_store);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== RDC MINU PHASE ==================
+    opd.binary_value = riscv_intrinsic_vredminuvv(ope.binary_value, opd.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opd.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  res_sw.binary_value = offset;
+  res_hw.binary_value = vec_mem1_store[0];
+  cellrv32_uart0_printf("\n\nVector VREDMINU.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    if ((uint32_t)vec_mem1_load[i] < res_sw.binary_value) {
+      res_sw.binary_value = vec_mem1_load[i];
+    }
+  }
+  err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VREDMINU.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VREDMIN.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVREDMIN.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  vec_mem1_store[0] = offset;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_store);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== RDC MIN PHASE ==================
+    opd.binary_value = riscv_intrinsic_vredminvv(ope.binary_value, opd.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opd.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  res_sw.binary_value = offset;
+  res_hw.binary_value = vec_mem1_store[0];
+  cellrv32_uart0_printf("\n\nVector VREDMIN.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    if (vec_mem1_load[i] < (int32_t)res_sw.binary_value) {
+      res_sw.binary_value = vec_mem1_load[i];
+    }
+  }
+  err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VREDMIN.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VREDMAXU.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVREDMAXU.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  vec_mem1_store[0] = offset;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_store);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== RDC MAXU PHASE ==================
+    opd.binary_value = riscv_intrinsic_vredmaxuvv(ope.binary_value, opd.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opd.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  res_sw.binary_value = offset;
+  res_hw.binary_value = vec_mem1_store[0];
+  cellrv32_uart0_printf("\n\nVector VREDMAXU.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    if ((uint32_t)vec_mem1_load[i] > res_sw.binary_value) {
+      res_sw.binary_value = vec_mem1_load[i];
+    }
+  }
+  err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VREDMAXU.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+  
+  // ===================================================
+  // VREDMAX.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVREDMAX.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  vec_mem1_store[0] = offset;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_store);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== RDC MAX PHASE ==================
+    opd.binary_value = riscv_intrinsic_vredmaxvv(ope.binary_value, opd.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opd.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  res_sw.binary_value = offset;
+  res_hw.binary_value = vec_mem1_store[0];
+  cellrv32_uart0_printf("\n\nVector VREDMAX.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    if (vec_mem1_load[i] > (int32_t)res_sw.binary_value) {
+      res_sw.binary_value = vec_mem1_load[i];
+    }
+  }
+  err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VREDMAX.VV Instructions completed.\n");
   print_vector_report(err_cnt);
   err_cnt_total += err_cnt;
   test_cnt++;
