@@ -440,10 +440,14 @@ package cellrv32_package;
   const logic [5:0] funct6_vremu_c   = 6'b100010; // Vector Single-Width Integer Remainder Unsigned
   const logic [5:0] funct6_vmv_c     = 6'b010111; // Vector Single-Width Integer Move
   // integer reduction
-  const logic [5:0] funct6_vredsum_c = 6'b000000;
-  const logic [5:0] funct6_vredand_c = 6'b000001;
-  const logic [5:0] funct6_vredor_c  = 6'b000010;
-  const logic [5:0] funct6_vredxor_c = 6'b000011;
+  const logic [5:0] funct6_vredsum_c  = 6'b000000; // Vector Single-Width Integer Reduce Sum
+  const logic [5:0] funct6_vredand_c  = 6'b000001; // Vector Single-Width Integer Reduce AND
+  const logic [5:0] funct6_vredor_c   = 6'b000010; // Vector Single-Width Integer Reduce OR
+  const logic [5:0] funct6_vredxor_c  = 6'b000011; // Vector Single-Width Integer Reduce XOR
+  const logic [5:0] funct6_vredminu_c = 6'b000100; // Vector Single-Width Integer Reduce Minimum Unsigned
+  const logic [5:0] funct6_vredmin_c  = 6'b000101; // Vector Single-Width Integer Reduce Minimum Signed
+  const logic [5:0] funct6_vredmaxu_c = 6'b000110; // Vector Single-Width Integer Reduce Maximum Unsigned
+  const logic [5:0] funct6_vredmax_c  = 6'b000111; // Vector Single-Width Integer Reduce Maximum Signed
 
   // RISC-V Funct12 -------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -928,6 +932,7 @@ package cellrv32_package;
       logic [05:0] ir_funct6;
       logic [02:0] ir_funct3;
       logic [06:0] vl      ;
+      logic        is_rdc  ;
       logic        head_uop;
       logic        end_uop ;
   } to_vector_exec_info;

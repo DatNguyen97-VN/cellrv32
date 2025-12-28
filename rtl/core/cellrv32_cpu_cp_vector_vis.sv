@@ -66,6 +66,7 @@ module vis #(
     input  logic          [            VECTOR_LANES-1:0]                               wr_en           ,
     input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               wr_addr         ,
     input  logic          [            VECTOR_LANES-1:0][              DATA_WIDTH-1:0] wr_data         ,
+    input  logic          [            VECTOR_LANES-1:0]                               rdc_done        ,
     input  logic          [      VECTOR_TICKET_BITS-1:0]                               wr_ticket
 );
 
@@ -92,7 +93,7 @@ module vis #(
     logic                        is_operand_scalar ;
 
     logic [6:0] total_remaining_elements;
-    logic [VECTOR_LANES-1:0][DATA_WIDTH-1:0] data_1, data_2, data_3;
+    logic [VECTOR_LANES-1:0][DATA_WIDTH-1:0] data_1, data_2;
     logic [VREG_ADDR_WIDTH-1:0] src_1, src_2, dst, mask_src;
     logic [  VREG_ADDR_WIDTH:0] max_expansion;
     logic [   VECTOR_LANES-1:0] no_hazards, no_hazards_m;
@@ -105,12 +106,12 @@ module vis #(
     logic [   VECTOR_LANES-1:0] valid_output;
     logic [   VECTOR_LANES-1:0] mask;
 
-    //Check if instr is memory operation
+    // Check if instr is memory operation
     assign memory_instr = (instr_in.microop == opcode_vload_c) || (instr_in.microop == opcode_vstore_c) ? valid_in : 1'b0;
 
     assign start_new_instr = do_issue & ~|current_exp_loop;
 
-    //Do reconfiguration
+    // Do reconfiguration
     assign do_reconfigure =  instr_in.reconfigure & exec_finished_o;
     assign exec_finished_o  = ~(|pending) & ~(|locked);
 
@@ -161,44 +162,25 @@ module vis #(
     end
 
     // Struct containing control flow signals
-    assign valid_o                 = |valid_output;
-    assign info_to_exec.ir_funct6  = instr_in.ir_funct12[11:06];
-    assign info_to_exec.ir_funct3  = instr_in.ir_funct3;
-    assign info_to_exec.ticket     = instr_in.ticket;
-    assign info_to_exec.dst        = dst;
-    assign info_to_exec.head_uop   = start_new_instr;
-    assign info_to_exec.end_uop    = expansion_finished;
+    assign valid_o                = |valid_output;
+    assign info_to_exec.ir_funct6 = instr_in.ir_funct12[11:06];
+    assign info_to_exec.ir_funct3 = instr_in.ir_funct3;
+    assign info_to_exec.ticket    = instr_in.ticket;
+    assign info_to_exec.dst       = dst;
+    assign info_to_exec.head_uop  = start_new_instr;
+    assign info_to_exec.end_uop   = expansion_finished;
+    assign info_to_exec.is_rdc    = instr_is_rdc;
     // We indicate the remaining VL here, so that the info can be used in EX
-    assign info_to_exec.vl         = start_new_instr ? instr_in.vl : total_remaining_elements;
+    assign info_to_exec.vl        = start_new_instr ? instr_in.vl : total_remaining_elements;
 
     assign mask_src = instr_in.mask_src + current_exp_loop;
 
-    assign instr_is_rdc = 1'b0;
-
-    //Create the src/dst identifiers
-    // For reductions we trick the destination pointer. We need a result only on element#0 of the base register,
-    // but the result will be ready on the last uop, normally pointing to the last register allocated. For this reason
-    // we offset all the destination by +1, expect the last uop which will point to the base register, covering that way the
-    // whole range, while storing the result in the correct location in the RF
+    // Create the src/dst identifiers
     always_comb begin
         if (instr_is_rdc) begin
-            if (expansion_finished & ~|current_exp_loop) begin // first & last uop, vl < vector_lanes
-                dst   = instr_in.dst  + current_exp_loop;
-                src_1 = instr_in.src1 + current_exp_loop;
-                src_2 = instr_in.src2 + current_exp_loop;
-            end else if (expansion_finished) begin             // last uop
-                dst   = instr_in.dst;
-                src_1 = instr_in.src1;
-                src_2 = instr_in.src2;
-            end else if (start_new_instr) begin                // first uop, vl > vector_lanes
-                dst   = instr_in.dst  + current_exp_loop + 1;
-                src_1 = instr_in.src1 + current_exp_loop + 1;
-                src_2 = instr_in.src2 + current_exp_loop + 1;
-            end else begin                                     // middle uops
-                dst   = instr_in.dst  + current_exp_loop + 1;
-                src_1 = instr_in.src1 + current_exp_loop + 1;
-                src_2 = instr_in.src2 + current_exp_loop + 1;
-            end
+            dst   = instr_in.dst;
+            src_1 = instr_in.src1;
+            src_2 = instr_in.src2 + current_exp_loop;
         end else begin
             dst   = instr_in.dst  + current_exp_loop;
             src_1 = instr_in.src1 + current_exp_loop;
@@ -207,21 +189,34 @@ module vis #(
     end
 
     // Struct containing Data
-    assign is_operand_imm = (instr_in.ir_funct3 == funct3_opivi_c) ? 1'b1 : 1'b0;
+    assign instr_is_rdc = (instr_in.ir_funct3 == funct3_opmvv_c) && (
+                           instr_in.microop == opcode_vector_c ) && (
+                           instr_in.ir_funct12[11:06] == funct6_vredsum_c  ||
+                           instr_in.ir_funct12[11:06] == funct6_vredand_c  ||
+                           instr_in.ir_funct12[11:06] == funct6_vredor_c   ||
+                           instr_in.ir_funct12[11:06] == funct6_vredxor_c  ||
+                           instr_in.ir_funct12[11:06] == funct6_vredminu_c ||
+                           instr_in.ir_funct12[11:06] == funct6_vredmin_c  ||
+                           instr_in.ir_funct12[11:06] == funct6_vredmaxu_c ||
+                           instr_in.ir_funct12[11:06] == funct6_vredmax_c);
+
+    assign is_operand_imm = instr_in.ir_funct3 == funct3_opivi_c;
+
     assign is_operand_scalar = (instr_in.ir_funct3 == funct3_opivx_c) || 
                                (instr_in.ir_funct3 == funct3_opfvx_c) ||
-                               (instr_in.ir_funct3 == funct3_opmvx_c) ? 1'b1 : 1'b0;
+                               (instr_in.ir_funct3 == funct3_opmvx_c);
     //
     generate for (genvar k = 0; k < VECTOR_LANES; k++) begin : g_data_selection
         assign data_to_exec[k].valid     = valid_output[k];
-        //DATA 1 Selection
+        // DATA 1 Selection
         assign data_to_exec[k].data1  = is_operand_imm    ? {{27{instr_in.immediate[4]}}, instr_in.immediate} :
                                         is_operand_scalar ? instr_in.data1                                    :
+                                        instr_is_rdc      ? data_1[0]                                         :
                                                             ({32{frw_a_src_1[k]}}     & frw_a_data[k]) |
                                                             ({32{frw_b_src_1[k]}}     & frw_b_data[k]) |
                                                             ({32{frw_c_src_1[k]}}     & wr_data[k])    |
                                                             ({32{~pending[src_1][k]}} & data_1[k]);
-        //DATA 2 Selection
+        // DATA 2 Selection
         assign data_to_exec[k].data2 = ({32{frw_a_src_2[k]}}     & frw_a_data[k]) |
                                        ({32{frw_b_src_2[k]}}     & frw_b_data[k]) |
                                        ({32{frw_c_src_2[k]}}     & wr_data[k])    |
@@ -368,9 +363,10 @@ module vis #(
     logic [VECTOR_LANES-1:0] wr_en_masked;
     always_comb begin : WBmask
         for (int i = 0; i < VECTOR_LANES; i++) begin
-            wr_en_masked[i] = wr_en[i] & ~locked[wr_addr][i];
+            wr_en_masked[i] = instr_is_rdc ? (rdc_done[i] & wr_en[i] & ~locked[wr_addr][i]) : (wr_en[i] & ~locked[wr_addr][i]);
         end
     end
+
     // Vector Register File
     vrf #(
         .VREGS     (VECTOR_REGISTERS),

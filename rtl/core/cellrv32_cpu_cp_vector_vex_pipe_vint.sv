@@ -27,6 +27,7 @@ module v_int_alu #(
     input  logic [                                    2:0] funct3_i       ,
     input  logic                                           mask_i         ,
     input  logic [                                    6:0] vl_i           ,
+    input  logic                                           is_rdc_i       ,
     // Reduction Tree Inputs
     input  logic [                         DATA_WIDTH-1:0] rdc_data_ex1_i ,
     input  logic [                         DATA_WIDTH-1:0] rdc_data_ex2_i ,
@@ -587,7 +588,7 @@ module v_int_alu #(
     // .....   ─────────────────────────┘
 
     // ===============================================
-    //RDC:EX1
+    // RDC:EX1
     // ===============================================
     logic [$clog2(VECTOR_REGISTERS*VECTOR_LANES):0] vl_ex2, vl_ex3, vl_ex4;
     logic [                         DATA_WIDTH-1:0] tree_result_ex1, tree_result_ex2;
@@ -596,9 +597,6 @@ module v_int_alu #(
 
     logic active_rdc_ex1, active_rdc_ex2, active_rdc_ex3, active_rdc_ex4;
     logic valid_rdc_ex1, valid_rdc_ex2, valid_rdc_ex3, valid_rdc_ex4;
-
-    logic is_rdc_tree;
-    assign is_rdc_tree = 1'b0;
 
     generate if (!VECTOR_LANE_NUM[0]) begin: g_rdc_ex1
         logic odd_rdc_override;
@@ -609,29 +607,29 @@ module v_int_alu #(
             case (funct6_i)
                 funct6_vredsum_c : begin
                     // VRADD
-                    tree_result_ex1 = odd_rdc_override ? data_a_ex1_i : (data_a_ex1_i + rdc_data_ex1_i);
-                    active_rdc_ex1  = is_rdc_tree;
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i : (data_b_ex1_i + rdc_data_ex1_i);
+                    active_rdc_ex1  = is_rdc_i;
                     valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
                     rdc_op_ex1      = funct6_vredsum_c;
                 end
                 funct6_vredand_c : begin
                     // VRAND
-                    tree_result_ex1 = odd_rdc_override ? data_a_ex1_i : (data_a_ex1_i & rdc_data_ex1_i);
-                    active_rdc_ex1  = is_rdc_tree;
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i : (data_b_ex1_i & rdc_data_ex1_i);
+                    active_rdc_ex1  = is_rdc_i;
                     valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
                     rdc_op_ex1      = funct6_vredand_c;
                 end
                 funct6_vredor_c : begin
                     // VROR
-                    tree_result_ex1 = odd_rdc_override ? data_a_ex1_i : (data_a_ex1_i | rdc_data_ex1_i);
-                    active_rdc_ex1  = is_rdc_tree;
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i : (data_b_ex1_i | rdc_data_ex1_i);
+                    active_rdc_ex1  = is_rdc_i;
                     valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
                     rdc_op_ex1      = funct6_vredor_c;
                 end
                 funct6_vredxor_c : begin
                     // VRXOR
-                    tree_result_ex1 = odd_rdc_override ? data_a_ex1_i : (data_a_ex1_i ^ rdc_data_ex1_i);
-                    active_rdc_ex1  = is_rdc_tree;
+                    tree_result_ex1 = odd_rdc_override ? data_b_ex1_i : (data_b_ex1_i ^ rdc_data_ex1_i);
+                    active_rdc_ex1  = is_rdc_i;
                     valid_rdc_ex1   = valid_i & ((vl_i <= 'd2) | (vl_i > 'd2 & VECTOR_LANES == 2));
                     rdc_op_ex1      = funct6_vredxor_c;
                 end
@@ -656,7 +654,7 @@ module v_int_alu #(
         assign valid_rdc_ex1  = 1'b0;
     end endgenerate
     // ===============================================
-    //RDC:EX2
+    // RDC:EX2
     // ===============================================
     generate if (VECTOR_LANES > 2 & VECTOR_LANE_NUM[1:0] == 2'b00) begin: g_rdc_ex2
         always_ff @(posedge clk or negedge rst_n) begin
@@ -670,7 +668,7 @@ module v_int_alu #(
 
         assign valid_rdc_ex2  = active_rdc_ex2 & (
                                 (vl_ex2 <= 'd4)  |
-                                (vl_ex2 > 'd4 & VECTOR_LANES == 4)) ;
+                                (vl_ex2 > 'd4 & VECTOR_LANES == 4));
         // EX2 outputs
         always_comb begin
             case (rdc_op_ex2)
@@ -709,7 +707,7 @@ module v_int_alu #(
         assign valid_rdc_ex2  = 1'b0;
     end endgenerate
     // ===============================================
-    //RDC:EX3
+    // RDC:EX3
     // ===============================================
     generate if (VECTOR_LANES > 4 & VECTOR_LANE_NUM[2:0] == 3'b000) begin: g_rdc_ex3
         always_ff @(posedge clk or negedge rst_n) begin
@@ -723,7 +721,7 @@ module v_int_alu #(
 
         assign valid_rdc_ex3  = active_rdc_ex3 & (
                                 (vl_ex3 <= 'd8)  |
-                                (vl_ex3 > 'd8 & VECTOR_LANES == 8)) ;
+                                (vl_ex3 > 'd8 & VECTOR_LANES == 8));
         // EX3 outputs
         always_comb begin
             case (rdc_op_ex3)
@@ -762,7 +760,7 @@ module v_int_alu #(
         assign valid_rdc_ex3  = 1'b0;
     end endgenerate
     // ===============================================
-    //RDC:EX4
+    // RDC:EX4
     // ===============================================
     generate if (VECTOR_LANES > 8 & VECTOR_LANE_NUM[3:0] == 4'b0000) begin: g_rdc_ex4
         always_ff @(posedge clk or negedge rst_n) begin
@@ -776,7 +774,7 @@ module v_int_alu #(
         // EX4 outputs
         assign valid_rdc_ex4  = active_rdc_ex4 & (
                                 (vl_ex4 <= 'd16)  |
-                                (vl_ex4 > 'd16 & VECTOR_LANES == 16)) ;
+                                (vl_ex4 > 'd16 & VECTOR_LANES == 16));
 
         always_comb begin
             case (rdc_op_ex4)

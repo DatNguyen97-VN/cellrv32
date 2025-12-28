@@ -43,6 +43,7 @@ module vex #(
     output logic          [            VECTOR_LANES-1:0]                 wr_en       ,
     output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 wr_addr     ,
     output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] wr_data     ,
+    output logic          [            VECTOR_LANES-1:0]                 rdc_done_o  ,
     output logic          [      VECTOR_TICKET_BITS-1:0]                 wr_ticket
 );
 
@@ -93,6 +94,7 @@ module vex #(
                 .funct6_i      (exec_info_i.ir_funct6   ),
                 .funct3_i      (exec_info_i.ir_funct3   ),
                 .vl_i          (exec_info_i.vl          ),
+                .is_rdc_i      (exec_info_i.is_rdc      ),
                 //Forward Point #1 (EX1)
                 .frw_a_en_o    (frw_a_en[k]             ),
                 .frw_a_data_o  (frw_a_data[k]           ),
@@ -104,6 +106,7 @@ module vex #(
                 .end_uop_ex4_i (end_ex4                 ),
                 .wr_en_o       (wr_en[k]                ),
                 .wr_data_o     (wr_data[k]              ),
+                .rdc_done_o    (rdc_done_o[k]           ),
                 //EX1 Reduction Tree Intf
                 .rdc_data_ex1_i(rdc_data_ex1_i[k]       ),
                 .rdc_data_ex1_o(rdc_data_ex1_o[k]       ),

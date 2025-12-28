@@ -32,6 +32,7 @@ module vex_pipe #(
     input  logic [                                    5:0] funct6_i      ,
     input  logic [                                    2:0] funct3_i      ,
     input  logic [                                    6:0] vl_i          ,
+    input  logic                                           is_rdc_i      ,
     //Forward Point #1
     output logic                                           frw_a_en_o    ,
     output logic [                         DATA_WIDTH-1:0] frw_a_data_o  ,
@@ -43,6 +44,7 @@ module vex_pipe #(
     input  logic                                           end_uop_ex4_i ,
     output logic                                           wr_en_o       ,
     output logic [                         DATA_WIDTH-1:0] wr_data_o     ,
+    output logic                                           rdc_done_o    ,
     //EX1 Reduction Tree Intf
     input  logic [                         DATA_WIDTH-1:0] rdc_data_ex1_i,
     output logic [                         DATA_WIDTH-1:0] rdc_data_ex1_o,
@@ -79,6 +81,7 @@ module vex_pipe #(
     logic             ready_res_ex4  ;
     logic             valid_result_wr;
 
+
     //Wire Declaration
     logic             valid_int_ex1      ;
     logic             valid_fp_ex1       ;
@@ -109,12 +112,11 @@ module vex_pipe #(
     logic             use_reduce_tree_ex4;
     logic [      5:0] rdc_op_ex4;
 
-    assign ready_o        = valid_i; // so far no multi-cycle blocking ops exist
-    assign valid_int_ex1  = (funct3_i == funct3_opivv_c) | (funct3_i == funct3_opivi_c) | (funct3_i == funct3_opivx_c) |
+    assign ready_o       = valid_i; // so far no multi-cycle blocking ops exist
+    assign valid_int_ex1 = (funct3_i == funct3_opivv_c) | (funct3_i == funct3_opivi_c) | (funct3_i == funct3_opivx_c) |
                             (funct3_i == funct3_opmvv_c) | (funct3_i == funct3_opmvx_c) ? valid_i : 1'b0; // integer op
     //assign valid_fp_ex1   = valid_i ? (fu_i === `FP_FU)  : 1'b0; // floating point op
-    //assign valid_fxp_ex1  = valid_i ? (fu_i === `FXP_FU) : 1'b0; // fixed point op
-    assign use_reduce_tree_ex1 = 1'b0;
+    assign use_reduce_tree_ex1 = is_rdc_i & valid_i;
     
     //-----------------------------------------------
     // Integer ALU
@@ -140,6 +142,7 @@ module vex_pipe #(
         .funct3_i       (funct3_i         ),
         .mask_i         (mask_i           ),
         .vl_i           (vl_i             ),
+        .is_rdc_i       (is_rdc_i         ),
         //Reduction Tree Inputs
         .rdc_data_ex1_i (rdc_data_ex1_i   ),
         .rdc_data_ex2_i (rdc_data_ex2_i   ),
@@ -228,7 +231,7 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_i | use_reduce_tree_ex1) begin
+        if(mask_i || use_reduce_tree_ex1) begin
             if(valid_int_ex1) begin
                 data_ex1 <= res_int_ex1;
             end else if(valid_fp_ex1) begin
@@ -249,8 +252,6 @@ module vex_pipe #(
             valid_fp_ex2        <= valid_fp_ex1;
             ready_res_ex2       <= ready_res_int_ex1 | ready_res_fp_ex1;
             mask_ex2            <= mask_i & valid_i;
-            // force writeback to happen on all elements
-            // write 0s everywhere except el#0 that holds the reduced result
             use_reduce_tree_ex2 <= use_reduce_tree_ex1;
         end
     end
@@ -259,7 +260,7 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_ex2 | use_reduce_tree_ex2) begin
+        if(mask_ex2 || use_reduce_tree_ex2) begin
             if(ready_res_ex2) begin
                 data_ex2 <= data_ex1;
             end else if(valid_int_ex2) begin
@@ -290,7 +291,7 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_ex3 | use_reduce_tree_ex3) begin
+        if(mask_ex3 || use_reduce_tree_ex3) begin
             if(ready_res_ex3) begin
                 data_ex3 <= data_ex2;
             end else if(valid_int_ex3) begin
@@ -360,15 +361,16 @@ module vex_pipe #(
         assign temp_rdc_result_en = valid_int_ex4 & use_reduce_tree_ex4;
         // store intermediate reduction result
         always_ff @(posedge clk) begin
-            if (temp_rdc_result_en)
+            if (temp_rdc_result_en) begin
                 temp_rdc_result_ex4 <= nxt_temp_rdc_result_ex4;
+            end
         end
 
         always_ff @(posedge clk or negedge rst_n) begin
-            if(!rst_n)
+            if (!rst_n)
                 use_temp_rdc_result <= 1'b0;
             else
-                use_temp_rdc_result <= use_reduce_tree_ex4 & end_uop_ex4_i & ~head_uop_ex4_i;
+                use_temp_rdc_result <= use_reduce_tree_ex4 & end_uop_ex4_i;
         end
     end else begin: g_rdc_tmp_rslt_stubs
         assign use_temp_rdc_result = 1'b0;
@@ -378,7 +380,7 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_ex4 | use_reduce_tree_ex4) begin
+        if(mask_ex4 || use_reduce_tree_ex4) begin
             if(ready_res_ex4) begin
                 data_ex4 <= data_ex3;
             end else if(valid_int_ex4) begin
@@ -395,9 +397,8 @@ module vex_pipe #(
             mask_wr         <= 1'b1;
         end else begin
             // force writeback to happen on all elements
-            // write 0s everywhere except el#0 that holds the reduced result only for reduction tree
-            valid_result_wr <= valid_int_ex4 | valid_fp_ex4 | use_reduce_tree_ex4;
-            mask_wr         <= mask_ex4 | (use_reduce_tree_ex4 & VECTOR_LANE_NUM != 0);
+            valid_result_wr <= valid_int_ex4 | valid_fp_ex4;
+            mask_wr         <= mask_ex4;
         end
     end
     //------------------------------------------------------
@@ -414,14 +415,42 @@ module vex_pipe #(
     assign frw_b_data_o = mask_ex4 ? data_ex3[0 +: DATA_WIDTH] : '0;
 
     // Writeback Signals
-    assign wr_en_o      = valid_result_wr;
-    assign wr_data_o    = use_temp_rdc_result ? temp_rdc_result_ex4[0 +: DATA_WIDTH] & {DATA_WIDTH{mask_wr}} :
-                                                data_ex4[0 +: DATA_WIDTH] & {DATA_WIDTH{mask_wr}};
+    assign wr_en_o    = valid_result_wr;
+    assign rdc_done_o = use_temp_rdc_result;
+    
+    always_comb begin
+        if (use_temp_rdc_result) begin
+            // vd[0] = vs1[0] + Σ vs2[i] with each i ∈ active elements, final result
+            case (rdc_op_ex4)
+                funct6_vredsum_c : begin
+                    // VRADD
+                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] + data_a_i;
+                end
+                funct6_vredand_c : begin
+                    // VRAND
+                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] & data_a_i;
+                end
+                funct6_vredor_c : begin
+                    // VROR
+                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] | data_a_i;
+                end
+                funct6_vredxor_c : begin
+                    // VRXOR
+                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] ^ data_a_i;
+                end
+                default : begin
+                    wr_data_o = 'x;
+                end
+            endcase
+        end else begin
+            wr_data_o = data_ex4[0 +: DATA_WIDTH] & {DATA_WIDTH{mask_wr}};
+        end
+    end
 
     // Reduction Signals
-    assign rdc_data_ex1_o = data_a_i[0 +: DATA_WIDTH];
-    assign rdc_data_ex2_o = data_ex1[0 +: DATA_WIDTH];
-    assign rdc_data_ex3_o = data_ex2[0 +: DATA_WIDTH];
-    assign rdc_data_ex4_o = data_ex3[0 +: DATA_WIDTH];
+    assign rdc_data_ex1_o = data_b_i[0 +: DATA_WIDTH] & {DATA_WIDTH{use_reduce_tree_ex1}};
+    assign rdc_data_ex2_o = data_ex1[0 +: DATA_WIDTH] & {DATA_WIDTH{use_reduce_tree_ex2}};
+    assign rdc_data_ex3_o = data_ex2[0 +: DATA_WIDTH] & {DATA_WIDTH{use_reduce_tree_ex3}};
+    assign rdc_data_ex4_o = data_ex3[0 +: DATA_WIDTH] & {DATA_WIDTH{use_reduce_tree_ex4}};
 
 endmodule
