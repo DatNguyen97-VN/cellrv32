@@ -882,6 +882,58 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vmvvi(int16_t imm
             __return;                             \
         });
 }
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction Sum: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredsumvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000000, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction And: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredandvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000010, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction Or: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredorvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000100, vs2, vs1, 0b010, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Signed Integer Reduction Xor: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredxorvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000110, vs2, vs1, 0b010, 0b1010111);
+}
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################
