@@ -13,7 +13,6 @@ module vex_pipe #(
     parameter int VECTOR_REGISTERS   = 32,
     parameter int DATA_WIDTH         = 32,
     parameter int MICROOP_WIDTH      = 7 ,
-    parameter int VECTOR_TICKET_BITS = 5 ,
     parameter int VECTOR_LANES       = 8 ,
     parameter int VECTOR_LANE_NUM    = 1 ,
     parameter int FWD_POINT_A        = 1 ,
@@ -25,12 +24,16 @@ module vex_pipe #(
     input  logic                                           rst_n         ,
     //Issue Interface
     input  logic                                           valid_i       ,
+    output logic                                           fp_valid_o    ,
+    input  logic                                           done_i        ,
     output logic                                           ready_o       ,
     input  logic                                           mask_i        ,
     input  logic [                         DATA_WIDTH-1:0] data_a_i      ,
     input  logic [                         DATA_WIDTH-1:0] data_b_i      ,
     input  logic [                                    5:0] funct6_i      ,
     input  logic [                                    2:0] funct3_i      ,
+    input  logic [                                    2:0] frm_i         ,
+    input  logic [                                    4:0] vs1_i         ,
     input  logic [                                    6:0] vl_i          ,
     input  logic                                           is_rdc_i      ,
     //Forward Point #1
@@ -67,9 +70,6 @@ module vex_pipe #(
     logic             valid_int_ex2  ;
     logic             valid_int_ex3  ;
     logic             valid_int_ex4  ;
-    logic             valid_fp_ex2   ;
-    logic             valid_fp_ex3   ;
-    logic             valid_fp_ex4   ;
     logic [EX1_W-1:0] data_ex1       ;
     logic [EX2_W-1:0] data_ex2       ;
     logic [EX3_W-1:0] data_ex3       ;
@@ -81,11 +81,9 @@ module vex_pipe #(
     logic             ready_res_ex4  ;
     logic             valid_result_wr;
 
-
     //Wire Declaration
     logic             valid_int_ex1      ;
     logic             valid_fp_ex1       ;
-    logic             valid_fxp_ex1      ;
     logic             ready_res_int_ex1  ;
     logic             ready_res_int_ex2  ;
     logic             ready_res_int_ex3  ;
@@ -94,13 +92,7 @@ module vex_pipe #(
     logic [EX2_W-1:0] res_int_ex2        ;
     logic [EX3_W-1:0] res_int_ex3        ;
     logic [EX4_W-1:0] res_int_ex4        ;
-    logic             ready_res_fp_ex1   ;
-    logic             ready_res_fp_ex2   ;
-    logic             ready_res_fp_ex3   ;
     logic             ready_res_fp_ex4   ;
-    logic [EX1_W-1:0] res_fp_ex1         ;
-    logic [EX2_W-1:0] res_fp_ex2         ;
-    logic [EX3_W-1:0] res_fp_ex3         ;
     logic [EX4_W-1:0] res_fp_ex4         ;
     logic             mask_ex2           ;
     logic             mask_ex3           ;
@@ -112,10 +104,13 @@ module vex_pipe #(
     logic             use_reduce_tree_ex4;
     logic [      5:0] rdc_op_ex4;
 
-    assign ready_o       = valid_i; // so far no multi-cycle blocking ops exist
-    assign valid_int_ex1 = (funct3_i == funct3_opivv_c) | (funct3_i == funct3_opivi_c) | (funct3_i == funct3_opivx_c) |
-                            (funct3_i == funct3_opmvv_c) | (funct3_i == funct3_opmvx_c) ? valid_i : 1'b0; // integer op
-    //assign valid_fp_ex1   = valid_i ? (fu_i === `FP_FU)  : 1'b0; // floating point op
+    // FP32 ALU ready / valid
+    logic             vfp32_ready;
+
+    assign ready_o       = valid_fp_ex1 ? vfp32_ready : valid_i;
+    assign valid_int_ex1 = (funct3_i == funct3_opivv_c) || (funct3_i == funct3_opivi_c) || (funct3_i == funct3_opivx_c) ||
+                           (funct3_i == funct3_opmvv_c) || (funct3_i == funct3_opmvx_c) ? valid_i : 1'b0; // integer op
+    assign valid_fp_ex1  = (funct3_i == funct3_opfvv_c) || (funct3_i == funct3_opfvx_c) ? valid_i : 1'b0; // floating point op
     assign use_reduce_tree_ex1 = is_rdc_i & valid_i;
     
     //-----------------------------------------------
@@ -124,7 +119,6 @@ module vex_pipe #(
     v_int_alu #(
         .DATA_WIDTH        (DATA_WIDTH        ),
         .MICROOP_WIDTH     (MICROOP_WIDTH     ),
-        .VECTOR_TICKET_BITS(VECTOR_TICKET_BITS),
         .VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
         .VECTOR_LANES      (VECTOR_LANES      ),
         .VECTOR_LANE_NUM   (VECTOR_LANE_NUM   ),
@@ -132,7 +126,7 @@ module vex_pipe #(
         .EX2_W             (EX2_W             ),
         .EX3_W             (EX3_W             ),
         .EX4_W             (EX4_W             )
-    ) v_int_alu (
+    ) v_int_alu_inst (
         .clk            (clk              ),
         .rst_n          (rst_n            ),
         .valid_i        (valid_int_ex1    ),
@@ -175,53 +169,47 @@ module vex_pipe #(
     //-----------------------------------------------
     // Floating Point ALU
     //-----------------------------------------------
-    //generate if (VECTOR_FP_ALU) begin:g_fp_alu
-    //    v_fp_alu #(
-    //        .DATA_WIDTH        (DATA_WIDTH        ),
-    //        .MICROOP_WIDTH     (MICROOP_WIDTH     ),
-    //        .VECTOR_TICKET_BITS(VECTOR_TICKET_BITS),
-    //        .VECTOR_LANE_NUM   (VECTOR_LANE_NUM   ),
-    //        .EX1_W             (EX1_W             ),
-    //        .EX2_W             (EX2_W             ),
-    //        .EX3_W             (EX3_W             ),
-    //        .EX4_W             (EX4_W             )
-    //    ) v_fp_alu (
-    //        .clk            (clk             ),
-    //        .rst_n          (rst_n           ),
-    //        .valid_i        (valid_fp_ex1    ),
-    //        .data_a_ex1_i   (data_a_i        ),
-    //        .data_b_ex1_i   (data_b_i        ),
-    //        .imm_ex1_i      (immediate_i     ),
-    //        .microop_i      (microop_i       ),
-    //        .mask_i         (mask_i          ),
-    //        //Result Ex1 Out
-    //        .ready_res_ex1_o(ready_res_fp_ex1),
-    //        .result_ex1_o   (res_fp_ex1      ),
-    //        //EX2 In
-    //        .data_ex2_i     (data_ex1        ),
-    //        .mask_ex2_i     (mask_ex2        ),
-    //        //Result Ex2 Out
-    //        .ready_res_ex2_o(ready_res_fp_ex2),
-    //        .result_ex2_o   (res_fp_ex2      ),
-    //        //EX3 In
-    //        .data_ex3_i     (data_ex2        ),
-    //        .mask_ex3_i     (mask_ex3        ),
-    //        //Result Ex3 Out
-    //        .ready_res_ex3_o(ready_res_fp_ex3),
-    //        .result_ex3_o   (res_fp_ex3      ),
-    //        //EX4 In
-    //        .data_ex4_i     (data_ex3        ),
-    //        .mask_ex4_i     (mask_ex4        ),
-    //        //Result Ex4 Out
-    //        .ready_res_ex4_o(ready_res_fp_ex4),
-    //        .result_ex4_o   (res_fp_ex4      )
-    //    );
-    //end else begin: g_fp_alu_stubs
-    //    assign ready_res_fp_ex1 = 1'b0;
-    //    assign ready_res_fp_ex2 = 1'b0;
-    //    assign ready_res_fp_ex3 = 1'b0;
-    //    assign ready_res_fp_ex4 = 1'b0;
-    //end endgenerate
+    generate if (VECTOR_FP_ALU) begin : v_fp32_alu_ON
+        v_fp32_alu #(
+            .DATA_WIDTH        (DATA_WIDTH        ),
+            .MICROOP_WIDTH     (MICROOP_WIDTH     ),
+            .VECTOR_LANE_NUM   (VECTOR_LANE_NUM   ),
+            .EX1_W             (EX1_W             ),
+            .EX2_W             (EX2_W             ),
+            .EX3_W             (EX3_W             ),
+            .EX4_W             (EX4_W             )
+        ) v_fp32_alu_inst (
+            .clk_i          (clk             ),
+            .rstn_i         (rst_n           ),
+            .valid_i        (valid_fp_ex1    ),
+            .done_all_i     (done_i          ),
+            .data_a_ex1_i   (data_a_i        ),
+            .data_b_ex1_i   (data_b_i        ),
+            .funct6_i       (funct6_i        ),
+            .funct3_i       (funct3_i        ),
+            .frm_i          (frm_i           ),
+            .vs1_i          (vs1_i           ),
+            .mask_i         (mask_i          ),
+            .vl_i           (vl_i            ),
+            .is_rdc_i       (is_rdc_i        ),
+            .ready_o        (vfp32_ready     ),
+            .fp32_valid_o   (fp_valid_o      ),
+            //Reduction Tree Inputs
+            .rdc_data_ex1_i (rdc_data_ex1_i  ),
+            .rdc_data_ex2_i (rdc_data_ex2_i  ),
+            .rdc_data_ex3_i (rdc_data_ex3_i  ),
+            .rdc_data_ex4_i (rdc_data_ex4_i  ),
+            //Result Ex4 Out
+            .ready_res_ex4_o(ready_res_fp_ex4),
+            .result_ex4_o   (res_fp_ex4      ),
+            .flags_ex4_o    (                )
+        );
+    end else begin : v_fp32_alu_OFF
+        assign ready_res_fp_ex1 = 1'b0;
+        assign ready_res_fp_ex2 = 1'b0;
+        assign ready_res_fp_ex3 = 1'b0;
+        assign ready_res_fp_ex4 = 1'b0;
+    end endgenerate
    
     // The Data Flops are shared between the execution
     // units. The biggest data to be saved dictates
@@ -231,26 +219,22 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_i || use_reduce_tree_ex1) begin
-            if(valid_int_ex1) begin
+        if (mask_i || use_reduce_tree_ex1) begin
+            if (valid_int_ex1) begin
                 data_ex1 <= res_int_ex1;
-            end else if(valid_fp_ex1) begin
-                data_ex1 <= res_fp_ex1;
             end
         end
     end
     // Control Info storage
     always_ff @(posedge clk or negedge rst_n) begin
-        if(!rst_n) begin
+        if (!rst_n) begin
             valid_int_ex2       <= 1'b0;
-            valid_fp_ex2        <= 1'b0;
             ready_res_ex2       <= 1'b0;
             mask_ex2            <= 1'b1;
             use_reduce_tree_ex2 <= 1'b0;
         end else begin
             valid_int_ex2       <= valid_int_ex1;
-            valid_fp_ex2        <= valid_fp_ex1;
-            ready_res_ex2       <= ready_res_int_ex1 | ready_res_fp_ex1;
+            ready_res_ex2       <= ready_res_int_ex1;
             mask_ex2            <= mask_i & valid_i;
             use_reduce_tree_ex2 <= use_reduce_tree_ex1;
         end
@@ -260,28 +244,24 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_ex2 || use_reduce_tree_ex2) begin
-            if(ready_res_ex2) begin
+        if (mask_ex2 || use_reduce_tree_ex2) begin
+            if (ready_res_ex2) begin
                 data_ex2 <= data_ex1;
             end else if(valid_int_ex2) begin
                 data_ex2 <= res_int_ex2;
-            end else if (valid_fp_ex2) begin
-                data_ex2 <= res_fp_ex2;
             end
         end
     end
     // Control Info storage
     always_ff @(posedge clk or negedge rst_n) begin
-        if(!rst_n) begin
+        if (!rst_n) begin
             valid_int_ex3       <= 1'b0;
-            valid_fp_ex3        <= 1'b0;
             ready_res_ex3       <= 1'b0;
             mask_ex3            <= 1'b1;
             use_reduce_tree_ex3 <= 1'b0;
         end else begin
             valid_int_ex3       <= valid_int_ex2;
-            valid_fp_ex3        <= valid_fp_ex2;
-            ready_res_ex3       <= ready_res_ex2 | ready_res_int_ex2 | ready_res_fp_ex2;
+            ready_res_ex3       <= ready_res_ex2 | ready_res_int_ex2;
             mask_ex3            <= mask_ex2;
             use_reduce_tree_ex3 <= use_reduce_tree_ex2;
         end
@@ -291,28 +271,24 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_ex3 || use_reduce_tree_ex3) begin
-            if(ready_res_ex3) begin
+        if (mask_ex3 || use_reduce_tree_ex3) begin
+            if (ready_res_ex3) begin
                 data_ex3 <= data_ex2;
-            end else if(valid_int_ex3) begin
+            end else if (valid_int_ex3) begin
                 data_ex3 <= res_int_ex3;
-            end else if (valid_fp_ex3) begin
-                data_ex3 <= res_fp_ex3;
             end
         end
     end
     // Control Info storage
     always_ff @(posedge clk or negedge rst_n) begin
-        if(!rst_n) begin
+        if (!rst_n) begin
             valid_int_ex4       <= 1'b0;
-            valid_fp_ex4        <= 1'b0;
             ready_res_ex4       <= 1'b0;
             mask_ex4            <= 1'b1;
             use_reduce_tree_ex4 <= 1'b0;
         end else begin
             valid_int_ex4       <= valid_int_ex3;
-            valid_fp_ex4        <= valid_fp_ex3;
-            ready_res_ex4       <= ready_res_ex3 | ready_res_int_ex3 | ready_res_fp_ex3;
+            ready_res_ex4       <= ready_res_ex3 | ready_res_int_ex3;
             mask_ex4            <= mask_ex3;
             use_reduce_tree_ex4 <= use_reduce_tree_ex3;
         end
@@ -396,25 +372,25 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if(mask_ex4 || use_reduce_tree_ex4) begin
-            if(ready_res_ex4) begin
+        if (ready_res_fp_ex4) begin
+            data_ex4 <= res_fp_ex4;
+        end  else if (mask_ex4 || use_reduce_tree_ex4) begin
+            if (ready_res_ex4) begin
                 data_ex4 <= data_ex3;
             end else if(valid_int_ex4) begin
                 data_ex4 <= res_int_ex4;
-            end else if (valid_fp_ex4) begin
-                data_ex4 <= res_fp_ex4;
             end
         end
     end
     // Control Info storage
     always_ff @(posedge clk or negedge rst_n) begin
-        if(!rst_n) begin
+        if (!rst_n) begin
             valid_result_wr <= 1'b0;
             mask_wr         <= 1'b1;
         end else begin
             // force writeback to happen on all elements
-            valid_result_wr <= valid_int_ex4 | valid_fp_ex4;
-            mask_wr         <= mask_ex4;
+            valid_result_wr <= valid_int_ex4 | ready_res_fp_ex4;
+            mask_wr         <= mask_ex4 | ready_res_fp_ex4;
         end
     end
     //------------------------------------------------------
