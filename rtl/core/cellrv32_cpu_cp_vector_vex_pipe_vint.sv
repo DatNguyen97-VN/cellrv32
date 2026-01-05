@@ -9,7 +9,6 @@
 module v_int_alu #(
     parameter int DATA_WIDTH         = 32 ,
     parameter int MICROOP_WIDTH      = 5  ,
-    parameter int VECTOR_TICKET_BITS = 5  ,
     parameter int VECTOR_REGISTERS   = 32 ,
     parameter int VECTOR_LANES       = 8  ,
     parameter int VECTOR_LANE_NUM    = 1  ,
