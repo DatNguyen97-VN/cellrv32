@@ -65,7 +65,12 @@ module vex #(
 
     logic [VECTOR_LANES-1:0] ready;
     logic [VECTOR_LANES-1:0] vex_pipe_valid;
-    assign ready_o = valid_i;
+    logic [VECTOR_LANES-1:0] vex_fp_valid;
+    logic is_fp32;
+    logic all_thread_done;
+
+    assign ready_o = |ready;
+    assign is_fp32 = (exec_info_i.ir_funct3 == funct3_opfvv_c) || (exec_info_i.ir_funct3 == funct3_opfvx_c);
 
     genvar k;
     generate
@@ -75,7 +80,6 @@ module vex #(
                 .VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
                 .DATA_WIDTH        (DATA_WIDTH        ),
                 .MICROOP_WIDTH     (MICROOP_WIDTH     ),
-                .VECTOR_TICKET_BITS(VECTOR_TICKET_BITS),
                 .VECTOR_LANES      (VECTOR_LANES      ),
                 .VECTOR_LANE_NUM   (k                 ),
                 .FWD_POINT_A       (FWD_POINT_A       ),
@@ -87,12 +91,16 @@ module vex #(
                 .rst_n         (rst_n                   ),
                 //Input
                 .valid_i       (vex_pipe_valid[k]       ),
+                .fp_valid_o    (vex_fp_valid[k]         ),
                 .ready_o       (ready[k]                ),
+                .done_i        (all_thread_done         ),
                 .mask_i        (exec_data_i[k].mask     ),
                 .data_a_i      (exec_data_i[k].data1    ),
                 .data_b_i      (exec_data_i[k].data2    ),
                 .funct6_i      (exec_info_i.ir_funct6   ),
                 .funct3_i      (exec_info_i.ir_funct3   ),
+                .frm_i         (exec_info_i.frm         ),
+                .vs1_i         (exec_info_i.src1        ),
                 .vl_i          (exec_info_i.vl          ),
                 .is_rdc_i      (exec_info_i.is_rdc      ),
                 //Forward Point #1 (EX1)
@@ -168,7 +176,7 @@ module vex #(
         end
     end
     always_ff @(posedge clk or negedge rst_n) begin
-        if(~rst_n) begin
+        if(!rst_n) begin
             valid_ex2 <= 1'b0;
         end else begin
             valid_ex2 <= valid_i;
@@ -186,7 +194,7 @@ module vex #(
         end
     end
     always_ff @(posedge clk or negedge rst_n) begin
-        if(~rst_n) begin
+        if(!rst_n) begin
             valid_ex3 <= 1'b0;
         end else begin
             valid_ex3 <= valid_ex2;
@@ -204,7 +212,7 @@ module vex #(
         end
     end
     always_ff @(posedge clk or negedge rst_n) begin
-        if(~rst_n) begin
+        if(!rst_n) begin
             valid_ex4 <= 1'b0;
         end else begin
             valid_ex4 <= valid_ex3;
@@ -219,6 +227,33 @@ module vex #(
             ticket_wr  <= ticket_ex4;
         end
     end
+    //
+    logic [$clog2(VECTOR_REGISTERS)-1:0] fp_dst;
+    logic [VECTOR_LANES-1:0] status_thread;
+    logic [VECTOR_LANES-1:0] prev_vex_pipe_valid;
+    logic prev_ready;
+
+    always_ff @(posedge clk or negedge rst_n) begin : Fall_Edge_Detect
+        if (!rst_n) begin
+            prev_ready <= 1'b0;
+            prev_vex_pipe_valid <= '0;
+        end else begin
+            prev_ready <= ready_o;
+            prev_vex_pipe_valid <= vex_pipe_valid;
+        end
+    end : Fall_Edge_Detect
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            fp_dst <= '0;
+            status_thread <= '0;
+        end else if (!ready_o && prev_ready) begin
+            fp_dst <= exec_info_i.dst;
+            status_thread <= prev_vex_pipe_valid;
+        end
+    end
+
+    assign all_thread_done = status_thread == vex_fp_valid;
     //------------------------------------------------------
     // Forwarding Points
     //------------------------------------------------------
@@ -231,7 +266,7 @@ module vex #(
     assign frw_b_ticket = ticket_ex4;
 
     // Writeback Signals
-    assign wr_addr      = dst_wr;
+    assign wr_addr      = is_fp32 ? fp_dst : dst_wr;
     assign wr_ticket    = ticket_wr;
 
     assign vex_idle_o   = ~valid_i & ~valid_ex2 & ~valid_ex3 & ~valid_ex4;
