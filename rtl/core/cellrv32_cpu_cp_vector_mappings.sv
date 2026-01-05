@@ -64,6 +64,7 @@ module vrrm #(
     assign instr_out.use_mask    = instr_in.use_mask;
     assign instr_out.ir_funct12  = instr_in.ir_funct12;
     assign instr_out.ir_funct3   = instr_in.ir_funct3;
+    assign instr_out.frm         = instr_in.frm;
     assign instr_out.microop     = instr_in.microop;
     assign instr_out.ticket      = next_ticket;
     assign instr_out.data1       = instr_in.data1;
