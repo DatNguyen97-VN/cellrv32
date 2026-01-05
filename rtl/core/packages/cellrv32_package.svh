@@ -23,7 +23,7 @@ package cellrv32_package;
   localparam int max_proc_int_response_time_c = 15; // min 2
 
   // log2 of co-processor timeout cycles --
-  localparam int cp_timeout_c = 7; // default = 7 (= 128 cycles)
+  localparam int cp_timeout_c = 9; // default = 512 cycles
 
   // JTAG tap - identifier --
   localparam logic [03:0] jtag_tap_idcode_version_c = 4'h0; // version
@@ -448,7 +448,22 @@ package cellrv32_package;
   const logic [5:0] funct6_vredmin_c  = 6'b000101; // Vector Single-Width Integer Reduce Minimum Signed
   const logic [5:0] funct6_vredmaxu_c = 6'b000110; // Vector Single-Width Integer Reduce Maximum Unsigned
   const logic [5:0] funct6_vredmax_c  = 6'b000111; // Vector Single-Width Integer Reduce Maximum Signed
-
+  // floating point alu
+  const logic [5:0] funct6_vfadd_c   = 6'b000000; // Vector Single-Width Floating-Point Add
+  const logic [5:0] funct6_vfsub_c   = 6'b000010; // Vector Single-Width Floating-Point Subtract
+  const logic [5:0] funct6_vfrsub_c  = 6'b100111; // Vector Single-Width Floating-Point Reverse Subtract
+  const logic [5:0] funct6_vfmul_c   = 6'b100100; // Vector Single-Width Floating-Point Multiply
+  const logic [5:0] funct6_vfdiv_c   = 6'b100000; // Vector Single-Width Floating-Point Divide
+  const logic [5:0] funct6_vfrdiv_c  = 6'b100001; // Vector Single-Width Floating-Point Reverse Divide
+  const logic [5:0] funct6_vfsqrt_c  = 6'b010011; // Vector Single-Width Floating-Point Square Root
+  const logic [5:0] funct6_vfmin_c   = 6'b000100; // Vector Single-Width Floating-Point Minimum
+  const logic [5:0] funct6_vfmax_c   = 6'b000110; // Vector Single-Width Floating-Point Maximum
+  const logic [5:0] funct6_vfsgnj_c  = 6'b001000; // Vector Single-Width Floating-Point Fused Sign Inject
+  const logic [5:0] funct6_vfsgnjn_c = 6'b001001; // Vector Single-Width Floating-Point Fused Sign Inject Negate
+  const logic [5:0] funct6_vfsgnjx_c = 6'b001010; // Vector Single-Width Floating-Point Fused Sign Inject XOR
+  const logic [5:0] funct6_vfclass_c = 6'b010011; // Vector Single-Width Floating-Point Classify
+  const logic [5:0] funct6_vfmv_c    = 6'b010111; // Vector Single-Width Floating-Point Move
+  const logic [5:0] funct6_vfcvt_c   = 6'b010010; // Vector Single-Width Floating-Point Type Conversion
   // RISC-V Funct12 -------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   // system --
@@ -857,6 +872,7 @@ package cellrv32_package;
       logic        reconfigure;
       logic [11:0] ir_funct12;
       logic [02:0] ir_funct3;
+      logic [02:0] frm;
       logic [06:0] microop;
       logic [01:0] use_mask;
   
@@ -885,6 +901,7 @@ package cellrv32_package;
       logic [04:0] ticket     ;
       logic [11:0] ir_funct12 ;
       logic [02:0] ir_funct3  ;
+      logic [02:0] frm        ;
       logic [06:0] microop    ;
       logic        use_mask   ;
       logic [01:0] lock       ;
@@ -931,6 +948,8 @@ package cellrv32_package;
       logic [04:0] ticket  ;
       logic [05:0] ir_funct6;
       logic [02:0] ir_funct3;
+      logic [04:0] src1    ;
+      logic [02:0] frm     ;
       logic [06:0] vl      ;
       logic        is_rdc  ;
       logic        head_uop;
@@ -1106,8 +1125,8 @@ package cellrv32_package;
 
   // Function: select lmul ---------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function logic [3:0] vlmul2lmul (input logic [2:0] vlmul);
-     case (vlmul)
+  function automatic logic [3:0] vlmul2lmul (input logic [2:0] vlmul);
+     unique case (vlmul)
        3'b001: return 4'd2;  // LMUL= 2
        3'b010: return 4'd4;  // LMUL= 4
        3'b011: return 4'd8;  // LMUL= 8
@@ -1117,7 +1136,7 @@ package cellrv32_package;
   
   // Function: compute propagate and generate signals for prefix adder tree --------------------
   // -------------------------------------------------------------------------------------------
-  function logic [31:0] pro_and_gen_f (input logic [15:0] pleft,
+  function automatic logic [31:0] pro_and_gen_f (input logic [15:0] pleft,
                                        input logic [15:0] pright,
                                        input logic [15:0] gleft,
                                        input logic [15:0] gright);
@@ -1132,7 +1151,7 @@ package cellrv32_package;
 
   // Function: Convert binary to gray ----------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function logic [31:0] bin_to_gray_f (input logic [31:0] bin_num);
+  function automatic logic [31:0] bin_to_gray_f (input logic [31:0] bin_num);
     logic [$bits(bin_num)-1:0] tmp_v;
     // keep MSB
     tmp_v[$bits(bin_num)-1] = bin_num[$bits(bin_num)-1];
@@ -1144,7 +1163,7 @@ package cellrv32_package;
 
   // Function: Convert gray to binary ----------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function logic [31:0] gray_to_bin_f (input logic [31:0] gray_num);
+  function automatic logic [31:0] gray_to_bin_f (input logic [31:0] gray_num);
     logic [$bits(gray_num)-1:0] tmp_v;
     // keep MSB
     tmp_v[$bits(gray_num)-1] = gray_num[$bits(gray_num)-1];
@@ -1156,7 +1175,7 @@ package cellrv32_package;
 
   // Function: Bit reversal --------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function logic [31:0] bit_rev_f (input logic [31:0] bin_num);
+  function automatic logic [31:0] bit_rev_f (input logic [31:0] bin_num);
     logic [31:0] r_num;
     // i loop
     for ( int i = 0; i < $bits(bin_num); ++i) begin
@@ -1167,7 +1186,7 @@ package cellrv32_package;
 
   // Function: Swap all bytes of a 32-bit word (endianness conversion) ----------------------
   // -------------------------------------------------------------------------------------------
-  function logic [31:0] bswap32_f (input logic [31:0] word_i);
+  function automatic logic [31:0] bswap32_f (input logic [31:0] word_i);
     logic [31:0] swap_word;
     // swap
     swap_word[7:0]   = word_i[31:24];
@@ -1190,7 +1209,7 @@ package cellrv32_package;
 
   // Function: Population count (number of set bits) -------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function int popcount_f(input logic[31:0] bin_num);
+  function automatic int popcount_f(input logic[31:0] bin_num);
     int cnt;
     cnt = 0;
     // count high bit
@@ -1204,7 +1223,7 @@ package cellrv32_package;
 
   // Function: Count leading zeros -------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function int leading_zeros_f(input logic[31:0] bin_num);
+  function automatic int leading_zeros_f(input logic[31:0] bin_num);
     int cnt;
     cnt = 0;
     // count low bit
@@ -1263,7 +1282,7 @@ package cellrv32_package;
 
   // Function: priority Encoder-----------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
-  function int prior_encoder(input int LEN,
+  function automatic int prior_encoder(input int LEN,
                              input logic[31:0] en);
     for (int i = 0; i < LEN; ++i) begin
       if (en[i] == 1'b1) begin
