@@ -83,7 +83,7 @@ float subnormal_flush(float tmp) {
 
 
 // ################################################################################################
-// "Intrinsics"
+// "Vector Intrinsics"
 // ################################################################################################
 
 
@@ -986,9 +986,382 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredmaxvv(int32_t
 
   return CUSTOM_INSTR_R3_TYPE(0b0001110, vs2, vs1, 0b010, 0b1010111);
 }
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Addition: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfaddvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000000, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Addition: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfaddvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000000, vs2, rs1, 0b101, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Subtraction: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsubvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000100, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Subtraction: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsubvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000100, vs2, rs1, 0b101, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Integer Reverse Reversal Subtraction: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfrsubvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001110, vs2, rs1, 0b101, 0b1010111);
+}
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
 // ################################################################################################
+
+
+// ################################################################################################
+// "Single Floating-Point Intrinsics"
+// ################################################################################################
+
+/**********************************************************************//**
+ * Single-precision floating-point addition
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fadds(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0000000, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point subtraction
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fsubs(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0000100, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point multiplication
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fmuls(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0001000, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point division
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fdivs(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0001100, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point square root
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fsqrts(float rs1) {
+
+  float_conv_t opa, res;
+  opa.float_value = rs1;
+
+  res.binary_value = CUSTOM_INSTR_R2_TYPE(0b0101100, 0b00000, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point minimum
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fmins(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0010100, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point maximum
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fmaxs(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0010100, opb.binary_value, opa.binary_value, 0b001, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point convert float to unsigned integer
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fcvt_wus(float rs1) {
+
+  float_conv_t opa;
+  opa.float_value = rs1;
+
+  return CUSTOM_INSTR_R2_TYPE(0b1100000, 0b00001, opa.binary_value, 0b000, 0b1010011);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point convert float to signed integer
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fcvt_ws(float rs1) {
+
+  float_conv_t opa;
+  opa.float_value = rs1;
+
+  return (int32_t)CUSTOM_INSTR_R2_TYPE(0b1100000, 0b00000, opa.binary_value, 0b000, 0b1010011);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point convert unsigned integer to float
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fcvt_swu(uint32_t rs1) {
+
+  float_conv_t res;
+
+  res.binary_value = CUSTOM_INSTR_R2_TYPE(0b1101000, 0b00001, rs1, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point convert signed integer to float
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fcvt_sw(int32_t rs1) {
+
+  float_conv_t res;
+
+  res.binary_value = CUSTOM_INSTR_R2_TYPE(0b1101000, 0b00000, rs1, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point equal comparison
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_feqs(float rs1, float rs2) {
+
+  float_conv_t opa, opb;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  return CUSTOM_INSTR_R3_TYPE(0b1010000, opb.binary_value, opa.binary_value, 0b010, 0b1010011);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point less-than comparison
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_flts(float rs1, float rs2) {
+
+  float_conv_t opa, opb;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  return CUSTOM_INSTR_R3_TYPE(0b1010000, opb.binary_value, opa.binary_value, 0b001, 0b1010011);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point less-than-or-equal comparison
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fles(float rs1, float rs2) {
+
+  float_conv_t opa, opb;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  return CUSTOM_INSTR_R3_TYPE(0b1010000, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point sign-injection
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fsgnjs(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0010000, opb.binary_value, opa.binary_value, 0b000, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point sign-injection NOT
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fsgnjns(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0010000, opb.binary_value, opa.binary_value, 0b001, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point sign-injection XOR
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] rs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline float __attribute__ ((always_inline)) riscv_intrinsic_fsgnjxs(float rs1, float rs2) {
+
+  float_conv_t opa, opb, res;
+  opa.float_value = rs1;
+  opb.float_value = rs2;
+
+  res.binary_value = CUSTOM_INSTR_R3_TYPE(0b0010000, opb.binary_value, opa.binary_value, 0b010, 0b1010011);
+  return res.float_value;
+}
+
+
+/**********************************************************************//**
+ * Single-precision floating-point number classification
+ *
+ * @param[in] rs1 Source operand 1.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fclasss(float rs1) {
+
+  float_conv_t opa;
+  opa.float_value = rs1;
+
+  return CUSTOM_INSTR_R2_TYPE(0b1110000, 0b00000, opa.binary_value, 0b001, 0b1010011);
+}
 
 
 // ################################################################################################

@@ -34,11 +34,11 @@
 /** UART BAUD rate */
 #define BAUD_RATE 19200
 //** Silent mode (only show actual errors when != 0) */
-#define SILENT_MODE           (0)
+#define SILENT_MODE           (1)
 //** Number of test cases for each instruction */
 #define NUM_TEST_CASES        (235)
 //** Number of element for each array */
-#define NUM_ELEM_ARRAY        (350)
+#define NUM_ELEM_ARRAY        (500)
 //** Run Vector CSR tests when != 0 */
 #define RUN_CSR_TESTS         (0)
 //** Run Load/Store tests when != 0 */
@@ -64,7 +64,11 @@
 //** Run Reduction Compute tests when != 0 */
 #define RUN_RDCCOMP_TESTS     (0)
 //** Run Reduction Compare tests when != 0 */
-#define RUN_RDCCOMPR_TESTS    (1)
+#define RUN_RDCCOMPR_TESTS    (0)
+//** Run Fp32 Add/Sub tests when != 0 */
+#define RUN_FP32_ADDSUB_TESTS (1)
+//** Run Fp32 Sub tests when != 0 */
+#define RUN_FP32_SUB_TESTS    (1)
 /**@}*/
 
 // Prototypes
@@ -109,6 +113,16 @@ int main() {
   int32_t vec_mem2_store[NUM_ELEM_ARRAY]; // vector register emulation
   int32_t vec_mem3_store[NUM_ELEM_ARRAY]; // memory for vector load/store tests
   int32_t vec_mem4_store[NUM_ELEM_ARRAY]; // vector register emulation
+
+  float_conv_t fvec_mem1_load[NUM_ELEM_ARRAY]; // memory for vector load/store tests
+  float_conv_t fvec_mem2_load[NUM_ELEM_ARRAY]; // vector register emulation
+  float_conv_t fvec_mem3_load[NUM_ELEM_ARRAY]; // memory for vector load/store tests
+  float_conv_t fvec_mem4_load[NUM_ELEM_ARRAY]; // vector register emulation
+
+  float_conv_t fvec_mem1_store[NUM_ELEM_ARRAY]; // memory for vector load/store tests
+  float_conv_t fvec_mem2_store[NUM_ELEM_ARRAY]; // vector register emulation
+  float_conv_t fvec_mem3_store[NUM_ELEM_ARRAY]; // memory for vector load/store tests
+  float_conv_t fvec_mem4_store[NUM_ELEM_ARRAY]; // vector register emulation
 
   uint32_t ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   uint32_t ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
@@ -3781,13 +3795,354 @@ int main() {
   err_cnt_total += err_cnt;
   test_cnt++;
 #endif
+
+
+#if (RUN_FP32_ADDSUB_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Single-Floating Point Addition Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
+  cellrv32_uart0_printf("\n#%u: Vector FP32 Addition Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    fvec_mem1_load[i].binary_value = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  //
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    fvec_mem2_load[i].binary_value = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  //
+  ptr1_load = (uint32_t)&fvec_mem1_load[0];
+  ptr2_load = (uint32_t)&fvec_mem2_load[0];
+  ptr1_store = (uint32_t)&fvec_mem1_store[0];
+
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &fvec_mem1_load[NUM_ELEM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\n\nvec_mem2 is successfully initialized.");
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 2 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &fvec_mem2_load[NUM_ELEM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &fvec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+
+  // ===================================================
+  // VFADD.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVFADD.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== FP32 ADD PHASE ==================
+    opf.binary_value = riscv_intrinsic_vfaddvv(ope.binary_value, opd.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opf.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VFADD.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.float_value = riscv_intrinsic_fadds(fvec_mem2_load[i].float_value, fvec_mem1_load[i].float_value);
+    res_hw.float_value = fvec_mem1_store[i].float_value;
+    err_cnt += verify_result(i, fvec_mem2_load[i].binary_value, fvec_mem1_load[i].binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VFADD.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VFADD.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVFADD.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&fvec_mem1_load[0];
+  ptr1_store = (uint32_t)&fvec_mem1_store[0];
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== FP32 ADD PHASE ==================
+    opf.binary_value = riscv_intrinsic_vfaddvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opf.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VFADD.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.float_value = riscv_intrinsic_fadds(fvec_mem1_load[i].float_value, ope.float_value);
+    res_hw.float_value = fvec_mem1_store[i].float_value;
+    err_cnt += verify_result(i, fvec_mem1_load[i].binary_value, ope.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VFADD.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VFSUB.VV
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVFSUB.VV Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&fvec_mem1_load[0];
+  ptr2_load = (uint32_t)&fvec_mem2_load[0];
+  ptr1_store = (uint32_t)&fvec_mem1_store[0];
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== FP32 SUB PHASE ==================
+    opf.binary_value = riscv_intrinsic_vfsubvv(ope.binary_value, opd.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opf.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VFSUB.VV Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.float_value = riscv_intrinsic_fsubs(fvec_mem2_load[i].float_value, fvec_mem1_load[i].float_value);
+    res_hw.float_value = fvec_mem1_store[i].float_value;
+    err_cnt += verify_result(i, fvec_mem2_load[i].binary_value, fvec_mem1_load[i].binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VFSUB.VV Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VFSUB.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVFSUB.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&fvec_mem1_load[0];
+  ptr1_store = (uint32_t)&fvec_mem1_store[0];
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== FP32 SUB PHASE ==================
+    opf.binary_value = riscv_intrinsic_vfsubvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opf.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VFSUB.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.float_value = riscv_intrinsic_fsubs(fvec_mem1_load[i].float_value, ope.float_value);
+    res_hw.float_value = fvec_mem1_store[i].float_value;
+    err_cnt += verify_result(i, fvec_mem1_load[i].binary_value, ope.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VFSUB.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
+
+  // ===================================================
+  // VFRSUB.VX
+  // ===================================================
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVFRSUB.VX Test");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&fvec_mem1_load[0];
+  ptr1_store = (uint32_t)&fvec_mem1_store[0];
+  ope.binary_value = get_test_vector();
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    // ================== FP32 RSUB PHASE ==================
+    opf.binary_value = riscv_intrinsic_vfrsubvx(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, opf.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector VFRSUB.VX Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.float_value = riscv_intrinsic_fsubs(ope.float_value, fvec_mem1_load[i].float_value);
+    res_hw.float_value = fvec_mem1_store[i].float_value;
+    err_cnt += verify_result(i, ope.binary_value, fvec_mem1_load[i].binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector VFRSUB.VX Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+#if (RUN_FP32_SUB_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Single-Floating Point Subtraction Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n\n----------------------------------------------------------------------------");
+  cellrv32_uart0_printf("\n#%u: Vector FP32 Subtraction Instructions...\n", test_cnt);
+  cellrv32_uart0_printf("----------------------------------------------------------------------------\n");
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    fvec_mem1_load[i].binary_value = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  //
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    fvec_mem2_load[i].binary_value = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  //
+  ptr1_load = (uint32_t)&fvec_mem1_load[0];
+  ptr2_load = (uint32_t)&fvec_mem2_load[0];
+  ptr1_store = (uint32_t)&fvec_mem1_store[0];
+
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &fvec_mem1_load[NUM_ELEM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 2 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &fvec_mem2_load[NUM_ELEM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &fvec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+
+  
+#endif
 // ----------------------------------------------------------------------------
 // Final report
 // ----------------------------------------------------------------------------
-
   if (err_cnt_total != 0) {
     cellrv32_uart0_printf("\n%c[1m[VECTOR EXTENSION VERIFICATION FAILED!]%c[0m\n", 27, 27);
+
+#if (RUN_CSR_TESTS != 0)
     cellrv32_uart0_printf("%u errors in %u test cases\n", err_cnt_total, test_cnt*(uint32_t)NUM_TEST_CASES);
+#else
+    cellrv32_uart0_printf("%u errors in %u test cases\n", err_cnt_total, test_cnt*(uint32_t)NUM_ELEM_ARRAY);
+#endif
+
     // ----------------------------------------------------------------------------
     // ShutDown Generator
     // ----------------------------------------------------------------------------
