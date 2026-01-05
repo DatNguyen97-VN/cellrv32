@@ -796,6 +796,7 @@ module cellrv32_cpu_control #(
     // Decoding Helper Logic ---------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     logic is_int_vec; // integer vector
+    logic is_f_vec;   // floating-point vector
     //
     always_comb begin : decode_helper
      /* defaults */
@@ -811,6 +812,7 @@ module cellrv32_cpu_control #(
      decode_aux.rd_zero   = 1'b0;
      //
      is_int_vec = 1'b0;
+     is_f_vec   = 1'b0;
 
      /* is BITMANIP instruction? */
      /* pretty complex as we have to check the already-crowded ALU/ALUI instruction space */
@@ -876,6 +878,7 @@ module cellrv32_cpu_control #(
 
      /* vector operations (V) */
      if (CPU_EXTENSION_RISCV_V == 1) begin // Vector is implemented at all ?
+        // integer operation
         if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivv_c) || 
             (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivi_c) ||
             (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opivx_c) ||
@@ -917,9 +920,19 @@ module cellrv32_cpu_control #(
                 is_int_vec = 1'b1;
             end
         end
+        // floating-point operation
+        if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opfvv_c) ||
+            (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opfvx_c)) begin
+            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfadd_c  || // vfadd
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfsub_c  || // vfsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfrsub_c    // vfrsub
+            ) begin
+                is_f_vec = 1'b1;
+            end
+        end
      end
      //
-     decode_aux.is_v_op = is_int_vec;
+     decode_aux.is_v_op = is_int_vec | is_f_vec;
 
      /* int MUL (M/Zmmul) / DIV (M) operation */
      if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c] == 7'b0000001) begin
