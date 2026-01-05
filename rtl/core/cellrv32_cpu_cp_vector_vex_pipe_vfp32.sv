@@ -1,0 +1,1566 @@
+// ##################################################################################################
+// # << CELLRV32 - Vector Single-Floating Unit >>                                                   #
+// # ********************************************************************************************** #
+`ifndef  _INCL_DEFINITIONS
+  `define _INCL_DEFINITIONS
+  import cellrv32_package::*;
+`endif // _INCL_DEFINITIONS
+
+module v_fp32_alu #(
+    parameter int DATA_WIDTH      = 32 ,
+    parameter int MICROOP_WIDTH   = 5  ,
+    parameter int VECTOR_LANE_NUM = 1  ,
+    parameter int EX1_W           = 160,
+    parameter int EX2_W           = 96 ,
+    parameter int EX3_W           = 96 ,
+    parameter int EX4_W           = 32
+) (
+    input  logic                  clk_i          ,
+    input  logic                  rstn_i         ,
+    input  logic                  valid_i        ,
+    input  logic                  done_all_i     ,
+    input  logic [DATA_WIDTH-1:0] data_a_ex1_i   ,
+    input  logic [DATA_WIDTH-1:0] data_b_ex1_i   ,
+    input  logic [           5:0] funct6_i       ,
+    input  logic [           2:0] funct3_i       ,
+    input  logic [           2:0] frm_i          ,
+    input  logic                  mask_i         ,
+    input  logic [           4:0] vs1_i          ,
+    input  logic [           6:0] vl_i           ,
+    input  logic                  is_rdc_i       ,
+    output logic                  ready_o        ,
+    output logic                  fp32_valid_o   ,
+    // Reduction Tree Inputs
+    input  logic [DATA_WIDTH-1:0] rdc_data_ex1_i ,
+    input  logic [DATA_WIDTH-1:0] rdc_data_ex2_i ,
+    input  logic [DATA_WIDTH-1:0] rdc_data_ex3_i ,
+    input  logic [DATA_WIDTH-1:0] rdc_data_ex4_i ,
+    // Result EX4 Out
+    output logic                  ready_res_ex4_o,
+    output logic [     EX4_W-1:0] result_ex4_o,
+    output logic [           4:0] flags_ex4_o
+);
+    logic [EX1_W-1:0] result_rdc_ex1;
+    logic [EX2_W-1:0] result_rdc_ex2;
+    logic [EX3_W-1:0] result_rdc_ex3;
+    logic [EX4_W-1:0] result_rdc_ex4;
+
+    /* FPU core functions */
+    const logic [3:0] op_class_c  = 4'b0000;
+    const logic [3:0] op_i2f_c    = 4'b0010;
+    const logic [3:0] op_f2i_c    = 4'b0011;
+    const logic [3:0] op_sgnj_c   = 4'b0100;
+    const logic [3:0] op_minmax_c = 4'b0101;
+    const logic [3:0] op_addsub_c = 4'b0110;
+    const logic [3:0] op_mul_c    = 4'b0111;
+    const logic [3:0] op_div_c    = 4'b1000;
+    const logic [3:0] op_sqrt_c   = 4'b1001;
+
+    /* commands (one-hot) */
+    typedef struct {
+        logic instr_class; 
+        logic instr_sgnj; 
+        logic instr_i2f;   
+        logic instr_f2i;   
+        logic instr_minmax;
+        logic instr_addsub;
+        logic instr_mul;   
+        logic instr_div;
+        logic instr_sqrt;
+        logic [3:0] funct;
+    } cmd_t;
+    //
+    cmd_t cmd;
+    logic [3:0] funct_ff;
+
+    /* co-processor control engine */
+    typedef enum logic [1:0] { S_IDLE, S_BUSY, S_WAIT} ctrl_state_t;
+    //
+    typedef struct {
+        ctrl_state_t state;
+        logic start;
+        logic valid;
+    } ctrl_engine_t;
+    //
+    ctrl_engine_t ctrl_engine;
+
+    /* floating-point operands */
+    typedef logic[31:0] op_data_t  [0:2];
+    typedef logic[09:0] op_class_t [0:2];
+    //
+    typedef struct {
+        logic [31:0] rs1;       // operand 1
+        logic [09:0] rs1_class; // operand 1 number class
+        logic [31:0] rs2;       // operand 2
+        logic [09:0] rs2_class; // operand 2 number class
+        logic [02:0] frm;       // rounding mode
+        logic        mask;      // mask bit
+        logic [04:0] vs1;       // VFUNARY0/VFUNARY1 encoding space
+    } fpu_operands_t;
+    //
+    op_data_t op_data;
+    op_class_t op_class;
+    fpu_operands_t fpu_operands;
+
+    /* floating-point comparator */
+    logic [1:0] cmp_ff;
+    logic comp_equal_ff;
+    logic comp_less_ff;
+
+    /* functional units interface */
+    typedef struct {
+        logic [31:0] result;
+        logic [04:0] flags;
+        logic start;
+        logic done;
+    } fu_interface_t;
+    //
+    fu_interface_t fu_classify;  
+    fu_interface_t fu_sign_inject; 
+    fu_interface_t fu_min_max;     
+    fu_interface_t fu_conv_f2i;    
+    fu_interface_t fu_addsub;      
+    fu_interface_t fu_mul;    
+    fu_interface_t fu_div;   
+    fu_interface_t fu_sqrt;       
+    logic          fu_core_done; // FU operation completed
+
+    /* int-to-float */
+    typedef struct {
+        logic [31:0] result;
+        logic sign;
+        logic start;
+        logic done;
+    } fu_i2f_interface_t;
+    //
+    fu_i2f_interface_t fu_conv_i2f; // float result
+
+    /* multiplier unit */
+    typedef struct packed {
+        logic [23:0] opa;       // mantissa A plus hidden one
+        logic [23:0] opb;       // mantissa B plus hidden one
+        logic [47:0] buf_ff;    // product buffer
+        logic        sign;      // resulting sign
+        logic [47:0] product;   // product
+        logic [08:0] exp_sum;   // incl 1x overflow/underflow bit
+        logic [09:0] exp_res;   // resulting exponent incl 2x overflow/underflow bit
+        //
+        logic [09:0] res_class; 
+        logic [04:0] flags;     // exception flags
+        //
+        logic        start;     
+        logic [02:0] latency;   // unit latency
+        logic        done;
+    } multiplier_t;
+    //
+    multiplier_t multiplier;
+
+    /* division unit */
+    typedef enum logic[1:0] { DIV_IDLE, DIV_PRE_BUSY, DIV_BUSY, DIV_DONE } div_state_t;
+    //
+    typedef struct packed {
+        logic [23:0] opa;       // mantissa A plus hidden one
+        logic [23:0] opb;       // mantissa B plus hidden one
+        logic [38:0] rem;       // 23-bits mantissa remainder/divisor + 16-bits GRS
+        logic [25:0] rem_buf;   // 1-bit sign + 1-bit extend + 24-bits mantissa and hidden: remainder buffer for restoring division algorithm
+        logic        quotient;  // quotient bit
+        logic        sign;      // resulting sign
+        logic [09:0] exp_res;   // resulting exponent incl 2x overflow/underflow bit
+        //
+        div_state_t  state;     // state machine
+        //
+        logic [09:0] res_class; // resulting number class
+        logic [04:0] flags;     // exception flags
+        //
+        logic [05:0] latency;   // unit latency
+        logic        done;
+    } division_t;
+    //
+    division_t division;
+
+    /* square root unit */
+    typedef enum logic[1:0] { SQRT_IDLE, SQRT_PRE_BUSY, SQRT_BUSY, SQRT_DONE } sqrt_state_t;
+    //
+    typedef struct packed {
+        logic [39:0] result;    // 1-bit hidden + 23-bits mantissa + 16-bits GRS
+        logic [42:0] rem;       // 1-bit sign + 2-bit extend + 24-bits mantissa and hidden + 16-bits GRS
+        logic [39:0] half;      // 24-bits mantissa and hidden + 16-bits GRS (2^-i)
+        logic [08:0] exp_res;   // resulting exponent
+        logic        sign;      // resulting sign (always positive)
+        //
+        sqrt_state_t state;     // state machine
+        //
+        logic [09:0] res_class; // resulting number class
+        logic [04:0] flags;     // exception flags
+        //
+        logic [05:0] frac;      // fraction
+        logic        done;
+    } sqrt_t;
+    //
+    sqrt_t sqrt;
+
+    /* adder/subtractor unit */
+    typedef struct packed {
+        /* input comparison */
+        logic [01:0] exp_comp; // equal & less
+        logic [07:0] small_exp;
+        logic [23:0] small_man; // mantissa + hiden one
+        logic [07:0] large_exp;
+        logic [23:0] large_man; // mantissa + hiden one
+        /* smaller mantissa alginment */
+        logic [23:0] man_sreg; // mantissa + hidden one
+        logic        man_g_ext;
+        logic        man_r_ext;
+        logic        man_s_ext;
+        logic [08:0] exp_cnt;
+        /* adder/subtractor stage */
+        logic        man_comp;
+        logic [26:0] man_s; // mantissa + hiden one + GRS
+        logic [26:0] man_l; // mantissa + hiden one + GRS
+        logic [27:0] add_stage; // adder result incl. overflow
+        /* result */
+        logic        res_sign;
+        logic [27:0] res_sum; // mantissa sum (+1 bit) + GRS bits (for rounding)
+        logic [09:0] res_class;
+        logic [04:0] flags; // exception flags
+        /* arbitration */
+        logic        start;
+        logic [04:0] latency; // unit latency
+        logic        done;
+    } addsub_t;
+    //
+    addsub_t addsub;
+
+    /* normalizer interface (normalization & rounding and int-to-float) */
+    typedef struct {
+        logic start;
+        logic mode;
+        logic sign;
+        logic [08:0] xexp;
+        logic [47:0] xmantissa;
+        logic [31:0] result;
+        logic [09:0] class_data;
+        logic [04:0] flags_in;
+        logic [04:0] flags_out;
+        logic        done;
+    } normalizer_t;
+    //
+    normalizer_t normalizer;
+
+    // ****************************************************************************************************************************
+    // Control
+    // ****************************************************************************************************************************
+
+    // Instruction Decoding ----------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    /* one-hot re-encoding */
+    assign cmd.instr_class  = (funct6_i == funct6_vfclass_c);
+    assign cmd.instr_i2f    = (funct6_i == funct6_vfcvt_c);
+    assign cmd.instr_f2i    = (funct6_i == funct6_vfcvt_c);
+    assign cmd.instr_sgnj   = (funct6_i == funct6_vfsgnj_c) || (funct6_i == funct6_vfsgnjn_c) || (funct6_i == funct6_vfsgnjx_c);
+    assign cmd.instr_minmax = (funct6_i == funct6_vfmin_c) || (funct6_i == funct6_vfmax_c);
+    assign cmd.instr_addsub = (funct6_i == funct6_vfadd_c) || (funct6_i == funct6_vfsub_c) || (funct6_i == funct6_vfrsub_c);
+    assign cmd.instr_mul    = (funct6_i == funct6_vfmul_c);
+    assign cmd.instr_div    = (funct6_i == funct6_vfdiv_c) || (funct6_i == funct6_vfrdiv_c);
+    assign cmd.instr_sqrt   = (funct6_i == funct6_vfsqrt_c);
+
+    /* binary re-encoding */
+    assign cmd.funct = cmd.instr_mul    ? op_mul_c    :
+                       cmd.instr_addsub ? op_addsub_c :
+                       cmd.instr_minmax ? op_minmax_c :
+                       cmd.instr_sgnj   ? op_sgnj_c   :
+                       cmd.instr_f2i    ? op_f2i_c    :
+                       cmd.instr_i2f    ? op_i2f_c    :
+                       cmd.instr_div    ? op_div_c    :
+                       cmd.instr_sqrt   ? op_sqrt_c   :
+                       op_class_c; // when (cmd.instr_class  = 1)
+    
+    // Input Operands: Check for subnormal numbers (flush to zero) -------------------------------
+    // -------------------------------------------------------------------------------------------
+    // Subnormal numbers are not supported and are "flushed to zero"! FIXME / TODO
+    /* rs1 */
+    assign op_data[0][31]    = (funct6_i == funct6_vfrsub_c) ? ~data_b_ex1_i[31] : data_b_ex1_i[31];
+    assign op_data[0][30:23] = data_b_ex1_i[30:23];
+    assign op_data[0][22:00] = (data_b_ex1_i[30:23] == 8'b00000000) ? 
+                               '0 : data_b_ex1_i[22:0]; // flush mantissa to zero if subnormal
+    
+    /* rs2 */
+    assign op_data[1][31]    = (funct6_i == funct6_vfrsub_c) ? ~data_a_ex1_i[31] : data_a_ex1_i[31];
+    assign op_data[1][30:23] = data_a_ex1_i[30:23];
+    assign op_data[1][22:00] = (data_a_ex1_i[30:23] == 8'b00000000) ? 
+                               '0 : data_a_ex1_i[22:0]; // flush mantissa to zero if subnormal
+
+    // Number Classifier -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    logic op_m_all_zero_v, op_e_all_zero_v, op_e_all_one_v;
+    logic op_is_zero_v, op_is_inf_v, op_is_denorm_v, op_is_nan_v;
+    //
+    always_comb begin : number_classifier
+        for (int i = 0; i < 2; ++i) begin
+            /* check for all-zero/all-one */
+            op_m_all_zero_v = 1'b0;
+            op_e_all_zero_v = 1'b0;
+            op_e_all_one_v  = 1'b0;
+            //
+            if ((|op_data[i][22:00]) == 1'b0) begin
+                op_m_all_zero_v = 1'b1;
+            end
+            //
+            if ((|op_data[i][30:23]) == 1'b0) begin
+                op_e_all_zero_v = 1'b1;
+            end
+            //
+            if ((&op_data[i][30:23]) ==1'b1) begin
+                op_e_all_one_v = 1'b1;
+            end
+
+            /* check special cases */
+            op_is_zero_v   = op_e_all_zero_v & op_m_all_zero_v;  // zero
+            op_is_inf_v    = op_e_all_one_v  & op_m_all_zero_v;  // infinity
+            op_is_denorm_v = 1'b0; // FIXME / TODO -- op_e_all_zero_v and (not op_m_all_zero_v); -- subnormal
+            op_is_nan_v    = op_e_all_one_v  & (~op_m_all_zero_v); // NaN
+
+            /* actual attributes */
+            op_class[i][fp_class_neg_inf_c]    = op_data[i][31] & op_is_inf_v; // negative infinity
+            op_class[i][fp_class_neg_norm_c]   = op_data[i][31] & (~op_is_denorm_v) & (~op_is_nan_v) & (~op_is_inf_v) & (~op_is_zero_v); // negative normal number
+            op_class[i][fp_class_neg_denorm_c] = op_data[i][31] & op_is_denorm_v; // negative subnormal number
+            op_class[i][fp_class_neg_zero_c]   = op_data[i][31] & op_is_zero_v; // negative zero
+            op_class[i][fp_class_pos_zero_c]   = (~op_data[i][31]) & op_is_zero_v; // positive zero
+            op_class[i][fp_class_pos_denorm_c] = (~op_data[i][31]) & op_is_denorm_v; // positive subnormal number
+            op_class[i][fp_class_pos_norm_c]   = (~op_data[i][31]) & (~op_is_denorm_v) & (~op_is_nan_v) & (~op_is_inf_v) & (~op_is_zero_v); // positive normal number
+            op_class[i][fp_class_pos_inf_c]    = (~op_data[i][31]) & op_is_inf_v; // positive infinity
+            op_class[i][fp_class_snan_c]       = op_is_nan_v & (~op_data[i][22]); // signaling NaN
+            op_class[i][fp_class_qnan_c]       = op_is_nan_v & ( op_data[i][22]); // quiet NaN
+        end
+    end : number_classifier
+
+    // Co-Processor Control Engine ---------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    always_ff @( posedge clk_i or negedge rstn_i ) begin : control_engine_fsm
+        if (rstn_i == 1'b0) begin
+            ctrl_engine.state      <= S_IDLE;
+            ctrl_engine.valid      <= 1'b0;
+            ctrl_engine.start      <= 1'b0;
+            fpu_operands.frm       <= '0;
+            fpu_operands.rs1       <= '0;
+            fpu_operands.rs1_class <= '0;
+            fpu_operands.rs2       <= '0;
+            fpu_operands.rs2_class <= '0;
+            funct_ff               <= '0;
+            cmp_ff                 <= '0;
+        end else begin
+            /* arbiter defaults */
+            ctrl_engine.valid <= 1'b0;
+            ctrl_engine.start <= 1'b0;
+
+            /* state machine */
+            unique case (ctrl_engine.state)
+                // --------------------------------------------------------------
+                // waiting for operation trigger
+                S_IDLE : begin
+                    funct_ff <= cmd.funct; // actual operation to execute
+                    // main ALU comparator
+                    cmp_ff[cmp_equal_c] <= (op_data[0] == op_data[1]);
+                    cmp_ff[cmp_less_c]  <= (signed'(op_data[0]) < signed'(op_data[1]));
+                    fpu_operands.frm    <= frm_i;
+                    //
+                    if (valid_i) begin
+                        /* operand data */
+                        fpu_operands.rs1       <= op_data[0];
+                        fpu_operands.rs1_class <= op_class[0];
+                        fpu_operands.rs2       <= op_data[1];
+                        fpu_operands.rs2_class <= op_class[1];
+                        fpu_operands.mask      <= mask_i;
+                        fpu_operands.vs1       <= vs1_i;
+                        /* execute! */
+                        ctrl_engine.start <= 1'b1;
+                        ctrl_engine.state <= S_BUSY;
+                    end
+                end
+                // --------------------------------------------------------------
+                S_BUSY : begin // operation in progress (multi-cycle)
+                    //  processing done? abort if trap
+                    if (fu_core_done) begin
+                        ctrl_engine.state <= S_WAIT;
+                    end
+                end
+                // --------------------------------------------------------------
+                S_WAIT : begin
+                    // waiting until all thread are complete
+                    if (done_all_i) begin
+                        ctrl_engine.valid <= 1'b1;
+                        ctrl_engine.state <= S_IDLE;
+                    end
+                end
+                // --------------------------------------------------------------
+                default: begin // undefined
+                    ctrl_engine.state <= S_IDLE;
+                end
+            endcase
+        end
+    end : control_engine_fsm
+
+    /* operation done / valid output */
+    assign ready_res_ex4_o = ctrl_engine.valid;
+    assign ready_o = ctrl_engine.state == S_IDLE;
+    assign fp32_valid_o = ctrl_engine.state == S_WAIT;
+
+    // ===========================================================================================
+    // Functional Unit Interface (operation-start trigger) ---------------------------------------
+    // ===========================================================================================
+    assign fu_classify.start    = ctrl_engine.start & cmd.instr_class;
+    assign fu_sign_inject.start = ctrl_engine.start & cmd.instr_sgnj;
+    assign fu_min_max.start     = ctrl_engine.start & cmd.instr_minmax;
+    assign fu_conv_i2f.start    = ctrl_engine.start & cmd.instr_i2f;
+    assign fu_conv_f2i.start    = ctrl_engine.start & cmd.instr_f2i;
+    assign fu_addsub.start      = ctrl_engine.start & cmd.instr_addsub;
+    assign fu_mul.start         = ctrl_engine.start & cmd.instr_mul;
+    assign fu_div.start         = ctrl_engine.start & cmd.instr_div;
+    assign fu_sqrt.start        = ctrl_engine.start & cmd.instr_sqrt;
+
+    // ****************************************************************************************************************************
+    // FPU Core - Functional Units
+    // ****************************************************************************************************************************
+
+    // ===========================================================================================
+    // Number Classifier (VFCLASS) ----------------------------------------------------------------
+    // ===========================================================================================
+    assign fu_classify.flags = '0; // does not generate flags at all
+    assign fu_classify.result[31:10] = '0;
+    assign fu_classify.result[09:00] = fpu_operands.rs1_class;
+    assign fu_classify.done = fu_classify.start;
+    
+    // ===========================================================================================
+    // Floating-Point Comparator -----------------------------------------------------------------
+    // ===========================================================================================
+    logic [1:0] cond_v;
+    //
+    always_ff @( posedge clk_i ) begin : float_comparator
+        /* equal */
+        if (((fpu_operands.rs1_class[fp_class_pos_inf_c]  == 1'b1) && (fpu_operands.rs2_class[fp_class_pos_inf_c]  == 1'b1)) || // +inf == +inf
+           ((fpu_operands.rs1_class[fp_class_neg_inf_c]   == 1'b1) && (fpu_operands.rs2_class[fp_class_neg_inf_c]  == 1'b1)) || // -inf == -inf
+           (((fpu_operands.rs1_class[fp_class_pos_zero_c] == 1'b1) || (fpu_operands.rs1_class[fp_class_neg_zero_c] == 1'b1)) &&
+           ((fpu_operands.rs2_class[fp_class_pos_zero_c]  == 1'b1) || (fpu_operands.rs2_class[fp_class_neg_zero_c] == 1'b1))) ||  // +/-zero == +/-zero
+           (cmp_ff[cmp_equal_c] == 1'b1)) begin // identical in every way (comparator result from main ALU)
+            comp_equal_ff <= 1'b1;
+        end else begin
+            comp_equal_ff <= 1'b0;
+        end
+        /* less than */
+        if (((fpu_operands.rs1_class[fp_class_pos_inf_c]  == 1'b1) && (fpu_operands.rs2_class[fp_class_pos_inf_c] == 1'b1)) || // +inf !< +inf
+         ((fpu_operands.rs1_class[fp_class_neg_inf_c]  == 1'b1) && (fpu_operands.rs2_class[fp_class_neg_inf_c] == 1'b1)) || // -inf !< -inf
+         (((fpu_operands.rs1_class[fp_class_pos_zero_c] == 1'b1) || (fpu_operands.rs1_class[fp_class_neg_zero_c] == 1'b1)) &&
+          ((fpu_operands.rs2_class[fp_class_pos_zero_c] == 1'b1) || (fpu_operands.rs2_class[fp_class_neg_zero_c] == 1'b1)))) begin // +/-zero !< +/-zero
+            comp_less_ff <= 1'b0;
+        end else begin
+            cond_v = {fpu_operands.rs1[31], fpu_operands.rs2[31]};
+            //
+            unique case (cond_v)
+                2'b10 : comp_less_ff <= 1'b1; // rs1 negative, rs2 positive
+                2'b01 : comp_less_ff <= 1'b0; // rs1 positive, rs2 negative
+                2'b00 : comp_less_ff <= cmp_ff[cmp_less_c]; // both positive (comparator result from main ALU)
+                2'b11 : comp_less_ff <= ~cmp_ff[cmp_less_c] & ~cmp_ff[cmp_equal_c]; // both negative (comparator result from main ALU)
+                default: begin // undefined
+                        comp_less_ff <= 1'b0;
+                end
+            endcase
+        end
+        /* comparator latency */
+        fu_min_max.done = fu_min_max.start; // for min/max operations
+    end : float_comparator
+
+    // ===========================================================================================
+    // Min/Max Select (VFMIN/VFMAX) ----------------------------------------------------------------
+    // ===========================================================================================
+    logic [2:0] cond_minmax_s;
+    //
+    always_comb begin : min_max_select
+        cond_minmax_s[0] = (comp_less_ff | (fpu_operands.rs1_class[fp_class_neg_zero_c] & fpu_operands.rs2_class[fp_class_pos_zero_c])) ~^ funct6_i[1]; // min/max select
+        //
+        /* number NaN check */
+        cond_minmax_s[2] = fpu_operands.rs1_class[fp_class_snan_c] | fpu_operands.rs1_class[fp_class_qnan_c];
+        cond_minmax_s[1] = fpu_operands.rs2_class[fp_class_snan_c] | fpu_operands.rs2_class[fp_class_qnan_c];
+        //
+        /* data output */
+        unique case (cond_minmax_s)
+            3'b000         : fu_min_max.result = fpu_operands.rs1; 
+            3'b001         : fu_min_max.result = fpu_operands.rs2;
+            3'b010, 3'b011 : fu_min_max.result = fpu_operands.rs1; // if one input is NaN output the non-NaN one
+            3'b100, 3'b101 : fu_min_max.result = fpu_operands.rs2; // if one input is NaN output the non-NaN one
+            default: begin
+                             fu_min_max.result = fp32_single_qnan_c; // output quiet NaN if both inputs are NaN
+            end
+        endcase
+    end : min_max_select
+
+    /* latency */
+    // -> done in "float_comparator"
+
+    /* exceptions */
+    assign fu_min_max.flags = fpu_operands.rs1_class[fp_class_snan_c] | fpu_operands.rs2_class[fp_class_snan_c];
+    
+    // ===========================================================================================
+    // Convert: Float to [unsigned] int (VFCVT.W[U].S) -------------------------------------------
+    // ===========================================================================================
+    cellrv32_cpu_cp_fpu32_f2i #(
+        .XLEN(DATA_WIDTH)) // data path width
+    cellrv32_cpu_cp_fpu32_f2i_inst (
+        /* control */
+        .clk_i(clk_i),                        // global clock, rising edge
+        .rstn_i(rstn_i),                      // global reset, low-active, async
+        .start_i(fu_conv_f2i.start),          // trigger operation
+        .rmode_i(fpu_operands.frm),           // rounding mode
+        .funct_i(~fpu_operands.vs1[0]),       // 0=signed, 1=unsigned
+        /* input */
+        .sign_i(fpu_operands.rs1[31]),        // sign
+        .exponent_i(fpu_operands.rs1[30:23]), // exponent
+        .mantissa_i(fpu_operands.rs1[22:00]), // mantissa
+        .class_i(fpu_operands.rs1_class),     // operand class
+        /* output */
+        .result_o(fu_conv_f2i.result),        // int result
+        .flags_o(fu_conv_f2i.flags),          // exception flags
+        .done_o(fu_conv_f2i.done)             // operation done
+    );
+
+    // ===========================================================================================
+    // Sign-Injection (VFSGNJ[N][X]) -------------------------------------------------------------
+    // ===========================================================================================
+    always_comb begin : sign_injector
+        unique case (funct6_i[1:0])
+            2'b00    : fu_sign_inject.result[31] =  fpu_operands.rs2[31]; // FSGNJ
+            2'b01    : fu_sign_inject.result[31] = ~fpu_operands.rs2[31]; // FSGNJN
+            2'b10    : fu_sign_inject.result[31] =  fpu_operands.rs1[31] ^ fpu_operands.rs2[31]; // FSGNJX
+            default: begin
+                       fu_sign_inject.result[31] =  fpu_operands.rs2[31]; // undefined
+            end
+        endcase
+        //
+        fu_sign_inject.result[30:0] = fpu_operands.rs1[30:0];
+        fu_sign_inject.flags = '0; // does not generate flags
+    end : sign_injector
+
+    /* latency */
+    assign fu_sign_inject.done = fu_sign_inject.start;
+
+    // ===========================================================================================
+    // Convert: [unsigned] int to Float (VFCVT.S.W[U]) -------------------------------------------
+    // ===========================================================================================
+    always_ff @( posedge clk_i ) begin : convert_i2f
+        // this process only computes the absolute input value
+        // the actual conversion is done by the normalizer
+        if (vs1_i[0] && data_a_ex1_i[31]) begin // convert signed int
+            fu_conv_i2f.result <= (0 - data_a_ex1_i); // absolute value
+            fu_conv_i2f.sign   <= data_a_ex1_i[31];   // original sign
+        end else begin // convert unsigned int
+            fu_conv_i2f.result <= data_a_ex1_i;
+            fu_conv_i2f.sign   <= 1'b0;
+        end
+        //
+        fu_conv_i2f.done <= fu_conv_i2f.start; // actual conversion is done by the normalizer unit
+    end : convert_i2f
+
+    // ===========================================================================================
+    // Multiplier Core (VFMUL) -------------------------------------------------------------------
+    // ===========================================================================================
+    always_ff @( posedge clk_i ) begin : multiplier_core
+        /* multiplier core */
+        if (multiplier.start) begin // FIXME / TODO remove buffer?
+            multiplier.opa <= {1'b1, fpu_operands.rs1[22:0]}; // append hidden one
+            multiplier.opb <= {1'b1, fpu_operands.rs2[22:0]}; // append hidden one
+        end
+        //
+        multiplier.buf_ff  <= multiplier.opa * multiplier.opb;
+        multiplier.product <= multiplier.buf_ff[47:0]; // let the register balancing do the magic here
+        multiplier.sign    <= fpu_operands.rs1[31] ^ fpu_operands.rs2[31]; // resulting sign
+        //
+        /* exponent computation */
+        multiplier.exp_res <= {1'b0, multiplier.exp_sum} - 7'd127;
+        if (multiplier.exp_res[$bits(multiplier.exp_res)-1]) begin // underflow (exp_res is "negative")
+            multiplier.flags[fp_exc_of_c] <= 1'b0;
+            multiplier.flags[fp_exc_uf_c] <= 1'b1;
+        end else if (multiplier.exp_res[$bits(multiplier.exp_res)-2]) begin // overflow
+            multiplier.flags[fp_exc_of_c] <= 1'b1;
+            multiplier.flags[fp_exc_uf_c] <= 1'b0;
+        end else begin
+            multiplier.flags[fp_exc_of_c] <= 1'b0;
+            multiplier.flags[fp_exc_uf_c] <= 1'b0;
+        end
+        //
+        /* unused exception flags */
+        multiplier.flags[fp_exc_dz_c] = 1'b0; // division by zero: not possible here
+        multiplier.flags[fp_exc_nx_c] = 1'b0; // inexcat: not possible here
+        //
+        /* invalid operation */
+        multiplier.flags[fp_exc_nv_c] <=
+        ((fpu_operands.rs1_class[fp_class_pos_zero_c] | fpu_operands.rs1_class[fp_class_neg_zero_c]) &
+         (fpu_operands.rs2_class[fp_class_pos_inf_c ] | fpu_operands.rs2_class[fp_class_neg_inf_c ])) | // mul(+/-zero, +/-inf)
+        ((fpu_operands.rs1_class[fp_class_pos_inf_c ] | fpu_operands.rs1_class[fp_class_neg_inf_c ]) &
+         (fpu_operands.rs2_class[fp_class_pos_zero_c] | fpu_operands.rs2_class[fp_class_neg_zero_c])); // mul(+/-inf, +/-zero)
+
+        /* latency shift register */
+        multiplier.latency <= {multiplier.latency[$bits(multiplier.latency)-2:0], multiplier.start};
+    end : multiplier_core
+
+
+    /* exponent sum */
+    assign multiplier.exp_sum = {1'b0, fpu_operands.rs1[30:23]} + {1'b0, fpu_operands.rs2[30:23]};
+
+    /* latency */
+    assign multiplier.start = fu_mul.start;
+    assign multiplier.done  = multiplier.latency[$bits(multiplier.latency)-1];
+    //assign fu_mul.done      = multiplier.done;
+
+    /* result class */
+    // -------------------------------------------------------------------------------------------
+    //
+    always_comb begin : multiplier_class_core
+        // declare local variable
+        logic a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v;
+        logic a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v;
+        logic a_pos_zero_v, a_neg_zero_v, b_pos_zero_v, b_neg_zero_v;
+        logic a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v;
+        logic a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v;
+        /* minions */
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v = fpu_operands.rs2_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v = fpu_operands.rs2_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v = fpu_operands.rs2_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v = fpu_operands.rs2_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v = fpu_operands.rs2_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v = fpu_operands.rs2_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  = fpu_operands.rs2_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  = fpu_operands.rs2_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     = fpu_operands.rs2_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     = fpu_operands.rs2_class[fp_class_qnan_c];
+
+        /* +normal */
+        multiplier.res_class[fp_class_pos_norm_c] =
+          (a_pos_norm_v & b_pos_norm_v) | // +norm * +norm
+          (a_neg_norm_v & b_neg_norm_v);  // -norm * -norm
+
+        /* -normal */
+        multiplier.res_class[fp_class_neg_norm_c] =
+          (a_pos_norm_v & b_neg_norm_v) | // +norm * -norm
+          (a_neg_norm_v & b_pos_norm_v);  // -norm * +norm
+
+        /* +infinity */
+        multiplier.res_class[fp_class_pos_inf_c] =
+          (a_pos_inf_v  & b_pos_inf_v)  | // +inf    * +inf
+          (a_neg_inf_v  & b_neg_inf_v)  | // -inf    * -inf
+          (a_pos_norm_v & b_pos_inf_v)  | // +norm   * +inf
+          (a_pos_inf_v  & b_pos_norm_v) | // +inf    * +norm
+          (a_neg_norm_v & b_neg_inf_v)  | // -norm   * -inf
+          (a_neg_inf_v  & b_neg_norm_v) | // -inf    * -norm
+          (a_neg_subn_v & b_neg_inf_v)  | // -denorm * -inf
+          (a_neg_inf_v  & b_neg_subn_v);  // -inf    * -denorm
+
+        /* -infinity */
+        multiplier.res_class[fp_class_neg_inf_c] =
+          (a_pos_inf_v  & b_neg_inf_v)  | // +inf    * -inf
+          (a_neg_inf_v  & b_pos_inf_v)  | // -inf    * +inf
+          (a_pos_norm_v & b_neg_inf_v)  | // +norm   * -inf
+          (a_neg_inf_v  & b_pos_norm_v) | // -inf    * +norm
+          (a_neg_norm_v & b_pos_inf_v)  | // -norm   * +inf
+          (a_pos_inf_v  & b_neg_norm_v) | // +inf    * -norm
+          (a_pos_subn_v & b_neg_inf_v)  | // +denorm * -inf
+          (a_neg_inf_v  & b_pos_subn_v) | // -inf    * +de-norm
+          (a_neg_subn_v & b_pos_inf_v)  | // -denorm * +inf
+          (a_pos_inf_v  & b_neg_subn_v);  // +inf    * -de-norm
+
+        /* +zero */
+        multiplier.res_class[fp_class_pos_zero_c] =
+          (a_pos_zero_v & b_pos_zero_v) | // +zero   * +zero
+          (a_pos_zero_v & b_pos_norm_v) | // +zero   * +norm
+          (a_pos_zero_v & b_pos_subn_v) | // +zero   * +denorm
+          (a_neg_zero_v & b_neg_zero_v) | // -zero   * -zero
+          (a_neg_zero_v & b_neg_norm_v) | // -zero   * -norm
+          (a_neg_zero_v & b_neg_subn_v) | // -zero   * -denorm
+          (a_pos_norm_v & b_pos_zero_v) | // +norm   * +zero
+          (a_pos_subn_v & b_pos_zero_v) | // +denorm * +zero
+          (a_neg_norm_v & b_neg_zero_v) | // -norm   * -zero
+          (a_neg_subn_v & b_neg_zero_v);  // -denorm * -zero
+
+        /* -zero */
+        multiplier.res_class[fp_class_neg_zero_c] =
+          (a_pos_zero_v & b_neg_zero_v) | // +zero   * -zero
+          (a_pos_zero_v & b_neg_norm_v) | // +zero   * -norm
+          (a_pos_zero_v & b_neg_subn_v) | // +zero   * -denorm
+          (a_neg_zero_v & b_pos_zero_v) | // -zero   * +zero
+          (a_neg_zero_v & b_pos_norm_v) | // -zero   * +norm
+          (a_neg_zero_v & b_pos_subn_v) | // -zero   * +denorm
+          (a_neg_norm_v & b_pos_zero_v) | // -norm   * +zero
+          (a_neg_subn_v & b_pos_zero_v) | // -denorm * +zero
+          (a_pos_norm_v & b_neg_zero_v) | // +norm   * -zero
+          (a_pos_subn_v & b_neg_zero_v);  // +denorm * -zero
+
+        /* sNaN */
+        multiplier.res_class[fp_class_snan_c] = (a_snan_v | b_snan_v); // any input is sNaN
+
+        /* qNaN */
+        multiplier.res_class[fp_class_qnan_c] =
+          (a_snan_v | b_snan_v) | // any input is sNaN
+          (a_qnan_v | b_qnan_v) | // nay input is qNaN
+          ((a_pos_inf_v  | a_neg_inf_v)  & (b_pos_zero_v | b_neg_zero_v)) | // +/-inf * +/-zero
+          ((a_pos_zero_v | a_neg_zero_v) & (b_pos_inf_v  | b_neg_inf_v));    // +/-zero * +/-inf
+
+        /* subnormal result */
+        multiplier.res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        multiplier.res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
+    end : multiplier_class_core
+
+    /* unused */
+    assign fu_mul.result = '0;
+    assign fu_mul.flags  = '0;
+
+    // ===========================================================================================
+    // Division Core (VFDIV) ---------------------------------------------------------------------
+    // ===========================================================================================
+    logic [09:00] division_res_class;
+    //
+    always_ff @( posedge clk_i or negedge rstn_i ) begin : division_core
+        if (!rstn_i) begin
+            division <= '0;
+        end else begin
+            // --------------------------------------
+            // division logic
+            // --------------------------------------
+            unique case (division.state)
+                // ===========================================
+                // idle state, waiting for start
+                // ===========================================
+                DIV_IDLE: begin
+                    if (fu_div.start) begin
+                        // operand load
+                        division.opa     <= {1'b1, fpu_operands.rs1[22:0]}; // append hidden one
+                        division.opb     <= {1'b1, fpu_operands.rs2[22:0]}; // append hidden one
+                        // exponent computation
+                        division.exp_res <= {2'b00, fpu_operands.rs1[30:23]} - {2'b00, fpu_operands.rs2[30:23]} + 10'd127;
+                        // sign computation
+                        division.sign    <= fpu_operands.rs1[31] ^ fpu_operands.rs2[31];
+                        // state transition
+                        if (fpu_operands.rs2_class[fp_class_pos_zero_c] | fpu_operands.rs2_class[fp_class_neg_zero_c] |       // division by zero
+                            ((fpu_operands.rs1_class[fp_class_pos_zero_c]  | fpu_operands.rs1_class[fp_class_neg_zero_c]) &
+                             (fpu_operands.rs2_class[fp_class_pos_zero_c ] | fpu_operands.rs2_class[fp_class_neg_zero_c ])) | // div(+/-zero, +/-zero)
+                            ((fpu_operands.rs1_class[fp_class_pos_inf_c ] | fpu_operands.rs1_class[fp_class_neg_inf_c ]) &
+                             (fpu_operands.rs2_class[fp_class_pos_inf_c] | fpu_operands.rs2_class[fp_class_neg_inf_c]))       // div(+/-inf, +/-inf
+                        ) begin
+                            division.state    <= DIV_DONE;
+                        end else if (fpu_operands.rs1[22:0] < fpu_operands.rs2[22:0]) begin
+                            division.quotient <= 1'b0;
+                            division.rem_buf <= 2*{1'b1, fpu_operands.rs1[22:0]} - {1'b1, fpu_operands.rs2[22:0]};
+                            division.state    <= DIV_BUSY;
+                        end else if (fpu_operands.rs1[22:0] == fpu_operands.rs2[22:0]) begin
+                            division.quotient <= 1'b1; // exact 1.0 result
+                            division.rem      <= '0;
+                            division.state    <= DIV_DONE;
+                        end else begin
+                            division.quotient <= 1'b1;
+                            division.rem_buf  <= {1'b1, fpu_operands.rs1[22:0]} - {1'b1, fpu_operands.rs2[22:0]};
+                            division.state    <= DIV_PRE_BUSY;
+                        end
+                    end 
+                    //
+                    division.done <= 1'b0;
+                end
+                // ===========================================
+                // generate initial remainder
+                // ===========================================
+                DIV_PRE_BUSY: begin
+                    // first step of the restoring division algorithm
+                    division.rem_buf <= 2*division.rem_buf - division.opb;
+                    division.state   <= DIV_BUSY;
+                end
+                // ===========================================
+                // Restoring division algorithm
+                // ===========================================
+                // Input: Dividend N, Divisor D and word length n.
+                // Output: Quotient Q and Remainder R.
+                // 1: Initialization r0 = N.
+                // 2: ri = 2 ∗ ri−1 − D
+                // 3: for i ← 1 to (n − 1) do
+                // 4: if ri ≥ 0 then
+                // 5: Q(i) = 1
+                // 6: else if ri < 0 then
+                // 7: Q(i) = 0
+                // 8: ri = ri + D
+                // 9: end if
+                // 10: end for
+                DIV_BUSY: begin
+                    if (division.rem_buf[$bits(division.rem_buf)-1]) begin
+                        division.rem     <= {division.rem[$bits(division.rem)-2:0], 1'b0};
+                        division.rem_buf <= 2*division.rem_buf + division.opb;
+                    end else begin
+                        division.rem     <= {division.rem[$bits(division.rem)-2:0], 1'b1};
+                        division.rem_buf <= 2*division.rem_buf - division.opb;
+                    end
+                    // increment bit counter
+                    // after 23-bits mantissa and 16-bits G/R/S we are done
+                    // total latency: 39 cycles
+                    if (division.latency == 6'd38) begin
+                        division.latency <= '0;
+                        division.state   <= DIV_DONE;
+                    end else begin
+                        division.latency <= division.latency + 1;
+                    end
+                end
+                // ===========================================
+                // operation done, compute flags and result class
+                // ===========================================
+                DIV_DONE: begin
+                    // exception flags
+                    if (division.exp_res[$bits(division.exp_res)-1]) begin // underflow (exp_res is "negative")
+                        division.flags[fp_exc_of_c] <= 1'b0;
+                        division.flags[fp_exc_uf_c] <= 1'b1;
+                    end else if (division.exp_res[$bits(division.exp_res)-2]) begin // overflow
+                        division.flags[fp_exc_of_c] <= 1'b1;
+                        division.flags[fp_exc_uf_c] <= 1'b0;
+                    end else begin
+                        division.flags[fp_exc_of_c] <= 1'b0;
+                        division.flags[fp_exc_uf_c] <= 1'b0;
+                    end
+                    // division by zero
+                    division.flags[fp_exc_dz_c] <= ~(fpu_operands.rs1_class[fp_class_pos_zero_c] | fpu_operands.rs1_class[fp_class_neg_zero_c]) & (fpu_operands.rs2_class[fp_class_pos_zero_c] | fpu_operands.rs2_class[fp_class_neg_zero_c]);
+                    division.flags[fp_exc_nx_c] <= 1'b0; // inexcat: not possible here
+                    // invalid operation
+                    division.flags[fp_exc_nv_c] <=
+                    ((fpu_operands.rs1_class[fp_class_pos_zero_c]  | fpu_operands.rs1_class[fp_class_neg_zero_c]) &
+                     (fpu_operands.rs2_class[fp_class_pos_zero_c ] | fpu_operands.rs2_class[fp_class_neg_zero_c ])) | // div(+/-zero, +/-zero)
+                    ((fpu_operands.rs1_class[fp_class_pos_inf_c ] | fpu_operands.rs1_class[fp_class_neg_inf_c ]) &
+                     (fpu_operands.rs2_class[fp_class_pos_inf_c] | fpu_operands.rs2_class[fp_class_neg_inf_c])); // div(+/-inf, +/-inf)
+                    // classify result as normal/denorm/inf/zero/NaN
+                    division.res_class <= division_res_class;
+                    // done
+                    division.done  <= 1'b1;
+                    division.state <= DIV_IDLE;
+                end
+                // ===========================================
+                // undefined state
+                // ===========================================
+                default: begin
+                    division.state <= DIV_IDLE; // undefined state, go to idle
+                end
+            endcase
+        end
+    end : division_core
+
+    /* result class */
+    // -------------------------------------------------------------------------------------------
+    //
+    always_comb begin : division_class_core
+        // declare local variable
+        logic a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v;
+        logic a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v;
+        logic a_pos_zero_v, a_neg_zero_v, b_pos_zero_v, b_neg_zero_v;
+        logic a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v;
+        logic a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v;
+        
+        /* minions */
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v = fpu_operands.rs2_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v = fpu_operands.rs2_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v = fpu_operands.rs2_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v = fpu_operands.rs2_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v = fpu_operands.rs2_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v = fpu_operands.rs2_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  = fpu_operands.rs2_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  = fpu_operands.rs2_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     = fpu_operands.rs2_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     = fpu_operands.rs2_class[fp_class_qnan_c];
+
+        /* +normal */
+        division_res_class[fp_class_pos_norm_c] =
+          (a_pos_norm_v & b_pos_norm_v) | // +norm / +norm
+          (a_neg_norm_v & b_neg_norm_v);  // -norm / -norm
+
+        /* -normal */
+        division_res_class[fp_class_neg_norm_c] =
+          (a_pos_norm_v & b_neg_norm_v) | // +norm / -norm
+          (a_neg_norm_v & b_pos_norm_v);  // -norm / +norm
+
+        /* +infinity */
+        division_res_class[fp_class_pos_inf_c] =
+          (a_pos_inf_v  & b_pos_norm_v) | // +inf    / +norm
+          (a_pos_inf_v  & b_pos_subn_v) | // +inf    / +denorm
+          (a_pos_inf_v  & b_pos_zero_v) | // +inf    / +zero
+          (a_neg_inf_v  & b_neg_norm_v) | // -inf    / -norm
+          (a_neg_inf_v  & b_neg_subn_v) | // -inf    / -denorm
+          (a_neg_inf_v  & b_neg_zero_v) | // -inf    / +zero
+          (a_pos_norm_v & b_pos_zero_v) | // +norm   / +zero
+          (a_neg_norm_v & b_neg_zero_v) | // -norm   / -zero
+          (a_pos_subn_v & b_pos_zero_v) | // +denorm / +zero
+          (a_neg_subn_v & b_neg_zero_v);  // -denorm / -zero
+
+        /* -infinity */
+        division_res_class[fp_class_neg_inf_c] =
+          (a_pos_inf_v  & b_neg_norm_v) | // +inf    / -norm
+          (a_pos_inf_v  & b_neg_subn_v) | // +inf    / -denorm
+          (a_pos_inf_v  & b_neg_zero_v) | // +inf    / -zero
+          (a_neg_inf_v  & b_pos_norm_v) | // -inf    / +norm
+          (a_neg_inf_v  & b_pos_subn_v) | // -inf    / +denorm
+          (a_neg_inf_v  & b_pos_zero_v) | // -inf    / +zero
+          (a_pos_norm_v & b_neg_zero_v) | // +norm   / -zero
+          (a_neg_norm_v & b_pos_zero_v) | // -norm   / +zero
+          (a_pos_subn_v & b_neg_zero_v) | // +denorm / -zero
+          (a_neg_subn_v & b_pos_zero_v);  // -denorm / +zero
+
+        /* +zero */
+        division_res_class[fp_class_pos_zero_c] =
+          (a_pos_norm_v & b_pos_inf_v)  | // +norm   / +inf
+          (a_pos_subn_v & b_pos_inf_v)  | // +denorm / +inf
+          (a_pos_zero_v & b_pos_inf_v)  | // +zero   / +inf
+          (a_neg_norm_v & b_neg_inf_v)  | // -norm   / -inf
+          (a_neg_subn_v & b_neg_inf_v)  | // -denorm / -inf
+          (a_neg_zero_v & b_neg_inf_v)  | // -zero   / -inf
+          (a_pos_zero_v & b_pos_norm_v) | // +zero   / +norm
+          (a_pos_zero_v & b_pos_subn_v) | // +zero   / +denorm
+          (a_neg_zero_v & b_neg_norm_v) | // -zero   / -norm
+          (a_neg_zero_v & b_neg_subn_v);  // -zero   / -denorm
+
+        /* -zero */
+        division_res_class[fp_class_neg_zero_c] =
+          (a_pos_norm_v & b_neg_inf_v) | // +norm   / -inf
+          (a_pos_subn_v & b_neg_inf_v) | // +denorm / -inf
+          (a_pos_zero_v & b_neg_inf_v) | // +zero   / -inf
+          (a_neg_norm_v & b_pos_inf_v) | // -norm   / +inf
+          (a_neg_subn_v & b_pos_inf_v) | // -denorm / +inf
+          (a_neg_zero_v & b_pos_inf_v) | // -zero   / +inf
+          (a_pos_zero_v & b_neg_norm_v) | // +zero  / -norm
+          (a_pos_zero_v & b_neg_subn_v) | // +zero  / -denorm
+          (a_neg_zero_v & b_pos_norm_v) | // -zero  / +norm
+          (a_neg_zero_v & b_pos_subn_v);  // -zero  / +denorm
+
+        /* sNaN */
+        division_res_class[fp_class_snan_c] = (a_snan_v | b_snan_v); // any input is sNaN
+
+        /* qNaN */
+        division_res_class[fp_class_qnan_c] =
+          (a_qnan_v | b_qnan_v) | // nay input is qNaN
+          ((a_pos_zero_v  | a_pos_zero_v) & (b_pos_zero_v | b_neg_zero_v)) | // +/-zero / +/-zero
+          ((a_pos_inf_v | a_pos_inf_v) & (b_pos_inf_v  | b_neg_inf_v));      // +/-inf / +/-inf
+
+        /* subnormal result */
+        division_res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        division_res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
+    end : division_class_core
+
+    // ===========================================================================================
+    // Square Root Core (VFSQRT) -----------------------------------------------------------------
+    // ===========================================================================================
+    logic [9:0] sqrt_res_class;
+    //
+    always_ff @( posedge clk_i or negedge rstn_i) begin : square_root_core
+        if (!rstn_i) begin
+            sqrt <= '0;
+        end else begin
+            // --------------------------------------
+            // Square root calculation logic
+            // --------------------------------------
+            //
+            unique case (sqrt.state)
+                // ===========================================
+                // idle state, waiting for start
+                // ===========================================
+                SQRT_IDLE : begin
+                    if (fu_sqrt.start) begin
+                        sqrt.exp_res <= {1'b0, fpu_operands.rs1[30:23]} - 9'd127;
+                        sqrt.sign    <= fpu_operands.rs1[31]; // copy sign
+                        //
+                        if (fpu_operands.rs1[31] | fpu_operands.rs1_class[fp_class_pos_inf_c] |
+                            fpu_operands.rs1_class[fp_class_pos_zero_c] | fpu_operands.rs1_class[fp_class_pos_denorm_c]) begin
+                            // sqrt(negative)  = NaN
+                            // sqrt(+inf)      = +inf
+                            // sqrt(+/-zero)   = +zero
+                            // sqrt(+/-denorm) = +zero
+                            sqrt.state <= SQRT_DONE;
+                        end else begin
+                            // normal input
+                            if (fpu_operands.rs1[23]) begin // exponent is odd
+                                sqrt.rem[42:40] <= 3'b000;
+                                sqrt.rem[39:16] <= {fpu_operands.rs1[22:0], 1'b0};
+                                sqrt.rem[15:00] <= 16'b0;
+                            end else begin // exponent is even
+                                sqrt.rem[42:40] <= 3'b000;
+                                sqrt.rem[39:16] <= {1'b1, fpu_operands.rs1[22:0]};
+                                sqrt.rem[15:00] <= 16'b0;
+                            end
+                            //
+                            sqrt.result         <= '0;
+                            sqrt.half           <= {1'b1, {39{1'b0}}}; // 0.5 (2^-1)
+                            sqrt.state          <= SQRT_PRE_BUSY;
+                        end
+                    end
+                    //
+                    sqrt.done <= 1'b0;
+                end   
+                // ===========================================
+                // generate initial remainder
+                // ===========================================
+                SQRT_PRE_BUSY : begin
+                    // first step of the restoring division algorithm
+                    sqrt.rem   <= 2*sqrt.rem - 2*{1'b0, fpu_operands.rs1[23], sqrt.result} - sqrt.half;
+                    sqrt.state <= SQRT_BUSY;
+                end
+                // ===========================================
+                // Restoring algorithm for square root computation
+                // ===========================================
+                // Input: Radicand X and word length n.
+                // Output: Quotient Q and Remainder R.
+                // 1: Initialization r0 = X.
+                // 2: for i ← 1 to n do
+                // 3: ri = 2 ∗ ri−1 − (2Qi−1 + 2^−i)
+                // 4: if ri ≥ 0 then
+                // 5: qi = 1
+                // 6: else if ri < 0 then
+                // 7: qi = 0
+                // 8: ri = 2ri−1
+                // 9: end if
+                // 10: end for
+                SQRT_BUSY : begin
+                    if (sqrt.rem[$bits(sqrt.rem)-1]) begin
+                        sqrt.result[$bits(sqrt.result)-1-sqrt.frac] <= 1'b0;
+                        sqrt.rem <= sqrt.rem + 2*{1'b0, fpu_operands.rs1[23], sqrt.result} + sqrt.half;
+                    end else begin
+                        sqrt.result[$bits(sqrt.result)-1-sqrt.frac] <= 1'b1;
+                    end
+                    // 1/2 : 1/4 : 1/8 : 1/16 : 1/32 : 1/64 : 1/128 : 1/256 : 1/512 : 1/1024 ...
+                    // shift right the "half" value
+                    sqrt.half <= {1'b0, sqrt.half[$bits(sqrt.half)-1:1]};
+                    // increment bit counter
+                    // after 24-bits mantissa and 16-bits G/R/S we are done
+                    // total latency: 40 cycles
+                    if (sqrt.frac == 6'd39) begin
+                        sqrt.frac  <= '0;
+                        sqrt.state <= SQRT_DONE;
+                    end else begin
+                        sqrt.frac  <= sqrt.frac + 1;
+                        sqrt.state <= SQRT_PRE_BUSY;
+                    end
+                end
+                // ===========================================
+                // operation done, compute flags and result class
+                // ===========================================
+                SQRT_DONE : begin
+                    // exception flags
+                    // unused flags
+                    sqrt.flags[fp_exc_uf_c] <= 1'b0; // underflow: not possible here
+                    sqrt.flags[fp_exc_dz_c] <= 1'b0; // division by zero: not possible here
+                    sqrt.flags[fp_exc_nx_c] <= 1'b0; // inexcat: not possible here
+                    sqrt.flags[fp_exc_of_c] <= 1'b0; // overflow: not possible here
+                    // invalid operation
+                    sqrt.flags[fp_exc_nv_c] <= fpu_operands.rs1[31] & (|fpu_operands.rs1[30:00]); // sqrt(negative), except: -zero, -subnormal
+                    // classify result as normal/denorm/inf/zero/NaN
+                    sqrt.res_class          <= sqrt_res_class;
+                    // exponent adjustment
+                    sqrt.exp_res            <= {sqrt.exp_res[$bits(sqrt.exp_res)-1], sqrt.exp_res[$bits(sqrt.exp_res)-1:1]} + 9'd127;
+                    //
+                    sqrt.done               <= 1'b1;
+                    sqrt.state              <= SQRT_IDLE;
+                end
+                // ===========================================
+                // undefined state
+                // ===========================================
+                default: begin
+                    sqrt.state <= SQRT_IDLE;
+                end
+            endcase
+        end
+    end : square_root_core
+
+    /* result class */
+    // -------------------------------------------------------------------------------------------
+    //
+    always_comb begin : sqrt_class_core
+        // declare local variable
+        logic a_pos_norm_v, a_neg_norm_v;
+        logic a_pos_subn_v, a_neg_subn_v;
+        logic a_pos_zero_v, a_neg_zero_v;
+        logic a_pos_inf_v,  a_neg_inf_v;
+        logic a_snan_v,     a_qnan_v;
+
+        /* minions */
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];
+
+        /* +normal */
+        sqrt_res_class[fp_class_pos_norm_c] = a_pos_norm_v; // sqrt(+norm) = +norm
+
+        /* -normal */
+        sqrt_res_class[fp_class_neg_norm_c] = 1'b0; // sqrt(-norm) = NaN
+
+        /* +infinity */
+        sqrt_res_class[fp_class_pos_inf_c] = a_pos_inf_v; // sqrt(+inf) = +inf
+
+        /* -infinity */
+        sqrt_res_class[fp_class_neg_inf_c] = 1'b0; // sqrt(-inf) = NaN
+
+        /* +zero */
+        sqrt_res_class[fp_class_pos_zero_c] = 
+          a_pos_zero_v | // sqrt(+zero) = +zero
+          a_neg_subn_v | // sqrt(-denorm) = +zero
+          a_pos_subn_v;  // sqrt(+denorm) = +zero
+
+        /* -zero */
+        sqrt_res_class[fp_class_neg_zero_c] = a_neg_zero_v; // sqrt(-zero) = -zero
+
+        /* sNaN */
+        sqrt_res_class[fp_class_snan_c] = a_snan_v; // any input is sNaN
+
+        /* qNaN */
+        sqrt_res_class[fp_class_qnan_c] = a_qnan_v     | // nay input is qNaN
+                                          a_neg_norm_v | // sqrt(-norm) = NaN
+                                          a_neg_subn_v | // sqrt(-denorm) = NaN
+                                          a_neg_inf_v;   // sqrt(-inf) = NaN
+
+        /* subnormal result */
+        sqrt_res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        sqrt_res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
+    end : sqrt_class_core
+
+    // ===========================================================================================
+    // Adder/Subtractor Core (VFADD, VFSUB) ------------------------------------------------------
+    // ===========================================================================================
+    always_ff @( posedge clk_i ) begin : adder_subtractor_core
+        /* arbitration / latency */
+        if (ctrl_engine.state == S_IDLE) begin // hacky "reset"
+            addsub.latency <= '0;
+        end else begin
+            addsub.latency[0] <= addsub.start; // input comparator delay
+            //
+            if (addsub.latency[0]) begin
+                addsub.latency[1] <= 1'b1;
+                addsub.latency[2] <= 1'b0;
+            end else if (addsub.exp_cnt[7:0] == addsub.large_exp) begin // radix point not yet aligned
+                addsub.latency[1] <= 1'b0;
+                addsub.latency[2] <= addsub.latency[1] & (~addsub.latency[0]); // "shift done"
+            end
+            addsub.latency[3] <= addsub.latency[2]; // adder stage
+            addsub.latency[4] <= addsub.latency[3]; // final stage
+        end
+        //
+        /* exponent check: find smaller number (radix-offset-only) */
+        if (fpu_operands.rs1[30:23] < fpu_operands.rs2[30:23]) begin
+            addsub.exp_comp[0] <= 1'b1; // rs1 < rs2
+        end else begin
+            addsub.exp_comp[0] <= 1'b0; // rs1 >= rs2
+        end
+        //
+        if (fpu_operands.rs1[30:23] == fpu_operands.rs2[30:23]) begin
+            addsub.exp_comp[1] <= 1'b1; // rs1 == rs2
+        end else begin // rs1 != rs2
+            addsub.exp_comp[1] <= 1'b0;
+        end
+        //
+        /* shift right small mantissa to align radix point */
+        if (addsub.latency[0]) begin
+            if ((fpu_operands.rs1_class[fp_class_pos_zero_c] ||
+                 fpu_operands.rs2_class[fp_class_pos_zero_c] ||
+                 fpu_operands.rs1_class[fp_class_neg_zero_c] ||
+                 fpu_operands.rs2_class[fp_class_neg_zero_c]) == 1'b0) begin // no input is zero
+                addsub.man_sreg <= addsub.small_man;
+             end else begin
+                addsub.man_sreg <= '0;
+             end
+             //
+            addsub.exp_cnt   <= {1'b0, addsub.small_exp};
+            addsub.man_g_ext <= 1'b0;
+            addsub.man_r_ext <= 1'b0;
+            addsub.man_s_ext <= 1'b0;
+        end else if (addsub.exp_cnt[7:0] != addsub.large_exp) begin // shift right until same magnitude
+            // Trip: Exponent difference larger than mantissa width + 3
+            // When the difference between large_exp - small_exp is larger than 27
+            // the normalizer will always shift the smaller mantissa to 0.
+            // Catch: Set the smaller mantissa to 0 and the s_ext to '1' end go to next step.
+            // Note: The comparison is 24 mantissa bits 1.23 + 3 underflow bits.
+            // The +3 is to account for the grs underflow bits, could be set to +2 as we are always setting s to 1
+            if ((addsub.large_exp[7:0] - addsub.small_exp[7:0]) > 27 ) begin
+                addsub.man_sreg  <= '0;
+                addsub.man_g_ext <= 1'b0;
+                addsub.man_r_ext <= 1'b0;
+                // set s_ext to 1 as it will always be 1 from the implied 1 being shifted out.
+                addsub.man_s_ext <= 1'b1;
+                addsub.exp_cnt[7:0] <= addsub.large_exp[7:0];
+            end else begin
+                addsub.man_sreg  <= {1'b0, addsub.man_sreg[$bits(addsub.man_sreg)-1:1]};
+                addsub.man_g_ext <= addsub.man_sreg[0];
+                addsub.man_r_ext <= addsub.man_g_ext;
+                addsub.man_s_ext <= addsub.man_s_ext | addsub.man_r_ext; // sticky bit
+                addsub.exp_cnt   <= addsub.exp_cnt + 1'b1;
+            end
+        end
+        //
+        /* mantissa check: find smaller number (magnitude-only) */
+        if (addsub.man_sreg <= addsub.large_man) begin
+            addsub.man_comp <= 1'b1;
+        end else begin
+            addsub.man_comp <= 1'b0;
+        end
+        //
+        /* actual addition/subtraction (incl. overflow) */
+        if (!(funct6_i[1] ^ (fpu_operands.rs1[31] ^ fpu_operands.rs2[31]))) begin // add
+            addsub.add_stage <= {1'b0, addsub.man_l} + {1'b0, addsub.man_s};
+        end else begin // sub
+            addsub.add_stage <= {1'b0, addsub.man_l} - {1'b0, addsub.man_s};
+        end
+        //
+        /* result sign */
+        if (!funct6_i[1]) begin // addition
+            if (fpu_operands.rs1[31] == fpu_operands.rs2[31]) begin // identical signs
+                addsub.res_sign <= fpu_operands.rs1[31];
+            end else begin // different signs
+                if (addsub.exp_comp[1]) begin // exp are equal (also check relation of mantissas)
+                    if (addsub.man_sreg == addsub.large_man) begin
+                        addsub.res_sign <= 1'b0;
+                    end else begin
+                        addsub.res_sign <= fpu_operands.rs1[31] ^ (~addsub.man_comp);
+                    end
+                end else begin
+                    addsub.res_sign <= fpu_operands.rs1[31] ^ addsub.exp_comp[0];
+                end
+            end
+        end else begin // subtraction
+            if (fpu_operands.rs1[31] == fpu_operands.rs2[31]) begin // identical signs
+                if (addsub.exp_comp[1]) begin // exp are equal (also check relation of mantissas)
+                    if (addsub.man_sreg == addsub.large_man) begin
+                        addsub.res_sign <= 1'b0;
+                    end else begin
+                        addsub.res_sign <= fpu_operands.rs1[31] ^ (~addsub.man_comp);
+                    end
+                end else begin
+                    addsub.res_sign <= fpu_operands.rs1[31] ^ addsub.exp_comp[0];
+                end
+            end else begin // different signs
+                addsub.res_sign <= fpu_operands.rs1[31];
+            end
+        end
+        //
+        /* exception flags */
+        if (funct6_i[1]) begin // subtraction
+            addsub.flags[fp_exc_nv_c] <= (fpu_operands.rs1_class[fp_class_pos_inf_c] & fpu_operands.rs2_class[fp_class_pos_inf_c]) | // +inf - +inf
+                                         (fpu_operands.rs1_class[fp_class_neg_inf_c] & fpu_operands.rs2_class[fp_class_neg_inf_c]);  // -inf - -inf
+        end else begin // addition
+            addsub.flags[fp_exc_nv_c] <= (fpu_operands.rs1_class[fp_class_pos_inf_c] & fpu_operands.rs2_class[fp_class_neg_inf_c]) | // +inf + -inf
+                                         (fpu_operands.rs1_class[fp_class_neg_inf_c] & fpu_operands.rs2_class[fp_class_pos_inf_c]);  // -inf + +inf
+        end
+    end : adder_subtractor_core
+
+    /* exceptions - unused */
+    assign addsub.flags[fp_exc_dz_c] = 1'b0; // division by zero -> not possible
+    assign addsub.flags[fp_exc_of_c] = 1'b0; // not possible here (but may occur in normalizer)
+    assign addsub.flags[fp_exc_uf_c] = 1'b0; // not possible here (but may occur in normalizer)
+    assign addsub.flags[fp_exc_nx_c] = 1'b0; // not possible here (but may occur in normalizer)
+
+    /* exponent check: find smaller number (magnitude-only) */
+    assign addsub.small_exp = (addsub.exp_comp[0] == 1'b1) ?        fpu_operands.rs1[30:23]  :        fpu_operands.rs2[30:23];
+    assign addsub.large_exp = (addsub.exp_comp[0] == 1'b1) ?        fpu_operands.rs2[30:23]  :        fpu_operands.rs1[30:23];
+    assign addsub.small_man = (addsub.exp_comp[0] == 1'b1) ? {1'b1, fpu_operands.rs1[22:00]} : {1'b1, fpu_operands.rs2[22:00]};
+    assign addsub.large_man = (addsub.exp_comp[0] == 1'b1) ? {1'b1, fpu_operands.rs2[22:00]} : {1'b1, fpu_operands.rs1[22:00]};
+
+    /* mantissa check: find smaller number (magnitude-only) */
+    assign addsub.man_s = (addsub.man_comp == 1'b1) ? {addsub.man_sreg, addsub.man_g_ext, addsub.man_r_ext, addsub.man_s_ext} : {addsub.large_man, 3'b000};
+    assign addsub.man_l = (addsub.man_comp == 1'b1) ? {addsub.large_man, 3'b000} : {addsub.man_sreg, addsub.man_g_ext, addsub.man_r_ext, addsub.man_s_ext};
+    
+    /* latency */
+    assign addsub.start   = fu_addsub.start;
+    assign addsub.done    = addsub.latency[$bits(addsub.latency)-1];
+    assign fu_addsub.done = addsub.done;
+
+    /* mantissa result */
+    assign addsub.res_sum = addsub.add_stage[27:0];
+
+    /* result class */
+    
+    //     
+    always_comb begin : adder_subtractor_class_core
+        // declare local variable
+        logic a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v;
+        logic a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v;
+        logic a_pos_zero_v, a_neg_zero_v, b_pos_zero_v, b_neg_zero_v;
+        logic a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v;
+        logic a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v;
+        /* minions */
+        a_pos_norm_v = fpu_operands.rs1_class[fp_class_pos_norm_c];    b_pos_norm_v = fpu_operands.rs2_class[fp_class_pos_norm_c];
+        a_neg_norm_v = fpu_operands.rs1_class[fp_class_neg_norm_c];    b_neg_norm_v = fpu_operands.rs2_class[fp_class_neg_norm_c];
+        a_pos_subn_v = fpu_operands.rs1_class[fp_class_pos_denorm_c];  b_pos_subn_v = fpu_operands.rs2_class[fp_class_pos_denorm_c];
+        a_neg_subn_v = fpu_operands.rs1_class[fp_class_neg_denorm_c];  b_neg_subn_v = fpu_operands.rs2_class[fp_class_neg_denorm_c];
+        a_pos_zero_v = fpu_operands.rs1_class[fp_class_pos_zero_c];    b_pos_zero_v = fpu_operands.rs2_class[fp_class_pos_zero_c];
+        a_neg_zero_v = fpu_operands.rs1_class[fp_class_neg_zero_c];    b_neg_zero_v = fpu_operands.rs2_class[fp_class_neg_zero_c];
+        a_pos_inf_v  = fpu_operands.rs1_class[fp_class_pos_inf_c];     b_pos_inf_v  = fpu_operands.rs2_class[fp_class_pos_inf_c];
+        a_neg_inf_v  = fpu_operands.rs1_class[fp_class_neg_inf_c];     b_neg_inf_v  = fpu_operands.rs2_class[fp_class_neg_inf_c];
+        a_snan_v     = fpu_operands.rs1_class[fp_class_snan_c];        b_snan_v     = fpu_operands.rs2_class[fp_class_snan_c];
+        a_qnan_v     = fpu_operands.rs1_class[fp_class_qnan_c];        b_qnan_v     = fpu_operands.rs2_class[fp_class_qnan_c];
+        //
+        if (!funct6_i[1]) begin // addition
+            /* +infinity */
+            addsub.res_class[fp_class_pos_inf_c] =
+              (a_pos_inf_v  & b_pos_inf_v)  | // +inf    + +inf
+              (a_pos_inf_v  & b_pos_zero_v) | // +inf    + +zero
+              (a_pos_zero_v & b_pos_inf_v)  | // +zero   + +inf
+              (a_pos_inf_v  & b_neg_zero_v) | // +inf    + -zero
+              (a_neg_zero_v & b_pos_inf_v)  | // -zero   + +inf
+              //
+              (a_pos_inf_v  & b_pos_norm_v) | // +inf    + +norm
+              (a_pos_norm_v & b_pos_inf_v)  | // +norm   + +inf
+              (a_pos_inf_v  & b_pos_subn_v) | // +inf    + +denorm
+              (a_pos_subn_v & b_pos_inf_v)  | // +denorm + +inf
+              //
+              (a_pos_inf_v  & b_neg_norm_v) | // +inf    + -norm
+              (a_neg_norm_v & b_pos_inf_v)  | // -norm   + +inf
+              (a_pos_inf_v  & b_neg_subn_v) | // +inf    + -denorm
+              (a_neg_subn_v & b_pos_inf_v);   // -denorm + +inf
+            /* -infinity */
+            addsub.res_class[fp_class_neg_inf_c] =
+              (a_neg_inf_v  & b_neg_inf_v)  | // -inf    + -inf
+              (a_neg_inf_v  & b_pos_zero_v) | // -inf    + +zero
+              (a_pos_zero_v & b_neg_inf_v)  | // +zero   + -inf
+              (a_neg_inf_v  & b_neg_zero_v) | // -inf    + -zero
+              (a_neg_zero_v & b_neg_inf_v)  | // -zero   + -inf
+              //
+              (a_neg_inf_v  & b_pos_norm_v) | // -inf    + +norm
+              (a_pos_norm_v & b_neg_inf_v)  | // +norm   + -inf
+              (a_neg_inf_v  & b_neg_norm_v) | // -inf    + -norm
+              (a_neg_norm_v & b_neg_inf_v)  | // -norm   + -inf
+              //
+              (a_neg_inf_v  & b_pos_subn_v) | // -inf    + +denorm
+              (a_pos_subn_v & b_neg_inf_v)  | // +denorm + -inf
+              (a_neg_inf_v  & b_neg_subn_v) | // -inf    + -denorm
+              (a_neg_subn_v & b_neg_inf_v);   // -denorm + -inf
+            /* +zero */
+            addsub.res_class[fp_class_pos_zero_c] =
+              (a_pos_zero_v & b_pos_zero_v) | // +zero + +zero
+              (a_pos_zero_v & b_neg_zero_v) | // +zero + -zero
+              (a_neg_zero_v & b_pos_zero_v);   // -zero + +zero
+            /* -zero */
+            addsub.res_class[fp_class_neg_zero_c] =
+              (a_neg_zero_v & b_neg_zero_v);   // -zero + -zero
+            /* qNaN */
+            addsub.res_class[fp_class_qnan_c] =
+              (a_snan_v    |  b_snan_v)   | // any input is sNaN
+              (a_qnan_v    |  b_qnan_v)   | // any input is qNaN
+              (a_pos_inf_v & b_neg_inf_v) | // +inf + -inf
+              (a_neg_inf_v & b_pos_inf_v);  // -inf + +inf
+        end else begin // subtraction
+            /* +infinity */
+            addsub.res_class[fp_class_pos_inf_c] =
+              (a_pos_inf_v  & b_neg_inf_v)  | // +inf    - -inf
+              (a_pos_inf_v  & b_pos_zero_v) | // +inf    - +zero
+              (a_pos_inf_v  & b_neg_zero_v) | // +inf    - -zero
+              (a_pos_inf_v  & b_pos_norm_v) | // +inf    - +norm
+              (a_pos_inf_v  & b_pos_subn_v) | // +inf    - +denorm
+              (a_pos_inf_v  & b_neg_norm_v) | // +inf    - -norm
+              (a_pos_inf_v  & b_neg_subn_v) | // +inf    - -denorm
+            //
+              (a_pos_zero_v & b_neg_inf_v)  | // +zero   - -inf
+              (a_neg_zero_v & b_neg_inf_v)  | // -zero   - -inf
+            //
+              (a_pos_norm_v & b_neg_inf_v)  | // +norm   - -inf
+              (a_pos_subn_v & b_neg_inf_v)  | // +denorm - -inf
+              (a_neg_norm_v & b_neg_inf_v)  | // -norm   - -inf
+              (a_neg_subn_v & b_neg_inf_v);   // -denorm - -inf
+            /* -infinity */
+            addsub.res_class[fp_class_neg_inf_c] =
+              (a_neg_inf_v  & b_pos_inf_v)  | // -inf    - +inf
+              (a_neg_inf_v  & b_pos_zero_v) | // -inf    - +zero
+              (a_neg_inf_v  & b_neg_zero_v) | // -inf    - -zero
+              (a_neg_inf_v  & b_pos_norm_v) | // -inf    - +norm
+              (a_neg_inf_v  & b_pos_subn_v) | // -inf    - +denorm
+              (a_neg_inf_v  & b_neg_norm_v) | // -inf    - -norm
+              (a_neg_inf_v  & b_neg_subn_v) | // -inf    - -denorm
+              //
+              (a_pos_zero_v & b_pos_inf_v)  | // +zero   - +inf
+              (a_neg_zero_v & b_pos_inf_v)  | // -zero   - +inf
+              //
+              (a_pos_norm_v & b_pos_inf_v)  | // +norm   - +inf
+              (a_pos_subn_v & b_pos_inf_v)  | // +denorm - +inf
+              (a_neg_norm_v & b_pos_inf_v)  | // -norm   - +inf
+              (a_neg_subn_v & b_pos_inf_v);   // -denorm - +inf
+            /* +zero */
+            addsub.res_class[fp_class_pos_zero_c] =
+              (a_pos_zero_v & b_pos_zero_v) | // +zero - +zero
+              (a_pos_zero_v & b_neg_zero_v) | // +zero - -zero
+              (a_neg_zero_v & b_neg_zero_v);  // -zero - -zero
+            /* -zero */
+            addsub.res_class[fp_class_neg_zero_c] =
+              (a_neg_zero_v & b_pos_zero_v);   // -zero - +zero
+            /* qNaN */
+            addsub.res_class[fp_class_qnan_c] =
+              (a_snan_v    |  b_snan_v)   | // any input is sNaN
+              (a_qnan_v    |  b_qnan_v)   | // any input is qNaN
+              (a_pos_inf_v & b_pos_inf_v) | // +inf - +inf
+              (a_neg_inf_v & b_neg_inf_v);  // -inf - -inf
+        end
+        /* normal */
+        addsub.res_class[fp_class_pos_norm_c] = (a_pos_norm_v | a_neg_norm_v) & (b_pos_norm_v | b_neg_norm_v); // +/-norm +/- +-/norm [sign is irrelevant here]
+        addsub.res_class[fp_class_neg_norm_c] = (a_pos_norm_v | a_neg_norm_v) & (b_pos_norm_v | b_neg_norm_v); // +/-norm +/- +-/norm [sign is irrelevant here]
+        /* sNaN */
+        addsub.res_class[fp_class_snan_c] = (a_snan_v | b_snan_v); // any input is sNaN
+        /* subnormal result */
+        addsub.res_class[fp_class_pos_denorm_c] = 1'b0; // is evaluated by the normalizer
+        addsub.res_class[fp_class_neg_denorm_c] = 1'b0; // is evaluated by the normalizer
+    end : adder_subtractor_class_core
+
+    /* unused */
+    assign fu_addsub.result = '0;
+    assign fu_addsub.flags  = '0;
+
+
+    // ****************************************************************************************************************************
+    // FPU Core - Normalize & Round
+    // ****************************************************************************************************************************
+    // ===========================================================================================
+    // Normalizer Input --------------------------------------------------------------------------
+    // ===========================================================================================
+    always_comb begin : normalizer_input_select
+        unique case (funct_ff)
+            // addition/subtraction
+            op_addsub_c : begin
+                normalizer.mode             = 1'b0; // normalization
+                normalizer.sign             = addsub.res_sign;
+                normalizer.xexp             = addsub.exp_cnt;
+                normalizer.xmantissa[47:45] = {1'b0, addsub.res_sum[27:26]};
+                normalizer.xmantissa[44:22] = addsub.res_sum[25:03];
+                normalizer.xmantissa[21]    = addsub.res_sum[02];
+                normalizer.xmantissa[20]    = addsub.res_sum[01];
+                normalizer.xmantissa[19:01] = '0;
+                normalizer.xmantissa[00]    = addsub.res_sum[0];
+                normalizer.class_data       = addsub.res_class;
+                normalizer.flags_in         = addsub.flags;
+                normalizer.start            = addsub.done;
+            end
+            // multiplication
+            op_mul_c : begin
+                normalizer.mode             = 1'b0; // normalization
+                normalizer.sign             = multiplier.sign;
+                normalizer.xexp             = {1'b0, multiplier.exp_res[7:0]};
+                normalizer.xmantissa[47:45] = {1'b0, multiplier.product[47:46]};
+                normalizer.xmantissa[44:22] = multiplier.product[45:23];
+                normalizer.xmantissa[21]    = multiplier.product[22];
+                normalizer.xmantissa[20]    = multiplier.product[21];
+                normalizer.xmantissa[19:01] = '0;
+                normalizer.xmantissa[00]    = |multiplier.product[20:00];
+                normalizer.class_data       = multiplier.res_class;
+                normalizer.flags_in         = multiplier.flags;
+                normalizer.start            = multiplier.done;
+            end
+            // division
+            op_div_c : begin
+                normalizer.mode             = 1'b0; // normalization
+                normalizer.sign             = division.sign;
+                normalizer.xexp             = {1'b0, division.exp_res[7:0]};
+                normalizer.xmantissa[47:45] = {2'b00, division.quotient};
+                normalizer.xmantissa[44:22] = division.rem[38:16];
+                normalizer.xmantissa[21]    = division.rem[15];
+                normalizer.xmantissa[20]    = division.rem[14];
+                normalizer.xmantissa[19:01] = '0;
+                normalizer.xmantissa[00]    = |division.rem[13:00];
+                normalizer.class_data       = division.res_class;
+                normalizer.flags_in         = division.flags;
+                normalizer.start            = division.done;
+            end
+            // square root
+            op_sqrt_c : begin
+                normalizer.mode             = 1'b0; // normalization
+                normalizer.sign             = sqrt.sign;
+                normalizer.xexp             = {1'b0, sqrt.exp_res[7:0]};
+                // exponent is even: result is: 1-hidden + 23-mantissa + 16-GRS
+                // exponent is odd:  result is: 23-mantissa + 17-GRS
+                normalizer.xmantissa[47:46] = 2'b00;
+                // hidden bit or MSB of result
+                normalizer.xmantissa[45]    = fpu_operands.rs1[23] ? 1'b1 : sqrt.result[$bits(sqrt.result)-1];
+                normalizer.xmantissa[44:22] = fpu_operands.rs1[23] ? sqrt.result[$bits(sqrt.result)-1:$bits(sqrt.result)-23] : 
+                                                                     sqrt.result[$bits(sqrt.result)-2:$bits(sqrt.result)-24];
+                normalizer.xmantissa[21:20] = fpu_operands.rs1[23] ? {sqrt.result[$bits(sqrt.result)-24], sqrt.result[$bits(sqrt.result)-25]} :
+                                                                     {sqrt.result[$bits(sqrt.result)-25], sqrt.result[$bits(sqrt.result)-26]};
+                normalizer.xmantissa[19:01] = '0;
+                normalizer.xmantissa[00]    = fpu_operands.rs1[23] ? |sqrt.result[$bits(sqrt.result)-26:0] : |sqrt.result[$bits(sqrt.result)-27:0];
+                normalizer.class_data       = sqrt.res_class;
+                normalizer.flags_in         = sqrt.flags;
+                normalizer.start            = sqrt.done;
+            end
+            // op_i2f_c
+            default: begin 
+                normalizer.mode       = 1'b1; // int_to_float
+                normalizer.sign       = fu_conv_i2f.sign;
+                normalizer.xexp       = 9'b001111111; // bias = 127
+                normalizer.xmantissa  = '0; // don't care
+                normalizer.class_data = '0; // don't care
+                normalizer.flags_in   = '0; // no flags yet
+                normalizer.start      = fu_conv_i2f.done;
+            end
+        endcase
+    end : normalizer_input_select
+
+    // ===========================================================================================
+    // Normalizer & Rounding Unit ----------------------------------------------------------------
+    // ===========================================================================================
+    cellrv32_cpu_cp_fpu32_normalizer
+    cellrv32_cpu_cp_fpu32_normalizer_inst (
+        /* control */
+        .clk_i( clk_i),                    // global clock, rising edge
+        .rstn_i(rstn_i),                   // global reset, low-active, async
+        .start_i(normalizer.start),        // trigger operation
+        .rmode_i(fpu_operands.frm),        // rounding mode
+        .funct_i(normalizer.mode),         // operation mode
+        /* input */
+        .sign_i(normalizer.sign),          // sign
+        .exponent_i(normalizer.xexp),      // extended exponent
+        .mantissa_i(normalizer.xmantissa), // extended mantissa
+        .integer_i(fu_conv_i2f.result),    // int input
+        .class_i(normalizer.class_data),   // input number class
+        .flags_i(normalizer.flags_in),     // exception flags input
+        /* output */
+        .result_o(normalizer.result),      // result (float or int)
+        .flags_o(normalizer.flags_out),    // exception flags
+        .done_o(normalizer.done)           // operation done
+    );
+
+    //  ****************************************************************************************************************************
+    //  FPU Core - Result
+    //  ****************************************************************************************************************************
+    
+    //  Result Output to CPU Pipeline ----------------------------------------------------------
+    //  ----------------------------------------------------------------------------------------
+    always_comb begin : output_gate
+        if (ctrl_engine.valid && fpu_operands.mask) begin
+            unique case (funct_ff)
+                op_class_c : begin
+                    result_ex4_o = fu_classify.result;
+                    flags_ex4_o  = fu_classify.flags;
+                end
+                op_f2i_c : begin
+                    result_ex4_o = fu_conv_f2i.result;
+                    flags_ex4_o  = fu_conv_f2i.flags;
+                end
+                op_sgnj_c : begin
+                    result_ex4_o = fu_sign_inject.result;
+                    flags_ex4_o  = fu_sign_inject.flags;
+                end
+                op_minmax_c : begin
+                    result_ex4_o = fu_min_max.result;
+                    flags_ex4_o  = fu_min_max.flags;
+                end
+                default: begin // op_mul_c, op_addsub_c, op_i2f_c, ...
+                    result_ex4_o = normalizer.result;
+                    flags_ex4_o  = normalizer.flags_out;
+                end
+            endcase
+        end else begin
+            result_ex4_o = '0;
+            flags_ex4_o  = '0;
+        end
+    end : output_gate
+
+    /* operation done */
+    assign fu_core_done = fu_classify.done | fu_sign_inject.done | fu_min_max.done | normalizer.done | fu_conv_f2i.done;
+
+
+    //================================================
+    // Outputs
+    //================================================
+
+endmodule // v_fp_alu
