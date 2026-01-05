@@ -78,19 +78,20 @@ module cellrv32_cpu_cp_vector #(
                 S_IDLE: begin
                     if (valid_in) begin
                         // convert vector control bus + RF data inputs to vector pipeline
-                        instr_in.valid       <= valid_in;
-                        instr_in.dst         <= ctrl_i.rf_rd;
-                        instr_in.src1        <= ctrl_i.rf_rs1;
-                        instr_in.src2        <= ctrl_i.rf_rs2;
-						instr_in.immediate   <= ctrl_i.rf_rs1;
-                        instr_in.data1       <= rs1_i;
-                        instr_in.data2       <= rs2_i;
-                        instr_in.ir_funct12  <= ctrl_i.ir_funct12;
-						instr_in.ir_funct3   <= ctrl_i.ir_funct3;
-                        instr_in.microop     <= ctrl_i.ir_opcode;
-                        instr_in.use_mask    <= 2'b00;
+                        instr_in.valid      <= valid_in;
+                        instr_in.dst        <= ctrl_i.rf_rd;
+                        instr_in.src1       <= ctrl_i.rf_rs1;
+                        instr_in.src2       <= ctrl_i.rf_rs2;
+						instr_in.immediate  <= ctrl_i.rf_rs1;
+                        instr_in.data1      <= rs1_i;
+                        instr_in.data2      <= rs2_i;
+                        instr_in.ir_funct12 <= ctrl_i.ir_funct12;
+						instr_in.ir_funct3  <= ctrl_i.ir_funct3;
+						instr_in.frm        <= ctrl_i.alu_frm;
+                        instr_in.microop    <= ctrl_i.ir_opcode;
+                        instr_in.use_mask   <= 2'b00;
                         // next state
-                        state                <= S_PUSH;
+                        state               <= S_PUSH;
                     end
 					// auto reconfigure
                     instr_in.maxvl       <= ctrl_i.alu_vlmax;
@@ -109,7 +110,7 @@ module cellrv32_cpu_cp_vector #(
                 end
 				// wait for completion
 				S_BUSY: begin
-					if (finished) begin
+					if (finished || ctrl_i.cpu_trap) begin
 						state <= S_DONE;
 					end
 				end
