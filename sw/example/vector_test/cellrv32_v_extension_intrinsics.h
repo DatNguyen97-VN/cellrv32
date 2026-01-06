@@ -989,7 +989,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vredmaxvv(int32_t
 
 
 /**********************************************************************//**
- * Vector single-width Integer Addition: Vector-Vector
+ * Vector single-width Floating-Point Addition: Vector-Vector
  *
  * @param[in] vs2 Source operand 1.
  * @param[in] vs1 Source operand 2.
@@ -1002,7 +1002,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfaddvv(int32_t v
 
 
 /**********************************************************************//**
- * Vector single-width Integer Addition: Vector-Scalar
+ * Vector single-width Floating-Point Addition: Vector-Scalar
  *
  * @param[in] vs2 Source operand 1.
  * @param[in] rs1 Source operand 2.
@@ -1015,7 +1015,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfaddvx(int32_t v
 
 
 /**********************************************************************//**
- * Vector single-width Integer Subtraction: Vector-Vector
+ * Vector single-width Floating-Point Subtraction: Vector-Vector
  *
  * @param[in] vs2 Source operand 1.
  * @param[in] vs1 Source operand 2.
@@ -1028,7 +1028,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsubvv(int32_t v
 
 
 /**********************************************************************//**
- * Vector single-width Integer Subtraction: Vector-Scalar
+ * Vector single-width Floating-Point Subtraction: Vector-Scalar
  *
  * @param[in] vs2 Source operand 1.
  * @param[in] rs1 Source operand 2.
@@ -1041,7 +1041,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsubvx(int32_t v
 
 
 /**********************************************************************//**
- * Vector single-width Integer Reverse Reversal Subtraction: Vector-Scalar
+ * Vector single-width Floating-Point Reversal Subtraction: Vector-Scalar
  *
  * @param[in] vs2 Source operand 1.
  * @param[in] rs1 Source operand 2.
@@ -1050,6 +1050,400 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsubvx(int32_t v
 inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfrsubvx(int32_t vs2, int32_t rs1) {
 
   return CUSTOM_INSTR_R3_TYPE(0b1001110, vs2, rs1, 0b101, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Multiply: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfmulvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001000, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Multiply: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfmulvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1001000, vs2, rs1, 0b101, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Divide: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfdivvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000000, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Divide: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfdivvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000000, vs2, rs1, 0b101, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Reversal Divide: Vector-Scalar
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] rs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfrdivvx(int32_t vs2, int32_t rs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b1000010, vs2, rs1, 0b101, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Square: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsqrtvv(int32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x26      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x00      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Min: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfminvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001000, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Max: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfmaxvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0001100, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Sign-Injection: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsgnjvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0010000, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Sign-Injection NOT: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsgnjnvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0010010, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Sign-Injection XOR: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfsgnjxvv(int32_t vs2, int32_t vs1) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0010100, vs2, vs1, 0b001, 0b1010111);
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Floating-Point Classify: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vfclassvv(int32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x26      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x10      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Convert Float To Unsigned Integer: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_vfcvt_xuf_v(uint32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x24      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x00      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Convert Float To Signed Integer: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_vfcvt_xf_v(int32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x24      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x01      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Convert Float To Unsigned Truncating Integer: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_vfcvt_rtz_xuf_v(uint32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x24      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x06      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Convert Float To Signed Truncating Integer: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_vfcvt_rtz_xf_v(int32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x24      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x07      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Convert Unsigned Integer To Float: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_vfcvt_fxu_v(uint32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x24      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x02      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
+}
+
+
+/**********************************************************************//**
+ * Vector single-width Convert Signed Integer To Float: Vector-Vector
+ *
+ * @param[in] vs2 Source operand 1.
+ * @param[in] vs1 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_vfcvt_fx_v(int32_t vs2) {
+
+  return ({                                      \
+            uint32_t __return;                   \
+            asm volatile (                       \
+              ""                                 \
+              : [output] "=r" (__return)         \
+              : [input_i] "r" (vs2)              \
+            );                                   \
+            asm volatile (                       \
+              ".word (                           \
+                ((( 0x24      ) & 0x7f) << 25) | \
+                ((( regnum_%1 ) & 0x1f) << 20) | \
+                ((( 0x03      ) & 0x1f) << 15) | \
+                ((( 0x01      ) & 0x07) << 12) | \
+                ((( regnum_%0 ) & 0x1f) <<  7) | \
+                ((( 0x57) & 0x7f) <<  0)         \
+              );"                                \
+              : [rd] "=r" (__return)             \
+              : "r" (vs2)                        \
+            );                                   \
+            __return;                            \
+        });
 }
 // ################################################################################################
 // !!! UNSUPPORTED instructions !!!
@@ -1195,7 +1589,7 @@ inline uint32_t __attribute__ ((always_inline)) riscv_intrinsic_fcvt_wus(float r
   float_conv_t opa;
   opa.float_value = rs1;
 
-  return CUSTOM_INSTR_R2_TYPE(0b1100000, 0b00001, opa.binary_value, 0b000, 0b1010011);
+  return CUSTOM_INSTR_R2_TYPE(0b1100000, 0b00001, opa.binary_value, 0b111, 0b1010011);
 }
 
 
@@ -1210,7 +1604,7 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_fcvt_ws(float rs1
   float_conv_t opa;
   opa.float_value = rs1;
 
-  return (int32_t)CUSTOM_INSTR_R2_TYPE(0b1100000, 0b00000, opa.binary_value, 0b000, 0b1010011);
+  return (int32_t)CUSTOM_INSTR_R2_TYPE(0b1100000, 0b00000, opa.binary_value, 0b111, 0b1010011);
 }
 
 
