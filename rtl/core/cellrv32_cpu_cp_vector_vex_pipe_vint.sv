@@ -6,7 +6,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module v_int_alu #(
+module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     parameter int DATA_WIDTH         = 32 ,
     parameter int MICROOP_WIDTH      = 5  ,
     parameter int VECTOR_REGISTERS   = 32 ,

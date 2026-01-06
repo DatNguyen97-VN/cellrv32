@@ -33,7 +33,7 @@ module vex_pipe #(
     input  logic [                                    5:0] funct6_i      ,
     input  logic [                                    2:0] funct3_i      ,
     input  logic [                                    2:0] frm_i         ,
-    input  logic [                                    4:0] vs1_i         ,
+    input  logic [                                    4:0] vfunary_i     ,
     input  logic [                                    6:0] vl_i          ,
     input  logic                                           is_rdc_i      ,
     //Forward Point #1
@@ -116,7 +116,7 @@ module vex_pipe #(
     //-----------------------------------------------
     // Integer ALU
     //-----------------------------------------------
-    v_int_alu #(
+    cellrv32_cpu_cp_vector_vex_pipe_vint #(
         .DATA_WIDTH        (DATA_WIDTH        ),
         .MICROOP_WIDTH     (MICROOP_WIDTH     ),
         .VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
@@ -126,7 +126,7 @@ module vex_pipe #(
         .EX2_W             (EX2_W             ),
         .EX3_W             (EX3_W             ),
         .EX4_W             (EX4_W             )
-    ) v_int_alu_inst (
+    ) cellrv32_cpu_cp_vector_vex_pipe_vint_inst (
         .clk            (clk              ),
         .rst_n          (rst_n            ),
         .valid_i        (valid_int_ex1    ),
@@ -169,8 +169,8 @@ module vex_pipe #(
     //-----------------------------------------------
     // Floating Point ALU
     //-----------------------------------------------
-    generate if (VECTOR_FP_ALU) begin : v_fp32_alu_ON
-        v_fp32_alu #(
+    generate if (VECTOR_FP_ALU) begin : cellrv32_cpu_cp_vector_vex_pipe_vfp32_ON
+        cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
             .DATA_WIDTH        (DATA_WIDTH        ),
             .MICROOP_WIDTH     (MICROOP_WIDTH     ),
             .VECTOR_LANE_NUM   (VECTOR_LANE_NUM   ),
@@ -178,7 +178,7 @@ module vex_pipe #(
             .EX2_W             (EX2_W             ),
             .EX3_W             (EX3_W             ),
             .EX4_W             (EX4_W             )
-        ) v_fp32_alu_inst (
+        ) cellrv32_cpu_cp_vector_vex_pipe_vfp32_inst (
             .clk_i          (clk             ),
             .rstn_i         (rst_n           ),
             .valid_i        (valid_fp_ex1    ),
@@ -188,7 +188,7 @@ module vex_pipe #(
             .funct6_i       (funct6_i        ),
             .funct3_i       (funct3_i        ),
             .frm_i          (frm_i           ),
-            .vs1_i          (vs1_i           ),
+            .vfunary_i      (vfunary_i       ),
             .mask_i         (mask_i          ),
             .vl_i           (vl_i            ),
             .is_rdc_i       (is_rdc_i        ),
@@ -204,7 +204,7 @@ module vex_pipe #(
             .result_ex4_o   (res_fp_ex4      ),
             .flags_ex4_o    (                )
         );
-    end else begin : v_fp32_alu_OFF
+    end else begin : cellrv32_cpu_cp_vector_vex_pipe_vfp32_OFF
         assign ready_res_fp_ex1 = 1'b0;
         assign ready_res_fp_ex2 = 1'b0;
         assign ready_res_fp_ex3 = 1'b0;
