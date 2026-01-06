@@ -23,7 +23,7 @@ package cellrv32_package;
   localparam int max_proc_int_response_time_c = 15; // min 2
 
   // log2 of co-processor timeout cycles --
-  localparam int cp_timeout_c = 9; // default = 512 cycles
+  localparam int cp_timeout_c = 9; // default = 896 cycles
 
   // JTAG tap - identifier --
   localparam logic [03:0] jtag_tap_idcode_version_c = 4'h0; // version
@@ -462,7 +462,7 @@ package cellrv32_package;
   const logic [5:0] funct6_vfsgnjn_c = 6'b001001; // Vector Single-Width Floating-Point Fused Sign Inject Negate
   const logic [5:0] funct6_vfsgnjx_c = 6'b001010; // Vector Single-Width Floating-Point Fused Sign Inject XOR
   const logic [5:0] funct6_vfclass_c = 6'b010011; // Vector Single-Width Floating-Point Classify
-  const logic [5:0] funct6_vfmv_c    = 6'b010111; // Vector Single-Width Floating-Point Move
+  //const logic [5:0] funct6_vfmv_c    = 6'b010111; // Vector Single-Width Floating-Point Move
   const logic [5:0] funct6_vfcvt_c   = 6'b010010; // Vector Single-Width Floating-Point Type Conversion
   // RISC-V Funct12 -------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
@@ -902,6 +902,7 @@ package cellrv32_package;
       logic [11:0] ir_funct12 ;
       logic [02:0] ir_funct3  ;
       logic [02:0] frm        ;
+      logic [04:0] vfunary    ;
       logic [06:0] microop    ;
       logic        use_mask   ;
       logic [01:0] lock       ;
@@ -948,7 +949,7 @@ package cellrv32_package;
       logic [04:0] ticket  ;
       logic [05:0] ir_funct6;
       logic [02:0] ir_funct3;
-      logic [04:0] src1    ;
+      logic [04:0] vfunary ;
       logic [02:0] frm     ;
       logic [06:0] vl      ;
       logic        is_rdc  ;
