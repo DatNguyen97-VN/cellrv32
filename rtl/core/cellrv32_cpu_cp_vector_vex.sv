@@ -100,7 +100,7 @@ module vex #(
                 .funct6_i      (exec_info_i.ir_funct6   ),
                 .funct3_i      (exec_info_i.ir_funct3   ),
                 .frm_i         (exec_info_i.frm         ),
-                .vs1_i         (exec_info_i.src1        ),
+                .vfunary_i     (exec_info_i.vfunary     ),
                 .vl_i          (exec_info_i.vl          ),
                 .is_rdc_i      (exec_info_i.is_rdc      ),
                 //Forward Point #1 (EX1)
