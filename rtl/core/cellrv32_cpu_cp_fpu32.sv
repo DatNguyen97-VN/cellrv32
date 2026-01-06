@@ -358,9 +358,9 @@ module cellrv32_cpu_cp_fpu32 #(
                     cmp_ff   <= cmp_i; // main ALU comparator
                     /* rounding mode */
                     if (ctrl_i.ir_funct3 == 3'b111) begin
-                        fpu_operands.frm <= {1'b0, ctrl_i.alu_frm[1:0]};
+                        fpu_operands.frm <= ctrl_i.alu_frm;
                     end else begin
-                        fpu_operands.frm <= {1'b0, ctrl_i.ir_funct3[1:0]};
+                        fpu_operands.frm <= ctrl_i.ir_funct3;
                     end
                     //
                     if (start_i) begin
