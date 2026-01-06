@@ -923,9 +923,28 @@ module cellrv32_cpu_control #(
         // floating-point operation
         if ((execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opfvv_c) ||
             (execute_engine.i_reg[instr_funct3_msb_c : instr_funct3_lsb_c] == funct3_opfvx_c)) begin
-            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfadd_c  || // vfadd
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfsub_c  || // vfsub
-                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfrsub_c    // vfrsub
+            if (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfadd_c   || // vfadd
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfsub_c   || // vfsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfrsub_c  || // vfrsub
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfmul_c   || // vfmul
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfdiv_c   || // vfdiv
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfrdiv_c  || // vfrdiv
+               (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfsqrt_c && 
+                execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b00000)                || // vfsqrt
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfmin_c   || // vfmin
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfmax_c   || // vfmax
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfsgnj_c  || // vfsgnj
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfsgnjn_c || // vfsgnjn
+                execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfsgnjx_c || // vfsgnjx
+               (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfclass_c &&
+                execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b10000)                || // vfclass
+               (execute_engine.i_reg[instr_funct7_msb_c : instr_funct7_lsb_c+1] == funct6_vfcvt_c   &&
+                (execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b00000                || // float2uint
+                 execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b00001                || // float2int
+                 execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b00010                || // uint2float
+                 execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b00011                || // int2float
+                 execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b00110                || // float2uint, truncating
+                 execute_engine.i_reg[instr_rs1_msb_c : instr_rs1_lsb_c] == 5'b00111))                // float2int, truncating
             ) begin
                 is_f_vec = 1'b1;
             end
