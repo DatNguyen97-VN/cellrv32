@@ -6,7 +6,7 @@
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
-module v_fp32_alu #(
+module cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
     parameter int DATA_WIDTH      = 32 ,
     parameter int MICROOP_WIDTH   = 5  ,
     parameter int VECTOR_LANE_NUM = 1  ,
@@ -25,7 +25,7 @@ module v_fp32_alu #(
     input  logic [           2:0] funct3_i       ,
     input  logic [           2:0] frm_i          ,
     input  logic                  mask_i         ,
-    input  logic [           4:0] vs1_i          ,
+    input  logic [           4:0] vfunary_i      ,
     input  logic [           6:0] vl_i           ,
     input  logic                  is_rdc_i       ,
     output logic                  ready_o        ,
@@ -95,7 +95,6 @@ module v_fp32_alu #(
         logic [09:0] rs2_class; // operand 2 number class
         logic [02:0] frm;       // rounding mode
         logic        mask;      // mask bit
-        logic [04:0] vs1;       // VFUNARY0/VFUNARY1 encoding space
     } fpu_operands_t;
     //
     op_data_t op_data;
@@ -254,15 +253,15 @@ module v_fp32_alu #(
     // Instruction Decoding ----------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* one-hot re-encoding */
-    assign cmd.instr_class  = (funct6_i == funct6_vfclass_c);
-    assign cmd.instr_i2f    = (funct6_i == funct6_vfcvt_c);
-    assign cmd.instr_f2i    = (funct6_i == funct6_vfcvt_c);
+    assign cmd.instr_class  = (funct6_i == funct6_vfclass_c) && (vfunary_i == 5'b10000);
+    assign cmd.instr_i2f    = (funct6_i == funct6_vfcvt_c) && ((vfunary_i == 5'b00010) || (vfunary_i == 5'b00011));
+    assign cmd.instr_f2i    = (funct6_i == funct6_vfcvt_c) && ((vfunary_i == 5'b00000) || (vfunary_i == 5'b00001) || (vfunary_i == 5'b00110) || (vfunary_i == 5'b00111));
     assign cmd.instr_sgnj   = (funct6_i == funct6_vfsgnj_c) || (funct6_i == funct6_vfsgnjn_c) || (funct6_i == funct6_vfsgnjx_c);
     assign cmd.instr_minmax = (funct6_i == funct6_vfmin_c) || (funct6_i == funct6_vfmax_c);
     assign cmd.instr_addsub = (funct6_i == funct6_vfadd_c) || (funct6_i == funct6_vfsub_c) || (funct6_i == funct6_vfrsub_c);
     assign cmd.instr_mul    = (funct6_i == funct6_vfmul_c);
     assign cmd.instr_div    = (funct6_i == funct6_vfdiv_c) || (funct6_i == funct6_vfrdiv_c);
-    assign cmd.instr_sqrt   = (funct6_i == funct6_vfsqrt_c);
+    assign cmd.instr_sqrt   = (funct6_i == funct6_vfsqrt_c) && (vfunary_i == 5'b00000);
 
     /* binary re-encoding */
     assign cmd.funct = cmd.instr_mul    ? op_mul_c    :
@@ -362,16 +361,22 @@ module v_fp32_alu #(
                     // main ALU comparator
                     cmp_ff[cmp_equal_c] <= (op_data[0] == op_data[1]);
                     cmp_ff[cmp_less_c]  <= (signed'(op_data[0]) < signed'(op_data[1]));
-                    fpu_operands.frm    <= frm_i;
+                    // selecr rounding mode
+                    // float to [Unsigned] Int, Truncating
+                    if ((funct6_i == funct6_vfcvt_c) && ((vfunary_i == 5'b00110) || (vfunary_i == 5'b00111))) begin
+                        fpu_operands.frm <= 3'b001;
+                    end else begin
+                        fpu_operands.frm <= frm_i;
+                    end
                     //
                     if (valid_i) begin
                         /* operand data */
-                        fpu_operands.rs1       <= op_data[0];
-                        fpu_operands.rs1_class <= op_class[0];
-                        fpu_operands.rs2       <= op_data[1];
-                        fpu_operands.rs2_class <= op_class[1];
+                        // reversal operation
+                        fpu_operands.rs1       <= (funct6_i == funct6_vfrdiv_c) ? op_data[1]  : op_data[0];
+                        fpu_operands.rs1_class <= (funct6_i == funct6_vfrdiv_c) ? op_class[1] : op_class[0];
+                        fpu_operands.rs2       <= (funct6_i == funct6_vfrdiv_c) ? op_data[0]  : op_data[1];
+                        fpu_operands.rs2_class <= (funct6_i == funct6_vfrdiv_c) ? op_class[0] : op_class[1];
                         fpu_operands.mask      <= mask_i;
-                        fpu_operands.vs1       <= vs1_i;
                         /* execute! */
                         ctrl_engine.start <= 1'b1;
                         ctrl_engine.state <= S_BUSY;
@@ -437,11 +442,11 @@ module v_fp32_alu #(
     //
     always_ff @( posedge clk_i ) begin : float_comparator
         /* equal */
-        if (((fpu_operands.rs1_class[fp_class_pos_inf_c]  == 1'b1) && (fpu_operands.rs2_class[fp_class_pos_inf_c]  == 1'b1)) || // +inf == +inf
-           ((fpu_operands.rs1_class[fp_class_neg_inf_c]   == 1'b1) && (fpu_operands.rs2_class[fp_class_neg_inf_c]  == 1'b1)) || // -inf == -inf
-           (((fpu_operands.rs1_class[fp_class_pos_zero_c] == 1'b1) || (fpu_operands.rs1_class[fp_class_neg_zero_c] == 1'b1)) &&
-           ((fpu_operands.rs2_class[fp_class_pos_zero_c]  == 1'b1) || (fpu_operands.rs2_class[fp_class_neg_zero_c] == 1'b1))) ||  // +/-zero == +/-zero
-           (cmp_ff[cmp_equal_c] == 1'b1)) begin // identical in every way (comparator result from main ALU)
+        if ((fpu_operands.rs1_class[fp_class_pos_inf_c] && fpu_operands.rs2_class[fp_class_pos_inf_c]) || // +inf == +inf
+            (fpu_operands.rs1_class[fp_class_neg_inf_c] && fpu_operands.rs2_class[fp_class_neg_inf_c]) || // -inf == -inf
+           ((fpu_operands.rs1_class[fp_class_pos_zero_c] || fpu_operands.rs1_class[fp_class_neg_zero_c]) &&
+            (fpu_operands.rs2_class[fp_class_pos_zero_c] || fpu_operands.rs2_class[fp_class_neg_zero_c])) ||  // +/-zero == +/-zero
+             cmp_ff[cmp_equal_c]) begin // identical in every way (comparator result from main ALU)
             comp_equal_ff <= 1'b1;
         end else begin
             comp_equal_ff <= 1'b0;
@@ -506,20 +511,20 @@ module v_fp32_alu #(
         .XLEN(DATA_WIDTH)) // data path width
     cellrv32_cpu_cp_fpu32_f2i_inst (
         /* control */
-        .clk_i(clk_i),                        // global clock, rising edge
-        .rstn_i(rstn_i),                      // global reset, low-active, async
-        .start_i(fu_conv_f2i.start),          // trigger operation
-        .rmode_i(fpu_operands.frm),           // rounding mode
-        .funct_i(~fpu_operands.vs1[0]),       // 0=signed, 1=unsigned
+        .clk_i      (clk_i                  ), // global clock, rising edge
+        .rstn_i     (rstn_i                 ), // global reset, low-active, async
+        .start_i    (fu_conv_f2i.start      ), // trigger operation
+        .rmode_i    (fpu_operands.frm       ), // rounding mode
+        .funct_i    (~vfunary_i[0]          ), // 0=signed, 1=unsigned
         /* input */
-        .sign_i(fpu_operands.rs1[31]),        // sign
-        .exponent_i(fpu_operands.rs1[30:23]), // exponent
-        .mantissa_i(fpu_operands.rs1[22:00]), // mantissa
-        .class_i(fpu_operands.rs1_class),     // operand class
+        .sign_i     (fpu_operands.rs1[31]   ), // sign
+        .exponent_i (fpu_operands.rs1[30:23]), // exponent
+        .mantissa_i (fpu_operands.rs1[22:00]), // mantissa
+        .class_i    (fpu_operands.rs1_class ), // operand class
         /* output */
-        .result_o(fu_conv_f2i.result),        // int result
-        .flags_o(fu_conv_f2i.flags),          // exception flags
-        .done_o(fu_conv_f2i.done)             // operation done
+        .result_o   (fu_conv_f2i.result     ), // int result
+        .flags_o    (fu_conv_f2i.flags      ), // exception flags
+        .done_o     (fu_conv_f2i.done       )  // operation done
     );
 
     // ===========================================================================================
@@ -548,12 +553,14 @@ module v_fp32_alu #(
     always_ff @( posedge clk_i ) begin : convert_i2f
         // this process only computes the absolute input value
         // the actual conversion is done by the normalizer
-        if (vs1_i[0] && data_a_ex1_i[31]) begin // convert signed int
-            fu_conv_i2f.result <= (0 - data_a_ex1_i); // absolute value
-            fu_conv_i2f.sign   <= data_a_ex1_i[31];   // original sign
-        end else begin // convert unsigned int
-            fu_conv_i2f.result <= data_a_ex1_i;
-            fu_conv_i2f.sign   <= 1'b0;
+        if (fu_conv_i2f.start) begin
+            if (vfunary_i[0] && data_a_ex1_i[31]) begin // convert signed int
+                fu_conv_i2f.result <= (0 - data_a_ex1_i); // absolute value
+                fu_conv_i2f.sign   <= data_a_ex1_i[31];   // original sign
+            end else begin // convert unsigned int
+                fu_conv_i2f.result <= data_a_ex1_i;
+                fu_conv_i2f.sign   <= 1'b0;
+            end
         end
         //
         fu_conv_i2f.done <= fu_conv_i2f.start; // actual conversion is done by the normalizer unit
@@ -1501,22 +1508,22 @@ module v_fp32_alu #(
     cellrv32_cpu_cp_fpu32_normalizer
     cellrv32_cpu_cp_fpu32_normalizer_inst (
         /* control */
-        .clk_i( clk_i),                    // global clock, rising edge
-        .rstn_i(rstn_i),                   // global reset, low-active, async
-        .start_i(normalizer.start),        // trigger operation
-        .rmode_i(fpu_operands.frm),        // rounding mode
-        .funct_i(normalizer.mode),         // operation mode
+        .clk_i      (clk_i                ), // global clock, rising edge
+        .rstn_i     (rstn_i               ), // global reset, low-active, async
+        .start_i    (normalizer.start     ), // trigger operation
+        .rmode_i    (fpu_operands.frm     ), // rounding mode
+        .funct_i    (normalizer.mode      ), // operation mode: 0 = float normalizer, 1 = int2float
         /* input */
-        .sign_i(normalizer.sign),          // sign
-        .exponent_i(normalizer.xexp),      // extended exponent
-        .mantissa_i(normalizer.xmantissa), // extended mantissa
-        .integer_i(fu_conv_i2f.result),    // int input
-        .class_i(normalizer.class_data),   // input number class
-        .flags_i(normalizer.flags_in),     // exception flags input
+        .sign_i     (normalizer.sign      ), // sign
+        .exponent_i (normalizer.xexp      ), // extended exponent
+        .mantissa_i (normalizer.xmantissa ), // extended mantissa
+        .integer_i  (fu_conv_i2f.result   ), // int input
+        .class_i    (normalizer.class_data), // input number class
+        .flags_i    (normalizer.flags_in  ), // exception flags input
         /* output */
-        .result_o(normalizer.result),      // result (float or int)
-        .flags_o(normalizer.flags_out),    // exception flags
-        .done_o(normalizer.done)           // operation done
+        .result_o   (normalizer.result    ), // result (float or int)
+        .flags_o    (normalizer.flags_out ), // exception flags
+        .done_o     (normalizer.done      )  // operation done
     );
 
     //  ****************************************************************************************************************************
