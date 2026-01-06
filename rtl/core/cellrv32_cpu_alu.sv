@@ -210,7 +210,7 @@ module cellrv32_cpu_alu #(
             cp_monitor.exc <= 1'b0;
             cp_monitor.cnt <= '0;
         end else begin
-            cp_monitor.exc <= cp_monitor.run & cp_monitor.cnt[$bits(cp_monitor.cnt)-1] & (~cp_monitor.fin);
+            cp_monitor.exc <= cp_monitor.run & (&cp_monitor.cnt[$bits(cp_monitor.cnt)-1 : $bits(cp_monitor.cnt)-3]) & (~cp_monitor.fin);
             cp_monitor.fin <= |cp_valid;
             // co-processors are idle
             if (cp_monitor.run == 1'b0) begin
