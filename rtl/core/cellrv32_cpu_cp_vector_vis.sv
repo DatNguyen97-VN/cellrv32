@@ -166,7 +166,7 @@ module vis #(
     assign info_to_exec.ir_funct6 = instr_in.ir_funct12[11:06];
     assign info_to_exec.ir_funct3 = instr_in.ir_funct3;
     assign info_to_exec.frm       = instr_in.frm;
-    assign info_to_exec.src1      = instr_in.src1;
+    assign info_to_exec.vfunary   = instr_in.vfunary;
     assign info_to_exec.ticket    = instr_in.ticket;
     assign info_to_exec.dst       = dst;
     assign info_to_exec.head_uop  = start_new_instr;
