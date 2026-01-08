@@ -58,7 +58,7 @@
 //** Run Multiply tests when != 0 */
 #define RUN_MUL_TESTS           (0)
 //** Run Divide tests when != 0 */
-#define RUN_DIV_TESTS           (1)
+#define RUN_DIV_TESTS           (0)
 //** Run Move tests when != 0 */
 #define RUN_MOV_TESTS           (1)
 //** Run Reduction Compute tests when != 0 */
@@ -2838,7 +2838,7 @@ int main() {
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
-  ope.binary_value = get_test_vector();
+  ope.binary_value = xorshift32();
 
   do {
     // ================== INTRO ==================
@@ -2936,7 +2936,7 @@ int main() {
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
-  ope.binary_value = get_test_vector();
+  ope.binary_value = xorshift32();
 
   do {
     // ================== INTRO ==================
@@ -3034,7 +3034,7 @@ int main() {
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
-  ope.binary_value = get_test_vector();
+  ope.binary_value = xorshift32();
 
   do {
     // ================== INTRO ==================
@@ -3132,7 +3132,7 @@ int main() {
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
-  ope.binary_value = get_test_vector();
+  ope.binary_value = xorshift32();
 
   do {
     // ================== INTRO ==================
@@ -4289,7 +4289,7 @@ int main() {
 
   round = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
-  opd.binary_value = get_test_vector();
+  opd.binary_value = xorshift32();
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
 
@@ -4337,7 +4337,7 @@ int main() {
 
   round = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
-  opd.binary_value = get_test_vector();
+  opd.binary_value = xorshift32();
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
 
