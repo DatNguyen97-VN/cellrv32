@@ -15,7 +15,6 @@ module vex #(
     parameter int ADDR_WIDTH         = 32,
     parameter int DATA_WIDTH         = 32,
     parameter int MICROOP_WIDTH      = 7 ,
-    parameter int VECTOR_TICKET_BITS = 5 ,
     parameter int FWD_POINT_A        = 1 ,
     parameter int FWD_POINT_B        = 3 ,
     parameter     VECTOR_FP_ALU      = 1 ,
@@ -33,23 +32,19 @@ module vex #(
     output logic          [            VECTOR_LANES-1:0]                 frw_a_en    ,
     output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 frw_a_addr  ,
     output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_a_data  ,
-    output logic          [      VECTOR_TICKET_BITS-1:0]                 frw_a_ticket,
     //Forward Point #2 (EX*)
     output logic          [            VECTOR_LANES-1:0]                 frw_b_en    ,
     output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 frw_b_addr  ,
     output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_b_data  ,
-    output logic          [      VECTOR_TICKET_BITS-1:0]                 frw_b_ticket,
     //Writeback
     output logic          [            VECTOR_LANES-1:0]                 wr_en       ,
     output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 wr_addr     ,
     output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] wr_data     ,
-    output logic          [            VECTOR_LANES-1:0]                 rdc_done_o  ,
-    output logic          [      VECTOR_TICKET_BITS-1:0]                 wr_ticket
+    output logic          [            VECTOR_LANES-1:0]                 rdc_done_o  
 );
 
 
     logic [$clog2(VECTOR_REGISTERS)-1:0]                 dst_ex2, dst_ex3, dst_ex4, dst_wr;
-    logic [      VECTOR_TICKET_BITS-1:0]                 ticket_ex2, ticket_ex3, ticket_ex4, ticket_wr;
     logic                                                valid_ex2, valid_ex3, valid_ex4;
     logic                                                head_ex2, head_ex3, head_ex4, head_wr;
     logic                                                end_ex2, end_ex3, end_ex4, end_wr;
@@ -170,7 +165,6 @@ module vex #(
     always_ff @(posedge clk) begin
         if(valid_i) begin
             dst_ex2    <= exec_info_i.dst;
-            ticket_ex2 <= exec_info_i.ticket;
             head_ex2   <= exec_info_i.head_uop;
             end_ex2    <= exec_info_i.end_uop;
         end
@@ -188,7 +182,6 @@ module vex #(
     always_ff @(posedge clk) begin
         if(valid_ex2) begin
             dst_ex3     <= dst_ex2;
-            ticket_ex3  <= ticket_ex2;
             head_ex3    <= head_ex2;
             end_ex3     <= end_ex2;
         end
@@ -206,7 +199,6 @@ module vex #(
     always_ff @(posedge clk) begin
         if(valid_ex3) begin
             dst_ex4     <= dst_ex3;
-            ticket_ex4  <= ticket_ex3;
             head_ex4    <= head_ex3;
             end_ex4     <= end_ex3;
         end
@@ -224,7 +216,6 @@ module vex #(
     always_ff @(posedge clk) begin
         if(valid_ex4) begin
             dst_wr     <= dst_ex4;
-            ticket_wr  <= ticket_ex4;
         end
     end
     //
@@ -259,15 +250,12 @@ module vex #(
     //------------------------------------------------------
     // Forward Point #1
     assign frw_a_addr   = exec_info_i.dst;
-    assign frw_a_ticket = exec_info_i.ticket;
 
     // Forward Point #2
     assign frw_b_addr   = dst_ex4;
-    assign frw_b_ticket = ticket_ex4;
 
     // Writeback Signals
     assign wr_addr      = is_fp32 ? fp_dst : dst_wr;
-    assign wr_ticket    = ticket_wr;
 
     assign vex_idle_o   = ~valid_i & ~valid_ex2 & ~valid_ex3 & ~valid_ex4;
 

@@ -18,8 +18,6 @@ module vrf #(
     output logic [           ELEMENTS-1:0][DATA_WIDTH-1:0] data_out_1  ,
     input  logic [      $clog2(VREGS)-1:0]                 rd_addr_2   ,
     output logic [           ELEMENTS-1:0][DATA_WIDTH-1:0] data_out_2  ,
-    input  logic [      $clog2(VREGS)-1:0]                 mask_src    ,
-    output logic [           ELEMENTS-1:0]                 mask        ,
     //Element Write Ports
     input  logic [           ELEMENTS-1:0]                 el_wr_en    ,
     input  logic [      $clog2(VREGS)-1:0]                 el_wr_addr  ,
@@ -68,7 +66,6 @@ module vrf #(
         for (int i = 0; i < ELEMENTS; i++) begin
             data_out_1[i] = memory[rd_addr_1][i];
             data_out_2[i] = memory[rd_addr_2][i];
-            mask[i]       = memory[mask_src][i][0];
         end
     end
 

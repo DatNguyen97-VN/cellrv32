@@ -17,7 +17,6 @@ module cellrv32_cpu_cp_vector #(
     parameter int ADDR_WIDTH         = 32,  // Address width used by memory ops
     parameter int MEM_MICROOP_WIDTH  = 7,   // Width of micro-op encoding for memory ops
     parameter int MICROOP_WIDTH      = 5,   // Generic micro-op width (execution encoding)
-    parameter int VECTOR_TICKET_BITS = 4,   // Bits for in-flight ticket IDs (dependency tracking)
     parameter int VECTOR_REQ_WIDTH   = 256, // Width (bits) of request payload to cache
     parameter int FWD_POINT_A        = 1,   // Forwarding point A (index / stage identifier)
     parameter int FWD_POINT_B        = 3,   // Forwarding point B (index / stage identifier)
@@ -46,25 +45,16 @@ module cellrv32_cpu_cp_vector #(
 );
 
     // Idle stage
-	logic vrrm_idle;
-	logic vis_idle;
-	logic vex_idle;
-	logic vmu_idle;
-	logic finished;
+	logic     vrrm_idle;
+	logic     vis_idle;
+	logic     vex_idle;
+	logic     vmu_idle;
+	logic     finished;
+    to_vector instr_in;
 
 	assign vector_idle_o = vrrm_idle & vis_idle & vex_idle & vmu_idle & rstn_i;
-	//////////////////////////////////////////////////
-	//                 vRRM STAGE                   //
-	//////////////////////////////////////////////////
-    to_vector               instr_in;
-	memory_remapped_v_instr m_instr_out;
-	remapped_v_instr        instr_remapped;
-	logic                   r_valid;
-	logic                   m_valid;
-	logic                   ready;
-	logic                   m_ready_r;
 
-    /* controller */
+	/* controller */
     enum logic[1:0] { S_IDLE, S_PUSH, S_BUSY, S_DONE } state;
 
     // Co-Processor Controller -------------------------------------------------------------------
@@ -89,7 +79,6 @@ module cellrv32_cpu_cp_vector #(
 						instr_in.ir_funct3  <= ctrl_i.ir_funct3;
 						instr_in.frm        <= ctrl_i.alu_frm;
                         instr_in.microop    <= ctrl_i.ir_opcode;
-                        instr_in.use_mask   <= 2'b00;
                         // next state
                         state               <= S_PUSH;
                     end
@@ -123,13 +112,22 @@ module cellrv32_cpu_cp_vector #(
                 end
             endcase
         end
-    end
+    end : coprocessor_ctrl
+
+	//////////////////////////////////////////////////
+	//                 vRRM STAGE                   //
+	//////////////////////////////////////////////////
+	memory_remapped_v_instr m_instr_out;
+	remapped_v_instr        instr_remapped;
+	logic                   r_valid;
+	logic                   m_valid;
+	logic                   ready;
+	logic                   m_ready_r;
 
 	vrrm #(
 		.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-		.VECTOR_LANES      (VECTOR_LANES      ),
-		.VECTOR_TICKET_BITS(VECTOR_TICKET_BITS)
-	) vrrm (
+		.VECTOR_LANES      (VECTOR_LANES      )
+	) vrrm_stage_inst (
 		.clk_i      (clk_i         ),
 		.rstn_i     (rstn_i        ),
 		.is_idle_o  (vrrm_idle     ), // Idle stage
@@ -165,18 +163,18 @@ module cellrv32_cpu_cp_vector #(
          .FIFO_GATE  (0)                      // no output gate required
      ) vRR_vIS_buffer_inst (
          /* control */
-         .clk_i   (clk_i),                    // clock, rising edge
-         .rstn_i  (rstn_i),                   // async reset, low-active
-         .clear_i (1'b0),                     // sync reset, high-active
-         .half_o  (    ),                     // at least half full
+         .clk_i   (clk_i           ), // clock, rising edge
+         .rstn_i  (rstn_i          ), // async reset, low-active
+         .clear_i (1'b0            ), // sync reset, high-active
+         .half_o  (                ), // at least half full
          /* write port */
-         .wdata_i (instr_remapped),           // write data: Remapped instruction input to vIS stage
-         .we_i    (r_valid),                  // write enable
-         .free_o  (ready),                    // at least one entry is free when set, Valid handshake between REGISER and ISSUE Stages
+         .wdata_i (instr_remapped  ), // write data: Remapped instruction input to vIS stage
+         .we_i    (r_valid         ), // write enable
+         .free_o  (ready           ), // at least one entry is free when set, Valid handshake between REGISER and ISSUE Stages
          /* read port */
-         .re_i    (i_ready),                  // read enable
-         .rdata_o (instr_remapped_o),         // read data: Remapped instruction output to vIS stage
-         .avail_o (r_valid_o)                 // data available when set, Valid handshake between REGISER and ISSUE Stages
+         .re_i    (i_ready         ), // read enable
+         .rdata_o (instr_remapped_o), // read data: Remapped instruction output to vIS stage
+         .avail_o (r_valid_o       )  // data available when set, Valid handshake between REGISER and ISSUE Stages
      );
 
 	//////////////////////////////////////////////////
@@ -190,47 +188,34 @@ module cellrv32_cpu_cp_vector #(
          .FIFO_GATE  (0)                   // no output gate required
      ) vRR_vMU_buffer_inst (
          /* control */
-         .clk_i   (clk_i),                 // clock, rising edge
-         .rstn_i  (rstn_i),                // async reset, low-active
-         .clear_i (1'b0),                  // sync reset, high-active
-         .half_o  (    ),                  // at least half full
+         .clk_i   (clk_i        ), // clock, rising edge
+         .rstn_i  (rstn_i       ), // async reset, low-active
+         .clear_i (1'b0         ), // sync reset, high-active
+         .half_o  (             ), // at least half full
          /* write port */
-         .wdata_i (m_instr_out),           // write data: Remapped instruction input to vMU stage
-         .we_i    (m_valid),               // write enable
-         .free_o  (m_ready_r),             // at least one entry is free when set, Valid handshake between REGISER and MEMORY Stages
+         .wdata_i (m_instr_out  ), // write data: Remapped instruction input to vMU stage
+         .we_i    (m_valid      ), // write enable
+         .free_o  (m_ready_r    ), // at least one entry is free when set, Valid handshake between REGISER and MEMORY Stages
          /* read port */
-         .re_i    (m_r_ready),             // read enable
-         .rdata_o (m_instr_out_r),         // read data: Remapped instruction output to vMU stage
-         .avail_o (m_valid_r)              // data available when set, Valid handshake between REGISER and MEMORY Stages
+         .re_i    (m_r_ready    ), // read enable
+         .rdata_o (m_instr_out_r), // read data: Remapped instruction output to vMU stage
+         .avail_o (m_valid_r    )  // data available when set, Valid handshake between REGISER and MEMORY Stages
      ); 
 
 	//////////////////////////////////////////////////
 	//                 MEMORY UNIT                  //
 	//////////////////////////////////////////////////
-	logic                                unlock_en        ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a     ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_b     ;
-	logic [      VECTOR_TICKET_BITS-1:0] unlock_ticket    ;
-	logic [            VECTOR_LANES-1:0] mem_wrtbck_en    ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_wrtbck_reg   ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_wrtbck_data  ;
-	logic [      VECTOR_TICKET_BITS-1:0] mem_wrtbck_ticket;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_0       ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_0       ;
-	logic                                mem_pending_0    ;
-	logic [      VECTOR_TICKET_BITS-1:0] mem_ticket_0     ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_1       ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_1       ;
-	logic                                mem_pending_1    ;
-	logic [      VECTOR_TICKET_BITS-1:0] mem_ticket_1     ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_2       ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_2       ;
-	logic                                mem_pending_2    ;
-	logic [      VECTOR_TICKET_BITS-1:0] mem_ticket_2     ;
-
-	logic [3:0][$clog2(VECTOR_REGISTERS)-1:0] mem_prb_reg   ;
-	logic [3:0]                               mem_prb_locked;
-	logic [3:0][      VECTOR_TICKET_BITS-1:0] mem_prb_ticket;
+	logic                                unlock_en      ;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a   ;
+	logic [            VECTOR_LANES-1:0] mem_wrtbck_en  ;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_wrtbck_reg ;
+	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_wrtbck_data;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_0     ;
+	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_0     ;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_1     ;
+	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_1     ;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_2     ;
+	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_2     ;
 
 	vmu #(
 		.REQ_DATA_WIDTH    (VECTOR_REQ_WIDTH  ),
@@ -238,51 +223,37 @@ module cellrv32_cpu_cp_vector #(
 		.VECTOR_LANES      (VECTOR_LANES      ),
 		.DATA_WIDTH        (DATA_WIDTH        ),
 		.ADDR_WIDTH        (ADDR_WIDTH        ),
-		.MICROOP_WIDTH     (MEM_MICROOP_WIDTH ),
-		.VECTOR_TICKET_BITS(VECTOR_TICKET_BITS)
-	) vmu (
-		.clk                (clk_i            ),
-		.rst_n              (rstn_i           ),
-		.vmu_idle_o         (vmu_idle         ),
+		.MICROOP_WIDTH     (MEM_MICROOP_WIDTH )
+	) vmu_stage_inst (
+		.clk                (clk_i           ),
+		.rst_n              (rstn_i          ),
+		.vmu_idle_o         (vmu_idle        ),
 		//Instruction Input Interface
-		.valid_in           (m_valid_r        ),
-		.instr_in           (m_instr_out_r    ),
-		.ready_o            (m_r_ready        ),
+		.valid_in           (m_valid_r       ),
+		.instr_in           (m_instr_out_r   ),
+		.ready_o            (m_r_ready       ),
 		//Cache Interface (OUT)
-		.mem_req_valid_o    (mem_req_valid_o  ),
-		.mem_req_o          (mem_req_o        ),
-		.cache_ready_i      (cache_ready_i    ),
+		.mem_req_valid_o    (mem_req_valid_o ),
+		.mem_req_o          (mem_req_o       ),
+		.cache_ready_i      (cache_ready_i   ),
 		//Cache Interface (IN)
-		.mem_resp_valid_i   (mem_resp_valid_i ),
-		.mem_resp_i         (mem_resp_i       ),
+		.mem_resp_valid_i   (mem_resp_valid_i),
+		.mem_resp_i         (mem_resp_i      ),
 		//RF Interface - Loads
-		.rd_addr_0_o        (mem_addr_0       ),
-		.rd_data_0_i        (mem_data_0       ),
-		.rd_pending_0_i     (mem_pending_0    ),
-		.rd_ticket_0_i      (mem_ticket_0     ),
+		.rd_addr_0_o        (mem_addr_0      ),
+		.rd_data_0_i        (mem_data_0      ),
 		//RF Interface - Stores
-		.rd_addr_1_o        (mem_addr_1       ),
-		.rd_data_1_i        (mem_data_1       ),
-		.rd_pending_1_i     (mem_pending_1    ),
-		.rd_ticket_1_i      (mem_ticket_1     ),
-		.rd_addr_2_o        (mem_addr_2       ),
-		.rd_data_2_i        (mem_data_2       ),
-		.rd_pending_2_i     (mem_pending_2    ),
-		.rd_ticket_2_i      (mem_ticket_2     ),
+		.rd_addr_1_o        (mem_addr_1      ),
+		.rd_data_1_i        (mem_data_1      ),
+		.rd_addr_2_o        (mem_addr_2      ),
+		.rd_data_2_i        (mem_data_2      ),
 		//RF Writeback Interface
-		.wrtbck_en_o        (mem_wrtbck_en    ),
-		.wrtbck_reg_o       (mem_wrtbck_reg   ),
-		.wrtbck_data_o      (mem_wrtbck_data  ),
-		.wrtbck_ticket_o    (mem_wrtbck_ticket),
-		//RF Writeback Probing Interface
-		.wrtbck_prb_reg_o   (mem_prb_reg      ),
-		.wrtbck_prb_locked_i(mem_prb_locked   ),
-		.wrtbck_prb_ticket_i(mem_prb_ticket   ),
+		.wrtbck_en_o        (mem_wrtbck_en   ),
+		.wrtbck_reg_o       (mem_wrtbck_reg  ),
+		.wrtbck_data_o      (mem_wrtbck_data ),
 		//Unlock Interface
-		.unlock_en_o        (unlock_en        ),
-		.unlock_reg_a_o     (unlock_reg_a     ),
-		.unlock_reg_b_o     (unlock_reg_b     ),
-		.unlock_ticket_o    (unlock_ticket    )
+		.unlock_en_o        (unlock_en       ),
+		.unlock_reg_a_o     (unlock_reg_a    )
 	);
 
 	// ================================================
@@ -291,16 +262,13 @@ module cellrv32_cpu_cp_vector #(
 	logic [            VECTOR_LANES-1:0]                 frw_a_en     ;
 	logic [$clog2(VECTOR_REGISTERS)-1:0]                 frw_a_addr   ;
 	logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_a_data   ;
-	logic [      VECTOR_TICKET_BITS-1:0]                 frw_a_ticket ;
 	logic [            VECTOR_LANES-1:0]                 frw_b_en     ;
 	logic [$clog2(VECTOR_REGISTERS)-1:0]                 frw_b_addr   ;
 	logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_b_data   ;
-	logic [      VECTOR_TICKET_BITS-1:0]                 frw_b_ticket ;
 	logic [            VECTOR_LANES-1:0]                 wrtbck_en    ;
 	logic [            VECTOR_LANES-1:0]                 rdc_done     ;
 	logic [$clog2(VECTOR_REGISTERS)-1:0]                 wrtbck_addr  ;
 	logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] wrtbck_data  ;
-	logic [      VECTOR_TICKET_BITS-1:0]                 wrtbck_ticket;
 	logic                                                iss_valid    ;
 	logic                                                iss_ex_ready ;
 	to_vector_exec                    [VECTOR_LANES-1:0] iss_to_exec_data;
@@ -310,9 +278,8 @@ module cellrv32_cpu_cp_vector #(
 	vis #(
 		.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
 		.VECTOR_LANES      (VECTOR_LANES      ),
-		.DATA_WIDTH        (DATA_WIDTH        ),
-		.VECTOR_TICKET_BITS(VECTOR_TICKET_BITS)
-	) vis (
+		.DATA_WIDTH        (DATA_WIDTH        )
+	) vis_stage_inst (
 		.clk_i            (clk_i           ),
 		.rstn_i          (rstn_i           ),
 		.is_idle_o       (vis_idle         ),
@@ -329,46 +296,30 @@ module cellrv32_cpu_cp_vector #(
 		//Memory Unit read port
 		.mem_addr_0      (mem_addr_0       ),
 		.mem_data_0      (mem_data_0       ),
-		.mem_pending_0   (mem_pending_0    ),
-		.mem_ticket_0    (mem_ticket_0     ),
 		.mem_addr_1      (mem_addr_1       ),
 		.mem_data_1      (mem_data_1       ),
-		.mem_pending_1   (mem_pending_1    ),
-		.mem_ticket_1    (mem_ticket_1     ),
 		.mem_addr_2      (mem_addr_2       ),
 		.mem_data_2      (mem_data_2       ),
-		.mem_pending_2   (mem_pending_2    ),
-		.mem_ticket_2    (mem_ticket_2     ),
-		//Memory Unit Probing port
-		.mem_prb_reg_i   (mem_prb_reg      ),
-		.mem_prb_locked_o(mem_prb_locked   ),
-		.mem_prb_ticket_o(mem_prb_ticket   ),
 		//Memory Unit write port
 		.mem_wr_en       (mem_wrtbck_en    ),
-		.mem_wr_ticket   (mem_wrtbck_ticket),
 		.mem_wr_addr     (mem_wrtbck_reg   ),
 		.mem_wr_data     (mem_wrtbck_data  ),
 		// Unlock Ports
 		.unlock_en       (unlock_en        ),
 		.unlock_reg_a    (unlock_reg_a     ),
-		.unlock_reg_b    (unlock_reg_b     ),
-		.unlock_ticket   (unlock_ticket    ),
 		//Forward Point #1
 		.frw_a_en        (frw_a_en         ),
 		.frw_a_addr      (frw_a_addr       ),
 		.frw_a_data      (frw_a_data       ),
-		.frw_a_ticket    (frw_a_ticket     ),
 		//Forward Point #2
 		.frw_b_en        (frw_b_en         ),
 		.frw_b_addr      (frw_b_addr       ),
 		.frw_b_data      (frw_b_data       ),
-		.frw_b_ticket    (frw_b_ticket     ),
 		//Writeback (from EX)
 		.wr_en           (wrtbck_en        ),
 		.wr_addr         (wrtbck_addr      ),
 		.wr_data         (wrtbck_data      ),
-		.rdc_done        (rdc_done         ),
-		.wr_ticket       (wrtbck_ticket    )
+		.rdc_done        (rdc_done         )
 	);
 
 	// ================================================
@@ -429,12 +380,11 @@ module cellrv32_cpu_cp_vector #(
 		.ADDR_WIDTH        (ADDR_WIDTH        ),
 		.DATA_WIDTH        (DATA_WIDTH        ),
 		.MICROOP_WIDTH     (MICROOP_WIDTH     ),
-		.VECTOR_TICKET_BITS(VECTOR_TICKET_BITS),
 		.FWD_POINT_A       (FWD_POINT_A       ),
 		.FWD_POINT_B       (FWD_POINT_B       ),
 		.VECTOR_FP_ALU     (VECTOR_FP_ALU     ),
 		.VECTOR_FXP_ALU    (VECTOR_FXP_ALU    )
-	) vex (
+	) vex_stage_inst (
 		.clk         (clk_i        ),
 		.rst_n       (rstn_i       ),
 		.vex_idle_o  (vex_idle     ),
@@ -447,18 +397,15 @@ module cellrv32_cpu_cp_vector #(
 		.frw_a_en    (frw_a_en     ),
 		.frw_a_addr  (frw_a_addr   ),
 		.frw_a_data  (frw_a_data   ),
-		.frw_a_ticket(frw_a_ticket ),
 		//Forward Point #2
 		.frw_b_en    (frw_b_en     ),
 		.frw_b_addr  (frw_b_addr   ),
 		.frw_b_data  (frw_b_data   ),
-		.frw_b_ticket(frw_b_ticket ),
 		//Writeback
 		.wr_en       (wrtbck_en    ),
 		.wr_addr     (wrtbck_addr  ),
 		.wr_data     (wrtbck_data  ),
-		.rdc_done_o  (rdc_done     ),
-		.wr_ticket   (wrtbck_ticket)
+		.rdc_done_o  (rdc_done     )
 	);
 
 endmodule

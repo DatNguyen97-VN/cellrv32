@@ -464,6 +464,10 @@ package cellrv32_package;
   const logic [5:0] funct6_vfclass_c = 6'b010011; // Vector Single-Width Floating-Point Classify
   //const logic [5:0] funct6_vfmv_c    = 6'b010111; // Vector Single-Width Floating-Point Move
   const logic [5:0] funct6_vfcvt_c   = 6'b010010; // Vector Single-Width Floating-Point Type Conversion
+  // floating point reduction
+  const logic [5:0] funct6_vfredosum_c = 6'b000011; // Vector Single-Width Integer Reduce Sum
+  const logic [5:0] funct6_vfredmin_c  = 6'b000101; // Vector Single-Width Integer Reduce Min
+  const logic [5:0] funct6_vfredmax_c  = 6'b000111; // Vector Single-Width Integer Reduce Max
   // RISC-V Funct12 -------------------------------------------------------------------------
   // -------------------------------------------------------------------------------------------
   // system --
@@ -859,25 +863,24 @@ package cellrv32_package;
 
   // to Vector Pipeline
   typedef struct packed {
-      logic        valid;
+      logic        valid      ;
   
-      logic [04:0] dst;
-      logic [04:0] src1;
-      logic [04:0] src2;
-      logic [04:0] immediate;
+      logic [04:0] dst        ;
+      logic [04:0] src1       ;
+      logic [04:0] src2       ;
+      logic [04:0] immediate  ;
   
-      logic [31:0] data1;
-      logic [31:0] data2;
+      logic [31:0] data1      ;
+      logic [31:0] data2      ;
   
       logic        reconfigure;
-      logic [11:0] ir_funct12;
-      logic [02:0] ir_funct3;
-      logic [02:0] frm;
-      logic [06:0] microop;
-      logic [01:0] use_mask;
+      logic [11:0] ir_funct12 ;
+      logic [02:0] ir_funct3  ;
+      logic [02:0] frm        ;
+      logic [06:0] microop    ;
   
-      logic [06:0] maxvl;
-      logic [06:0] vl;
+      logic [06:0] maxvl      ;
+      logic [06:0] vl         ;
   } to_vector;
 
   //--------------------------------------
@@ -888,50 +891,42 @@ package cellrv32_package;
       logic [04:0] dst        ;
       logic        dst_iszero ;
       logic [04:0] src1       ;
-      logic        src1_iszero;
       logic [04:0] src2       ;
-      logic        src2_iszero;
-      logic [04:0] immediate;
-      logic [04:0] mask_src   ;
+      logic [04:0] immediate  ;
   
       logic [31:0] data1      ;
       logic [31:0] data2      ;
   
       logic        reconfigure;
-      logic [04:0] ticket     ;
       logic [11:0] ir_funct12 ;
       logic [02:0] ir_funct3  ;
       logic [02:0] frm        ;
       logic [04:0] vfunary    ;
       logic [06:0] microop    ;
-      logic        use_mask   ;
-      logic [01:0] lock       ;
+      logic        lock       ;
   
-      logic [06:0] maxvl;
-      logic [06:0] vl;
+      logic [06:0] maxvl      ;
+      logic [06:0] vl         ;
   } remapped_v_instr;
 
   //--------------------------------------
   //Remapped Memory Vector Instruction
   typedef struct packed {
-      logic valid           ;
+      logic       valid       ;
   
-      logic [04:0] dst             ;
-      logic [04:0] src1            ;
-      logic [04:0] src2            ;
+      logic [04:0] dst        ;
+      logic [04:0] src1       ;
+      logic [04:0] src2       ;
 
-      logic [31:0] data1           ;
-      logic [31:0] data2           ;
+      logic [31:0] data1      ;
+      logic [31:0] data2      ;
 
-      logic [04:0] ticket          ;
-      logic [04:0] last_ticket_src1;
-      logic [04:0] last_ticket_src2;
-      logic [06:0] microop         ;
-      logic        reconfigure     ;
+      logic [06:0] microop    ;
+      logic        reconfigure;
       logic [11:0] ir_funct12 ;
   
-      logic [06:0] maxvl           ;
-      logic [06:0] vl              ;
+      logic [06:0] maxvl      ;
+      logic [06:0] vl         ;
   } memory_remapped_v_instr;
   
   //--------------------------------------
@@ -945,16 +940,16 @@ package cellrv32_package;
   } to_vector_exec;
 
   typedef struct packed {
-      logic [04:0] dst     ;
-      logic [04:0] ticket  ;
+      logic [04:0] dst      ;
       logic [05:0] ir_funct6;
       logic [02:0] ir_funct3;
-      logic [04:0] vfunary ;
-      logic [02:0] frm     ;
-      logic [06:0] vl      ;
-      logic        is_rdc  ;
-      logic        head_uop;
-      logic        end_uop ;
+      logic [04:0] vfunary  ;
+      logic [02:0] frm      ;
+      logic [06:0] vl       ;
+      logic        is_rdc   ;
+      logic        is_fp_rdc;
+      logic        head_uop ;
+      logic        end_uop  ;
   } to_vector_exec_info;
 
   //--------------------------------------
@@ -962,15 +957,15 @@ package cellrv32_package;
   typedef struct packed {
       logic [31:0]  address;
       logic [06:0]  microop;
-      logic [255:0] data;
-      logic [03:0]  ticket;
+      logic [255:0] data   ;
+      logic [03:0]  ticket ;
   } vector_mem_req;
 
   //--------------------------------------
   //Vector memory response
   typedef struct packed {
       logic [03:0]  ticket;
-      logic [255:0] data;
+      logic [255:0] data  ;
   } vector_mem_resp;
 
   // Comparator Bus ----------------------------------------------------------------------------

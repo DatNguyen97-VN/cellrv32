@@ -12,8 +12,7 @@ module vmu_ld_eng #(
     parameter int VECTOR_LANES       = 8  ,
     parameter int DATA_WIDTH         = 32 ,
     parameter int ADDR_WIDTH         = 32 ,
-    parameter int MICROOP_WIDTH      = 5  ,
-    parameter int VECTOR_TICKET_BITS = 4
+    parameter int MICROOP_WIDTH      = 5  
 ) (
     //=======================================================
     // Clock & Reset
@@ -32,40 +31,24 @@ module vmu_ld_eng #(
     //=======================================================
     output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_o            , // Address of vector register to read index values from.
     input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_i            , // Lane-wise data read from RF (used to compute indexed addresses).
-    input  logic                                rd_pending_i         , // RF read in progress; block address generation.
-    input  logic [      VECTOR_TICKET_BITS-1:0] rd_ticket_i          , // Ticket tag for RF read to guarantee ordering.
     //=======================================================
     // RF Writeback Interface
     //=======================================================
     output logic                                wrtbck_req_o         , // Request to write back the loaded vector elements.
-    input  logic                                wrtbck_grant_i       , // Grant from RF allowing writeback.
     output logic [            VECTOR_LANES-1:0] wrtbck_en_o          , // Per-lane write-enable vector.
     output logic [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_reg_o         , // Destination vector register index.
     output logic [ VECTOR_LANES*DATA_WIDTH-1:0] wrtbck_data_o        , // Lane-wise load data returned to RF.
-    output logic [      VECTOR_TICKET_BITS-1:0] wrtbck_ticket_o      , // Ticket tag for writeback completion tracking.
-    //=======================================================
-    // RF Writeback Probing Interface
-    //=======================================================
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_prb_reg_a_o   , // Probe register A for availability (row 0 dst).
-    input  logic                                wrtbck_prb_locked_a_i, // Indicates RF A side is locked by another operation.
-    input  logic [      VECTOR_TICKET_BITS-1:0] wrtbck_prb_ticket_a_i, // Ticket for RF A side.
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_prb_reg_b_o   , // Probe register B for availability (row 1 dst).
-    input  logic                                wrtbck_prb_locked_b_i, // Indicates RF B side is locked by another operation.
-    input  logic [      VECTOR_TICKET_BITS-1:0] wrtbck_prb_ticket_b_i, // Ticket for RF B side.
     //=======================================================
     // Unlock Interface (after writeback completes)
     //=======================================================
     output logic                                unlock_en_o          , // Assert to unlock the destination/src registers.
     output logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a_o       , // Register to unlock (dst).
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_b_o       , // Register to unlock (src).
-    output logic [      VECTOR_TICKET_BITS-1:0] unlock_ticket_o      , // Ticket tag associated with the completed instruction.
     //=======================================================
     // Memory Request Interface (to L1 / D-cache)
     //=======================================================
     input  logic                                grant_i              , // Memory system grants request.
     output logic                                req_en_o             , // Send memory request when asserted.
     output logic [              ADDR_WIDTH-1:0] req_addr_o           , // Byte address for memory load.
-    output logic [           MICROOP_WIDTH-1:0] req_microop_o        , // Micro-operation type (load variants).
     output logic [  $clog2(REQ_DATA_WIDTH/8):0] req_size_o           , // Byte count of the request (depends on element size).
     output logic [      $clog2(VECTOR_LANES):0] req_ticket_o         , // Unique ticket identifying the request (row + lane ID).
     //=======================================================
@@ -98,7 +81,6 @@ module vmu_ld_eng #(
     logic                                                             vl_reached                  ;
     logic                                                             do_reconfigure              ;
     logic                                                             request_ready               ;
-    logic                                                             addr_ready                  ;
     logic                                                             row_0_ready                 ;
     logic                                                             row_1_ready                 ;
     logic                                                             multi_valid                 ;
@@ -147,8 +129,6 @@ module vmu_ld_eng #(
     logic [                    VREG_ADDR_WIDTH-1:0]                   max_expansion_r             ;
     logic [$clog2(VECTOR_REGISTERS*VECTOR_LANES):0]                   instr_vl_r                  ;
     logic [                      MICROOP_WIDTH-1:0]                   microop_r                   ;
-    logic [                 VECTOR_TICKET_BITS-1:0]                   ticket_r                    ;
-    logic [                                    4:0]                   last_ticket_src2_r          ;
     logic [                                    1:0]                   memory_op_r                 ;
     logic [                                    1:0]                   nxt_memory_op               ;
     logic [                         ADDR_WIDTH-1:0]                   start_addr_r                ;
@@ -156,8 +136,8 @@ module vmu_ld_eng #(
 
     // Create basic control flow
     //=======================================================
-    assign ready_o             =  currently_idle;
-    assign is_busy_o           = ~currently_idle;
+    assign ready_o   =  currently_idle;
+    assign is_busy_o = ~currently_idle;
 
     // current instruction finished
     assign current_finished = ~pending_elem[current_row][nxt_elem] & expansion_finished & new_transaction_en;
@@ -178,36 +158,31 @@ module vmu_ld_eng #(
     // Create the memory request control signals
     assign req_en_o      = request_ready;
     assign req_addr_o    = current_addr;
-    assign req_microop_o = 5'b10000; // REVISIT will change based on instruction
-    assign req_ticket_o  = {current_row,current_pointer_wb_r};
+    assign req_ticket_o  = {current_row, current_pointer_wb_r};
 
     assign req_size_o = el_served_count << 2; // el_served_count * 4
 
     assign new_transaction_en = req_en_o & grant_i;
-    assign request_ready      = addr_ready & pending_elem[current_row][current_pointer_wb_r];
-    assign addr_ready         = (memory_op_r === OP_INDEXED) ? ~rd_pending_i & ((rd_ticket_i === ticket_r) | (rd_ticket_i === last_ticket_src2_r)) : 1'b1;
+    assign request_ready      = pending_elem[current_row][current_pointer_wb_r];
 
     // Unlock register signals
     assign unlock_en_o     = writeback_complete;
-    assign unlock_ticket_o = ticket_r;
     assign unlock_reg_a_o  = row_0_ready ? row_0_rdst : row_1_rdst;
-    assign unlock_reg_b_o  = row_0_ready ? row_0_src  : row_1_src;
 
 
     // Create the writeback signals for the RF
-    assign wrtbck_req_o       = row_0_ready | row_1_ready;
-    assign writeback_complete = (row_0_ready | row_1_ready) & wrtbck_grant_i;
+    assign wrtbck_req_o       = writeback_complete;
+    assign writeback_complete = row_0_ready | row_1_ready;
     assign writeback_row      = row_0_ready ? 1'b0 : 1'b1;
 
-    assign row_0_ready = ~|(active_elem[0] ^ served_elem[0]) & |active_elem[0] & (wrtbck_prb_ticket_a_i === ticket_r) & wrtbck_prb_locked_a_i;
-    assign row_1_ready = ~|(active_elem[1] ^ served_elem[1]) & |active_elem[1] & (wrtbck_prb_ticket_b_i === ticket_r) & wrtbck_prb_locked_b_i;
+    assign row_0_ready = ~|(active_elem[0] ^ served_elem[0]) & |active_elem[0];
+    assign row_1_ready = ~|(active_elem[1] ^ served_elem[1]) & |active_elem[1];
 
     // Output aliasing
     assign wrtbck_en_o     = row_0_ready ? {VECTOR_LANES{writeback_complete}} & served_elem[0] :
                                            {VECTOR_LANES{writeback_complete}} & served_elem[1];
     assign wrtbck_data_o   = row_0_ready ? scratchpad[0] : scratchpad[1];
     assign wrtbck_reg_o    = row_0_ready ? row_0_rdst    : row_1_rdst;
-    assign wrtbck_ticket_o = ticket_r;
     assign wrtbck_prb_reg_a_o  = row_0_rdst;
     assign wrtbck_prb_reg_b_o  = row_1_rdst;
 
@@ -330,7 +305,7 @@ module vmu_ld_eng #(
         for (int i = 0; i < VECTOR_LANES; i++) begin
             if (pending_elem[current_row][i]) loop_remaining_elements = loop_remaining_elements + 1;
         end
-    end
+    end : proc_loop_remaining_el
      
     assign nxt_total_remaining_elements = instr_vl_r - ((current_exp_loop_r+1)*VECTOR_LANES);
     always_comb begin : get_served_el_cnt
@@ -341,7 +316,7 @@ module vmu_ld_eng #(
         end else begin
             el_served_count = MAX_SERVED_COUNT; // remaining > max_width
         end
-    end
+    end : get_served_el_cnt
 
     // Maintain current pointer and row
     assign nxt_row  = ~current_row;
@@ -363,7 +338,7 @@ module vmu_ld_eng #(
                 current_pointer_wb_r <= nxt_elem;
             end
         end
-    end
+    end : current_ptr
 
     // Create new pending states
     always_comb begin : get_new_elem_pending
@@ -379,7 +354,7 @@ module vmu_ld_eng #(
         end else begin
             nxt_pending_elem_loop = '1;
         end
-    end
+    end : get_new_elem_pending
 
     // Store new pending states
     assign current_served_th  = (~('1 << el_served_count)) << current_pointer_wb_r;
@@ -411,7 +386,7 @@ module vmu_ld_eng #(
                 end
             end
         end
-    end
+    end  : pending_status
 
     // Keep track of active elements
     always_ff @(posedge clk_i or negedge rstn_i) begin : active_status
@@ -437,10 +412,10 @@ module vmu_ld_eng #(
                 end
             end
         end
-    end
+    end : active_status
 
     // Keep track of served elements from memory
-    always_ff @(posedge clk_i or negedge rstn_i) begin
+    always_ff @(posedge clk_i or negedge rstn_i) begin : keep_track_elem
         if(!rstn_i) begin
             served_elem <= '0;
         end else begin
@@ -463,7 +438,7 @@ module vmu_ld_eng #(
                 end
             end
         end
-    end
+    end : keep_track_elem
 
     // Keep track of the expanions happening
     always_ff @(posedge clk_i or negedge rstn_i) begin : loop_tracking
@@ -480,7 +455,7 @@ module vmu_ld_eng #(
                 rdst_r             <= rdst_r + 1;
             end
         end
-    end
+    end : loop_tracking
     
     // Store the max expansion when reconfiguring
     always_ff @(posedge clk_i or negedge rstn_i) begin : maxExp
@@ -489,7 +464,7 @@ module vmu_ld_eng #(
         end else begin
             max_expansion_r <= instr_in.maxvl >> $clog2(VECTOR_LANES);
         end
-    end
+    end : maxExp
 
     //=======================================================
     // Capture Instruction Information
@@ -501,12 +476,11 @@ module vmu_ld_eng #(
                 instr_vl_r <= instr_in.vl;
             end
         end
-    end
+    end : proc_vl_r
+
     always_ff @(posedge clk_i) begin
         if(start_new_instruction) begin
             microop_r          <= instr_in.microop;
-            ticket_r           <= instr_in.ticket;
-            last_ticket_src2_r <= instr_in.last_ticket_src2;
         end
     end
     assign nxt_memory_op = instr_in.ir_funct12[MEM_OP_RANGE_HI:MEM_OP_RANGE_LO];
@@ -518,7 +492,7 @@ module vmu_ld_eng #(
                 memory_op_r <= nxt_memory_op;
             end
         end
-    end
+    end : proc_memory_op_r
 
     // calculate start-end addresses for the op
     // +- 4 to avoid conflicts due to data sizes

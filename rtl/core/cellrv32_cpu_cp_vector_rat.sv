@@ -24,13 +24,9 @@ module vrat #(
     //Read Port #2
     input  logic [$clog2(TOTAL_ENTRIES)-1:0] read_addr_2,
     output logic [           DATA_WIDTH-1:0] read_data_2,
-    output logic                             remapped_2 ,
     //Read Port #3
     input  logic [$clog2(TOTAL_ENTRIES)-1:0] read_addr_3,
-    output logic [           DATA_WIDTH-1:0] read_data_3,
-    output logic                             remapped_3 ,
-    //Mask Port
-    output logic [           DATA_WIDTH-1:0] mask_src
+    output logic [           DATA_WIDTH-1:0] read_data_3
 );
     localparam ADDR_WIDTH = $clog2(TOTAL_ENTRIES);
 
@@ -69,10 +65,6 @@ module vrat #(
     assign read_data_1 = ratMem[read_addr_1];
     assign remapped_1  = remapped[read_addr_1];
     assign read_data_2 = ratMem[read_addr_2];
-    assign remapped_2  = remapped[read_addr_2];
     assign read_data_3 = ratMem[read_addr_3];
-    assign remapped_3  = remapped[read_addr_3];
-
-    assign mask_src   = ratMem[1];
 
 endmodule

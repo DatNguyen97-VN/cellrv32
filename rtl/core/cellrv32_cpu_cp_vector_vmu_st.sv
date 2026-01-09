@@ -12,56 +12,48 @@ module vmu_st_eng #(
     parameter int VECTOR_LANES       = 8  ,
     parameter int DATA_WIDTH         = 32 ,
     parameter int ADDR_WIDTH         = 32 ,
-    parameter int MICROOP_WIDTH      = 5  ,
-    parameter int VECTOR_TICKET_BITS = 4
+    parameter int MICROOP_WIDTH      = 5  
 ) (
     //=======================================================
     // Clock / Reset
     //=======================================================
-    input  logic                                clk                , // Main clock
-    input  logic                                rst_n              , // Active–low synchronous reset
+    input  logic                                clk           , // Main clock
+    input  logic                                rst_n         , // Active–low synchronous reset
     //=======================================================
     // Input Interface
     //=======================================================
-    input  logic                                valid_in           , // Instruction valid input (handshake)
-    input  memory_remapped_v_instr              instr_in           , // Remapped vector memory instruction bundle
-    output logic                                ready_o            , // Store engine ready to accept new instruction
+    input  logic                                valid_in      , // Instruction valid input (handshake)
+    input  memory_remapped_v_instr              instr_in      , // Remapped vector memory instruction bundle
+    output logic                                ready_o       , // Store engine ready to accept new instruction
     //=======================================================
     // RF Interface (per vreg)
     //=======================================================
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_1_o        , // Read address for source vector register (SRC1)
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_1_i        , // Lane-packed SRC1 data read from RF
-    input  logic                                rd_pending_1_i     , // RF indicates SRC1 is still pending due to earlier ops
-    input  logic [      VECTOR_TICKET_BITS-1:0] rd_ticket_1_i      , // Ticket to check RAW dependencies for SRC1
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_1_o   , // Read address for source vector register (SRC1)
+    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_1_i   , // Lane-packed SRC1 data read from RF
     //=======================================================
     // RF Interface (for `OP_INDEXED stride)
     //=======================================================
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_2_o        , // Read address for source vector register (SRC2)
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_2_i        , // Lane-packed SRC2 data read from RF
-    input  logic                                rd_pending_2_i     , // RF indicates SRC2 is still pending due to earlier ops
-    input  logic [      VECTOR_TICKET_BITS-1:0] rd_ticket_2_i      , // Ticket to check RAW dependencies for SRC2
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_2_o   , // Read address for source vector register (SRC2)
+    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_2_i   , // Lane-packed SRC2 data read from RF
     //=======================================================
     // Unlock Interface
     //=======================================================
-    output logic                                unlock_en_o        , // Indicates SRC registers are ready to be unlocked
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a_o     , // SRC1 register number to unlock
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_b_o     , // SRC2 register number to unlock
-    output logic [      VECTOR_TICKET_BITS-1:0] unlock_ticket_o    , // Associated ticket to unlock SRC registers safely
+    output logic                                unlock_en_o   , // Indicates SRC registers are ready to be unlocked
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a_o, // SRC1 register number to unlock
     //=======================================================
     // Request Interface
     //=======================================================
-    input  logic                                grant_i            , // Memory system grants request (handshake)
-    output logic                                req_en_o           , // Request enable for memory transaction
-    output logic [              ADDR_WIDTH-1:0] req_addr_o         , // Generated memory address
-    output logic [           MICROOP_WIDTH-1:0] req_microop_o      , // Micro-op field passed to memory (store type)
-    output logic [  $clog2(REQ_DATA_WIDTH/8):0] req_size_o         , // Transfer size in bytes (depends on element width)
-    output logic [          REQ_DATA_WIDTH-1:0] req_data_o         , // Data payload (1 element or multiple elements packed)
+    input  logic                                grant_i       , // Memory system grants request (handshake)
+    output logic                                req_en_o      , // Request enable for memory transaction
+    output logic [              ADDR_WIDTH-1:0] req_addr_o    , // Generated memory address
+    output logic [  $clog2(REQ_DATA_WIDTH/8):0] req_size_o    , // Transfer size in bytes (depends on element width)
+    output logic [          REQ_DATA_WIDTH-1:0] req_data_o    , // Data payload (1 element or multiple elements packed)
     //=======================================================
     // Sync Interface
     //=======================================================
-    output logic                                is_busy_o          , // Indicates store engine is executing an instruction
-    output logic [              ADDR_WIDTH-1:0] start_addr_o       , // First address touched by this instruction
-    output logic [              ADDR_WIDTH-1:0] end_addr_o           // Last address touched (if calculable; INDEXED may not)
+    output logic                                is_busy_o     , // Indicates store engine is executing an instruction
+    output logic [              ADDR_WIDTH-1:0] start_addr_o  , // First address touched by this instruction
+    output logic [              ADDR_WIDTH-1:0] end_addr_o      // Last address touched (if calculable; INDEXED may not)
 );
 
     localparam int ELEMENT_ADDR_WIDTH   = $clog2(VECTOR_LANES)                                                       ;
@@ -82,8 +74,6 @@ module vmu_st_eng #(
     logic                                           start_new_loop              ;
     logic                                           new_transaction_en          ;
     logic                                           request_ready               ;
-    logic                                           data_ready                  ;
-    logic                                           addr_ready                  ;
     logic                                           multi_valid                 ;
     logic [    $clog2(VECTOR_LANES*DATA_WIDTH)-1:0] element_index               ;
     logic [                         ADDR_WIDTH-1:0] offset_read                 ;
@@ -112,9 +102,6 @@ module vmu_st_eng #(
     logic [                    VREG_ADDR_WIDTH-1:0] max_expansion_r             ;
     logic [$clog2(VECTOR_REGISTERS*VECTOR_LANES):0] instr_vl_r                  ;
     logic [                      MICROOP_WIDTH-1:0] microop_r                   ;
-    logic [                 VECTOR_TICKET_BITS-1:0] ticket_r                    ;
-    logic [                 VECTOR_TICKET_BITS-1:0] last_ticket_src1_r          ;
-    logic [                 VECTOR_TICKET_BITS-1:0] last_ticket_src2_r          ;
     logic [                                    1:0] memory_op_r                 ;
     logic [                                    1:0] nxt_memory_op               ;
     logic [                         ADDR_WIDTH-1:0] start_addr_r                ;
@@ -142,18 +129,13 @@ module vmu_st_eng #(
     assign req_en_o      = request_ready;
     assign req_addr_o    = current_addr;
     assign req_data_o    = data_selected;
-    assign req_microop_o = 5'b11111; //REVISIT will change based on instruction
     assign req_size_o    = 4;
 
     assign new_transaction_en = request_ready & grant_i;
-    assign request_ready      = data_ready & addr_ready & pending_elem[current_pointer_wb_r];
-    assign data_ready         = ~rd_pending_1_i;
-    assign addr_ready         = (memory_op_r === OP_INDEXED) ? ~rd_pending_2_i & ((rd_ticket_2_i === ticket_r) | (rd_ticket_2_i === last_ticket_src2_r)) : 1'b1;
+    assign request_ready      = pending_elem[current_pointer_wb_r];
     // Unlock register signals
     assign unlock_en_o     = start_new_loop | current_finished;
     assign unlock_reg_a_o  = src1_r;
-    assign unlock_reg_b_o  = src2_r;
-    assign unlock_ticket_o = ticket_r;
 
     // assign the rest of the outputs
     assign rd_addr_1_o  = src1_r;
@@ -322,10 +304,7 @@ module vmu_st_eng #(
     end
     always_ff @(posedge clk) begin
         if(start_new_instruction) begin
-            microop_r          <= instr_in.microop;
-            ticket_r           <= instr_in.ticket;
-            last_ticket_src1_r <= instr_in.last_ticket_src1;
-            last_ticket_src2_r <= instr_in.last_ticket_src2;
+            microop_r <= instr_in.microop;
         end
     end
 
