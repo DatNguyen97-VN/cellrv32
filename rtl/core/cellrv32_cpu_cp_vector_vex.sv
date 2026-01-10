@@ -15,39 +15,30 @@ module vex #(
     parameter int ADDR_WIDTH         = 32,
     parameter int DATA_WIDTH         = 32,
     parameter int MICROOP_WIDTH      = 7 ,
-    parameter int FWD_POINT_A        = 1 ,
-    parameter int FWD_POINT_B        = 3 ,
     parameter     VECTOR_FP_ALU      = 1 ,
     parameter     VECTOR_FXP_ALU     = 0
 ) (
-    input  logic                                                         clk         ,
-    input  logic                                                         rst_n       ,
-    output logic                                                         vex_idle_o  ,
+    input  logic                                                         clk        ,
+    input  logic                                                         rst_n      ,
+    output logic                                                         vex_idle_o ,
     //Issue Interface
-    input  logic                                                         valid_i     ,
-    input  to_vector_exec [            VECTOR_LANES-1:0]                 exec_data_i ,
-    input  to_vector_exec_info                                           exec_info_i ,
-    output logic                                                         ready_o     ,
-    //Forward Point #1 (EX1)
-    output logic          [            VECTOR_LANES-1:0]                 frw_a_en    ,
-    output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 frw_a_addr  ,
-    output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_a_data  ,
-    //Forward Point #2 (EX*)
-    output logic          [            VECTOR_LANES-1:0]                 frw_b_en    ,
-    output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 frw_b_addr  ,
-    output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_b_data  ,
+    input  logic                                                         valid_i    ,
+    input  to_vector_exec [            VECTOR_LANES-1:0]                 exec_data_i,
+    input  to_vector_exec_info                                           exec_info_i,
+    output logic                                                         ready_o    ,
     //Writeback
-    output logic          [            VECTOR_LANES-1:0]                 wr_en       ,
-    output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 wr_addr     ,
-    output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] wr_data     ,
-    output logic          [            VECTOR_LANES-1:0]                 rdc_done_o  
-);
+    output logic          [            VECTOR_LANES-1:0]                 wr_en      ,
+    output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 wr_addr    ,
+    output logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] wr_data    ,
+    output logic          [            VECTOR_LANES-1:0]                 rdc_done_o ,
+    output logic          [                         4:0]                 fflags_o    
+); 
 
 
     logic [$clog2(VECTOR_REGISTERS)-1:0]                 dst_ex2, dst_ex3, dst_ex4, dst_wr;
     logic                                                valid_ex2, valid_ex3, valid_ex4;
-    logic                                                head_ex2, head_ex3, head_ex4, head_wr;
-    logic                                                end_ex2, end_ex3, end_ex4, end_wr;
+    logic                                                head_ex2, head_ex3, head_ex4;
+    logic                                                end_ex2, end_ex3, end_ex4;
     logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] rdc_data_ex1_i;
     logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] rdc_data_ex1_o;
     logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] rdc_data_ex2_i;
@@ -63,65 +54,66 @@ module vex #(
     logic [VECTOR_LANES-1:0] vex_fp_valid;
     logic is_fp32;
     logic all_thread_done;
+    logic [VECTOR_LANES-1:0][4:0] vex_pipe_fflag;
 
     assign ready_o = |ready;
     assign is_fp32 = (exec_info_i.ir_funct3 == funct3_opfvv_c) || (exec_info_i.ir_funct3 == funct3_opfvx_c);
+
+    always_comb begin
+      fflags_o = '0;
+      for (int i = 0; i < VECTOR_LANES; i++) begin
+        fflags_o |= vex_pipe_fflag[i];
+      end
+    end
 
     genvar k;
     generate
         for (k = 0; k < VECTOR_LANES; k++) begin : g_vex_pipe
             assign vex_pipe_valid[k] = valid_i & exec_data_i[k].valid;
             vex_pipe #(
-                .VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-                .DATA_WIDTH        (DATA_WIDTH        ),
-                .MICROOP_WIDTH     (MICROOP_WIDTH     ),
-                .VECTOR_LANES      (VECTOR_LANES      ),
-                .VECTOR_LANE_NUM   (k                 ),
-                .FWD_POINT_A       (FWD_POINT_A       ),
-                .FWD_POINT_B       (FWD_POINT_B       ),
-                .VECTOR_FP_ALU     (VECTOR_FP_ALU     ),
-                .VECTOR_FXP_ALU    (VECTOR_FXP_ALU    )
+                .VECTOR_REGISTERS  (VECTOR_REGISTERS),
+                .DATA_WIDTH        (DATA_WIDTH      ),
+                .MICROOP_WIDTH     (MICROOP_WIDTH   ),
+                .VECTOR_LANES      (VECTOR_LANES    ),
+                .VECTOR_LANE_NUM   (k               ),
+                .VECTOR_FP_ALU     (VECTOR_FP_ALU   ),
+                .VECTOR_FXP_ALU    (VECTOR_FXP_ALU  )
             ) vex_pipe (
-                .clk           (clk                     ),
-                .rst_n         (rst_n                   ),
+                .clk           (clk                  ),
+                .rst_n         (rst_n                ),
                 //Input
-                .valid_i       (vex_pipe_valid[k]       ),
-                .fp_valid_o    (vex_fp_valid[k]         ),
-                .ready_o       (ready[k]                ),
-                .done_i        (all_thread_done         ),
-                .mask_i        (exec_data_i[k].mask     ),
-                .data_a_i      (exec_data_i[k].data1    ),
-                .data_b_i      (exec_data_i[k].data2    ),
-                .funct6_i      (exec_info_i.ir_funct6   ),
-                .funct3_i      (exec_info_i.ir_funct3   ),
-                .frm_i         (exec_info_i.frm         ),
-                .vfunary_i     (exec_info_i.vfunary     ),
-                .vl_i          (exec_info_i.vl          ),
-                .is_rdc_i      (exec_info_i.is_rdc      ),
-                //Forward Point #1 (EX1)
-                .frw_a_en_o    (frw_a_en[k]             ),
-                .frw_a_data_o  (frw_a_data[k]           ),
-                //Forward Point #2 (EX*)
-                .frw_b_en_o    (frw_b_en[k]             ),
-                .frw_b_data_o  (frw_b_data[k]           ),
+                .valid_i       (vex_pipe_valid[k]    ),
+                .fp_valid_o    (vex_fp_valid[k]      ),
+                .ready_o       (ready[k]             ),
+                .done_i        (all_thread_done      ),
+                .mask_i        (exec_data_i[k].mask  ),
+                .data_a_i      (exec_data_i[k].data1 ),
+                .data_b_i      (exec_data_i[k].data2 ),
+                .funct6_i      (exec_info_i.ir_funct6),
+                .funct3_i      (exec_info_i.ir_funct3),
+                .frm_i         (exec_info_i.frm      ),
+                .vfunary_i     (exec_info_i.vfunary  ),
+                .vl_i          (exec_info_i.vl       ),
+                .is_rdc_i      (exec_info_i.is_rdc   ),
                 //Writeback (EX*)
-                .head_uop_ex4_i(head_ex4                ),
-                .end_uop_ex4_i (end_ex4                 ),
-                .wr_en_o       (wr_en[k]                ),
-                .wr_data_o     (wr_data[k]              ),
-                .rdc_done_o    (rdc_done_o[k]           ),
+                .head_uop_ex4_i(head_ex4             ),
+                .end_uop_ex4_i (end_ex4              ),
+                .wr_en_o       (wr_en[k]             ),
+                .wr_data_o     (wr_data[k]           ),
+                .rdc_done_o    (rdc_done_o[k]        ),
                 //EX1 Reduction Tree Intf
-                .rdc_data_ex1_i(rdc_data_ex1_i[k]       ),
-                .rdc_data_ex1_o(rdc_data_ex1_o[k]       ),
+                .rdc_data_ex1_i(rdc_data_ex1_i[k]    ),
+                .rdc_data_ex1_o(rdc_data_ex1_o[k]    ),
                 //EX2 Reduction Tree Intf
-                .rdc_data_ex2_i(rdc_data_ex2_i[k]       ),
-                .rdc_data_ex2_o(rdc_data_ex2_o[k]       ),
+                .rdc_data_ex2_i(rdc_data_ex2_i[k]    ),
+                .rdc_data_ex2_o(rdc_data_ex2_o[k]    ),
                 //EX3 Reduction Tree Intf
-                .rdc_data_ex3_i(rdc_data_ex3_i[k]       ),
-                .rdc_data_ex3_o(rdc_data_ex3_o[k]       ),
+                .rdc_data_ex3_i(rdc_data_ex3_i[k]    ),
+                .rdc_data_ex3_o(rdc_data_ex3_o[k]    ),
                 //EX2 Reduction Tree Intf
-                .rdc_data_ex4_i(rdc_data_ex4_i[k]       ),
-                .rdc_data_ex4_o(rdc_data_ex4_o[k]       )
+                .rdc_data_ex4_i(rdc_data_ex4_i[k]    ),
+                .rdc_data_ex4_o(rdc_data_ex4_o[k]    ),
+                .pipe_fflags_o (vex_pipe_fflag[k]    )
             );
         end
     endgenerate
