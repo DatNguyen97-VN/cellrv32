@@ -6,42 +6,40 @@
 // # ********************************************************************************************** #
 `ifndef  _INCL_DEFINITIONS
   `define _INCL_DEFINITIONS
+  `default_nettype none
   import cellrv32_package::*;
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_cp_vector #(
-	parameter int VECTOR_REGISTERS   = 32,  // Number of architectural vector registers
-    parameter int VECTOR_LANES       = 8,   // Number of SIMD lanes (width of vector datapath)
-    parameter int VECTOR_ACTIVE_LN   = 4,   // Number of lanes actively used (for masking/active-lanes)
-    parameter int DATA_WIDTH         = 32,  // Width of each lane element in bits
-    parameter int ADDR_WIDTH         = 32,  // Address width used by memory ops
-    parameter int MEM_MICROOP_WIDTH  = 7,   // Width of micro-op encoding for memory ops
-    parameter int MICROOP_WIDTH      = 5,   // Generic micro-op width (execution encoding)
+	parameter int VECTOR_REGISTERS   = 32 , // Number of architectural vector registers
+    parameter int VECTOR_LANES       = 8  , // Number of SIMD lanes (width of vector datapath)
+    parameter int VECTOR_ACTIVE_LN   = 4  , // Number of lanes actively used (for masking/active-lanes)
+    parameter int DATA_WIDTH         = 32 , // Width of each lane element in bits
+    parameter int ADDR_WIDTH         = 32 , // Address width used by memory ops
+    parameter int MEM_MICROOP_WIDTH  = 7  , // Width of micro-op encoding for memory ops
+    parameter int MICROOP_WIDTH      = 5  , // Generic micro-op width (execution encoding)
     parameter int VECTOR_REQ_WIDTH   = 256, // Width (bits) of request payload to cache
-    parameter int FWD_POINT_A        = 1,   // Forwarding point A (index / stage identifier)
-    parameter int FWD_POINT_B        = 3,   // Forwarding point B (index / stage identifier)
-    parameter int VECTOR_FP_ALU      = 1,   // Enable floating-point lanes
+    parameter int VECTOR_FP_ALU      = 1  , // Enable floating-point lanes
     parameter int VECTOR_FXP_ALU     = 0    // Enable fixed-point lanes
 ) (
-	input  logic           clk_i,           // System clock
-	input  logic           rstn_i,          // Active-low asynchronous reset
-	output logic           vector_idle_o,   // Indicates the entire vector unit is idle
+	input  logic           clk_i           , // System clock
+	input  logic           rstn_i          , // Active-low asynchronous reset
 	// Instruction In
-	input  logic           valid_in,        // Indicates a valid vector instruction is available
-	output logic           pop,             // Acknowledges instruction consumption from upstream queue
-    input  ctrl_bus_t      ctrl_i,          // main control bus
+	input  logic           valid_in        , // Indicates a valid vector instruction is available
+    input  ctrl_bus_t      ctrl_i          , // main control bus
     /* RF Data Inputs */
-    input  logic [DATA_WIDTH-1:0] rs1_i,    // RF source 1
-    input  logic [DATA_WIDTH-1:0] rs2_i,    // RF source 2
+    input  logic [DATA_WIDTH-1:0] rs1_i    , // RF source 1
+    input  logic [DATA_WIDTH-1:0] rs2_i    , // RF source 2
 	// Cache Request Interface
-	output logic           mem_req_valid_o, // Memory request valid signal to cache/memory subsystem
-	output vector_mem_req  mem_req_o,       // Memory request payload
-	input  logic           cache_ready_i,   // Indicates cache/memory interface is ready to accept requests
+	output logic           mem_req_valid_o , // Memory request valid signal to cache/memory subsystem
+	output vector_mem_req  mem_req_o       , // Memory request payload
+	input  logic           cache_ready_i   , // Indicates cache/memory interface is ready to accept requests
 	// Cache Response Interface
-	input  logic           mem_resp_valid_i,// Indicates a valid memory response
-	input  vector_mem_resp mem_resp_i,      // Memory response payload from cache/memory
+	input  logic           mem_resp_valid_i, // Indicates a valid memory response
+	input  vector_mem_resp mem_resp_i      , // Memory response payload from cache/memory
 	// Result and Status
-	output logic		   valid_o          // Indicates a valid vector instruction has completed execution
+	output logic		   valid_o         , // Indicates a valid vector instruction has completed execution
+	output logic [4:0]     fflags_o          // exceprtion flags
 );
 
     // Idle stage
@@ -51,8 +49,6 @@ module cellrv32_cpu_cp_vector #(
 	logic     vmu_idle;
 	logic     finished;
     to_vector instr_in;
-
-	assign vector_idle_o = vrrm_idle & vis_idle & vex_idle & vmu_idle & rstn_i;
 
 	/* controller */
     enum logic[1:0] { S_IDLE, S_PUSH, S_BUSY, S_DONE } state;
@@ -125,8 +121,8 @@ module cellrv32_cpu_cp_vector #(
 	logic                   m_ready_r;
 
 	vrrm #(
-		.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-		.VECTOR_LANES      (VECTOR_LANES      )
+		.VECTOR_REGISTERS  (VECTOR_REGISTERS),
+		.VECTOR_LANES      (VECTOR_LANES    )
 	) vrrm_stage_inst (
 		.clk_i      (clk_i         ),
 		.rstn_i     (rstn_i        ),
@@ -134,7 +130,7 @@ module cellrv32_cpu_cp_vector #(
 		//Instruction in
 		.valid_in   (instr_in.valid), // Valid handshake between stages
 		.instr_in   (instr_in      ), // Original decoded instruction
-		.pop_instr  (pop           ), // Pop handshake
+		.pop_instr  (              ), // Pop handshake
 		//Instruction out
 		.valid_o    (r_valid       ), // Valid handshake between stages
 		.instr_out  (instr_remapped), // Instruction with physical register mapping applied
@@ -156,11 +152,11 @@ module cellrv32_cpu_cp_vector #(
 	logic                   m_r_ready;
 
 	cellrv32_fifo #(
-         .FIFO_DEPTH (1),                     // number of fifo entries; has to be a power of two; min 1
+         .FIFO_DEPTH (1                    ), // number of fifo entries; has to be a power of two; min 1
          .FIFO_WIDTH ($bits(instr_remapped)), // size of data elements in fifo
-         .FIFO_RSYNC (0),                     // we NEED to read data asynchronously
-         .FIFO_SAFE  (0),                     // no safe access required (ensured by FIFO-external control)
-         .FIFO_GATE  (0)                      // no output gate required
+         .FIFO_RSYNC (0                    ), // we NEED to read data asynchronously
+         .FIFO_SAFE  (0                    ), // no safe access required (ensured by FIFO-external control)
+         .FIFO_GATE  (0                    )  // no output gate required
      ) vRR_vIS_buffer_inst (
          /* control */
          .clk_i   (clk_i           ), // clock, rising edge
@@ -181,11 +177,11 @@ module cellrv32_cpu_cp_vector #(
 	//           vRR/vMU PIPELINE REGISTER          //
 	//////////////////////////////////////////////////
 	cellrv32_fifo #(
-         .FIFO_DEPTH (1),                  // number of fifo entries; has to be a power of two; min 1
+         .FIFO_DEPTH (1                 ), // number of fifo entries; has to be a power of two; min 1
          .FIFO_WIDTH ($bits(m_instr_out)), // size of data elements in fifo
-         .FIFO_RSYNC (0),                  // we NEED to read data asynchronously
-         .FIFO_SAFE  (0),                  // no safe access required (ensured by FIFO-external control)
-         .FIFO_GATE  (0)                   // no output gate required
+         .FIFO_RSYNC (0                 ), // we NEED to read data asynchronously
+         .FIFO_SAFE  (0                 ), // no safe access required (ensured by FIFO-external control)
+         .FIFO_GATE  (0                 )  // no output gate required
      ) vRR_vMU_buffer_inst (
          /* control */
          .clk_i   (clk_i        ), // clock, rising edge
@@ -218,21 +214,21 @@ module cellrv32_cpu_cp_vector #(
 	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_2     ;
 
 	vmu #(
-		.REQ_DATA_WIDTH    (VECTOR_REQ_WIDTH  ),
-		.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-		.VECTOR_LANES      (VECTOR_LANES      ),
-		.DATA_WIDTH        (DATA_WIDTH        ),
-		.ADDR_WIDTH        (ADDR_WIDTH        ),
-		.MICROOP_WIDTH     (MEM_MICROOP_WIDTH )
+		.REQ_DATA_WIDTH    (VECTOR_REQ_WIDTH ),
+		.VECTOR_REGISTERS  (VECTOR_REGISTERS ),
+		.VECTOR_LANES      (VECTOR_LANES     ),
+		.DATA_WIDTH        (DATA_WIDTH       ),
+		.ADDR_WIDTH        (ADDR_WIDTH       ),
+		.MICROOP_WIDTH     (MEM_MICROOP_WIDTH)
 	) vmu_stage_inst (
 		.clk                (clk_i           ),
 		.rst_n              (rstn_i          ),
 		.vmu_idle_o         (vmu_idle        ),
-		//Instruction Input Interface
+		//Instruction Input Interface 
 		.valid_in           (m_valid_r       ),
 		.instr_in           (m_instr_out_r   ),
 		.ready_o            (m_r_ready       ),
-		//Cache Interface (OUT)
+		//Cache Interface (OUT) 
 		.mem_req_valid_o    (mem_req_valid_o ),
 		.mem_req_o          (mem_req_o       ),
 		.cache_ready_i      (cache_ready_i   ),
@@ -242,16 +238,16 @@ module cellrv32_cpu_cp_vector #(
 		//RF Interface - Loads
 		.rd_addr_0_o        (mem_addr_0      ),
 		.rd_data_0_i        (mem_data_0      ),
-		//RF Interface - Stores
+		//RF Interface - Stores 
 		.rd_addr_1_o        (mem_addr_1      ),
 		.rd_data_1_i        (mem_data_1      ),
 		.rd_addr_2_o        (mem_addr_2      ),
 		.rd_data_2_i        (mem_data_2      ),
-		//RF Writeback Interface
+		//RF Writeback Interface 
 		.wrtbck_en_o        (mem_wrtbck_en   ),
 		.wrtbck_reg_o       (mem_wrtbck_reg  ),
 		.wrtbck_data_o      (mem_wrtbck_data ),
-		//Unlock Interface
+		//Unlock Interface 
 		.unlock_en_o        (unlock_en       ),
 		.unlock_reg_a_o     (unlock_reg_a    )
 	);
@@ -259,12 +255,6 @@ module cellrv32_cpu_cp_vector #(
 	// ================================================
 	//                 ISSUE STAGE                  
 	// ================================================
-	logic [            VECTOR_LANES-1:0]                 frw_a_en     ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0]                 frw_a_addr   ;
-	logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_a_data   ;
-	logic [            VECTOR_LANES-1:0]                 frw_b_en     ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0]                 frw_b_addr   ;
-	logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] frw_b_data   ;
 	logic [            VECTOR_LANES-1:0]                 wrtbck_en    ;
 	logic [            VECTOR_LANES-1:0]                 rdc_done     ;
 	logic [$clog2(VECTOR_REGISTERS)-1:0]                 wrtbck_addr  ;
@@ -276,50 +266,42 @@ module cellrv32_cpu_cp_vector #(
 
 
 	vis #(
-		.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-		.VECTOR_LANES      (VECTOR_LANES      ),
-		.DATA_WIDTH        (DATA_WIDTH        )
+		.VECTOR_REGISTERS  (VECTOR_REGISTERS),
+		.VECTOR_LANES      (VECTOR_LANES    ),
+		.DATA_WIDTH        (DATA_WIDTH      )
 	) vis_stage_inst (
-		.clk_i            (clk_i           ),
-		.rstn_i          (rstn_i           ),
-		.is_idle_o       (vis_idle         ),
-		.exec_finished_o (finished         ),
+		.clk_i           (clk_i           ),
+		.rstn_i          (rstn_i          ),
+		.is_idle_o       (vis_idle        ),
+		.exec_finished_o (finished        ),
 		//Instruction in
-		.valid_in        (r_valid_o        ),
-		.instr_in        (instr_remapped_o ),
-		.ready_o         (i_ready          ),
+		.valid_in        (r_valid_o       ),
+		.instr_in        (instr_remapped_o),
+		.ready_o         (i_ready         ),
 		//Instruction out
-		.valid_o         (iss_valid        ),
-		.data_to_exec    (iss_to_exec_data ),
-		.info_to_exec    (iss_to_exec_info ),
-		.ready_i         (iss_ex_ready     ),
+		.valid_o         (iss_valid       ),
+		.data_to_exec    (iss_to_exec_data),
+		.info_to_exec    (iss_to_exec_info),
+		.ready_i         (iss_ex_ready    ),
 		//Memory Unit read port
-		.mem_addr_0      (mem_addr_0       ),
-		.mem_data_0      (mem_data_0       ),
-		.mem_addr_1      (mem_addr_1       ),
-		.mem_data_1      (mem_data_1       ),
-		.mem_addr_2      (mem_addr_2       ),
-		.mem_data_2      (mem_data_2       ),
+		.mem_addr_0      (mem_addr_0      ),
+		.mem_data_0      (mem_data_0      ),
+		.mem_addr_1      (mem_addr_1      ),
+		.mem_data_1      (mem_data_1      ),
+		.mem_addr_2      (mem_addr_2      ),
+		.mem_data_2      (mem_data_2      ),
 		//Memory Unit write port
-		.mem_wr_en       (mem_wrtbck_en    ),
-		.mem_wr_addr     (mem_wrtbck_reg   ),
-		.mem_wr_data     (mem_wrtbck_data  ),
+		.mem_wr_en       (mem_wrtbck_en   ),
+		.mem_wr_addr     (mem_wrtbck_reg  ),
+		.mem_wr_data     (mem_wrtbck_data ),
 		// Unlock Ports
-		.unlock_en       (unlock_en        ),
-		.unlock_reg_a    (unlock_reg_a     ),
-		//Forward Point #1
-		.frw_a_en        (frw_a_en         ),
-		.frw_a_addr      (frw_a_addr       ),
-		.frw_a_data      (frw_a_data       ),
-		//Forward Point #2
-		.frw_b_en        (frw_b_en         ),
-		.frw_b_addr      (frw_b_addr       ),
-		.frw_b_data      (frw_b_data       ),
+		.unlock_en       (unlock_en       ),
+		.unlock_reg_a    (unlock_reg_a    ),
 		//Writeback (from EX)
-		.wr_en           (wrtbck_en        ),
-		.wr_addr         (wrtbck_addr      ),
-		.wr_data         (wrtbck_data      ),
-		.rdc_done        (rdc_done         )
+		.wr_en           (wrtbck_en       ),
+		.wr_addr         (wrtbck_addr     ),
+		.wr_data         (wrtbck_data     ),
+		.rdc_done        (rdc_done        )
 	);
 
 	// ================================================
@@ -329,83 +311,75 @@ module cellrv32_cpu_cp_vector #(
 	logic exec_valid, exec_ready;
 
 	cellrv32_fifo #(
-         .FIFO_DEPTH (1),                       // number of fifo entries; has to be a power of two; min 1
+         .FIFO_DEPTH (1                      ), // number of fifo entries; has to be a power of two; min 1
          .FIFO_WIDTH ($bits(iss_to_exec_data)), // size of data elements in fifo
-         .FIFO_RSYNC (0),                       // we NEED to read data asynchronously
-         .FIFO_SAFE  (0),                       // no safe access required (ensured by FIFO-external control)
-         .FIFO_GATE  (0)                        // no output gate required
+         .FIFO_RSYNC (0                      ), // we NEED to read data asynchronously
+         .FIFO_SAFE  (0                      ), // no safe access required (ensured by FIFO-external control)
+         .FIFO_GATE  (0                      )  // no output gate required
 	) vIS_vEX_data_buffer_inst (
          /* control */
-         .clk_i   (clk_i),                      // clock, rising edge
-         .rstn_i  (rstn_i),                     // async reset, low-active
-         .clear_i (1'b0),                       // sync reset, high-active
-         .half_o  (    ),                       // at least half full
+         .clk_i   (clk_i           ), // clock, rising edge
+         .rstn_i  (rstn_i          ), // async reset, low-active
+         .clear_i (1'b0            ), // sync reset, high-active
+         .half_o  (                ), // at least half full
          /* write port */
-         .wdata_i (iss_to_exec_data),           // write data: Remapped instruction input to vEX stage
-         .we_i    (iss_valid),                  // write enable
-         .free_o  (iss_ex_ready),               // at least one entry is free when set, Valid handshake between vIS and vEX Stages
+         .wdata_i (iss_to_exec_data), // write data: Remapped instruction input to vEX stage
+         .we_i    (iss_valid       ), // write enable
+         .free_o  (iss_ex_ready    ), // at least one entry is free when set, Valid handshake between vIS and vEX Stages
          /* read port */
-         .re_i    (exec_ready),                 // read enable
-         .rdata_o (exec_data_o),                // read data: Remapped instruction output to vEX stage
-         .avail_o (exec_valid)                  // data available when set, Valid handshake between vIS and vEX Stages
+         .re_i    (exec_ready      ), // read enable
+         .rdata_o (exec_data_o     ), // read data: Remapped instruction output to vEX stage
+         .avail_o (exec_valid      )  // data available when set, Valid handshake between vIS and vEX Stages
      ); 
 	
 	cellrv32_fifo #(
-         .FIFO_DEPTH (1),                       // number of fifo entries; has to be a power of two; min 1
+         .FIFO_DEPTH (1                      ), // number of fifo entries; has to be a power of two; min 1
          .FIFO_WIDTH ($bits(iss_to_exec_info)), // size of data elements in fifo
-         .FIFO_RSYNC (0),                       // we NEED to read data asynchronously
-         .FIFO_SAFE  (0),                       // no safe access required (ensured by FIFO-external control)
-         .FIFO_GATE  (0)                        // no output gate required
+         .FIFO_RSYNC (0                      ), // we NEED to read data asynchronously
+         .FIFO_SAFE  (0                      ), // no safe access required (ensured by FIFO-external control)
+         .FIFO_GATE  (0                      )  // no output gate required
 	) vIS_vEX_info_buffer_inst (
          /* control */
-         .clk_i   (clk_i),                      // clock, rising edge
-         .rstn_i  (rstn_i),                     // async reset, low-active
-         .clear_i (1'b0),                       // sync reset, high-active
-         .half_o  (    ),                       // at least half full
+         .clk_i   (clk_i           ), // clock, rising edge
+         .rstn_i  (rstn_i          ), // async reset, low-active
+         .clear_i (1'b0            ), // sync reset, high-active
+         .half_o  (                ), // at least half full
          /* write port */
-         .wdata_i (iss_to_exec_info),           // write data: Remapped instruction input to vEX stage
-         .we_i    (iss_valid),                  // write enable
-         .free_o  ( ),                          // at least one entry is free when set, Valid handshake between vIS and vEX Stages
+         .wdata_i (iss_to_exec_info), // write data: Remapped instruction input to vEX stage
+         .we_i    (iss_valid       ), // write enable
+         .free_o  (                ), // at least one entry is free when set, Valid handshake between vIS and vEX Stages
          /* read port */
-         .re_i    (exec_ready),                 // read enable
-         .rdata_o (exec_info_o),                // read data: Remapped instruction output to vEX stage
-         .avail_o ( )                           // data available when set, Valid handshake between vIS and vEX Stages
+         .re_i    (exec_ready      ), // read enable
+         .rdata_o (exec_info_o     ), // read data: Remapped instruction output to vEX stage
+         .avail_o (                )  // data available when set, Valid handshake between vIS and vEX Stages
      ); 
 	//////////////////////////////////////////////////
 	//                   EX STAGE                   //
 	//////////////////////////////////////////////////
 	vex #(
-		.VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-		.VECTOR_LANES      (VECTOR_LANES      ),
-		.ADDR_WIDTH        (ADDR_WIDTH        ),
-		.DATA_WIDTH        (DATA_WIDTH        ),
-		.MICROOP_WIDTH     (MICROOP_WIDTH     ),
-		.FWD_POINT_A       (FWD_POINT_A       ),
-		.FWD_POINT_B       (FWD_POINT_B       ),
-		.VECTOR_FP_ALU     (VECTOR_FP_ALU     ),
-		.VECTOR_FXP_ALU    (VECTOR_FXP_ALU    )
+		.VECTOR_REGISTERS  (VECTOR_REGISTERS),
+		.VECTOR_LANES      (VECTOR_LANES    ),
+		.ADDR_WIDTH        (ADDR_WIDTH      ),
+		.DATA_WIDTH        (DATA_WIDTH      ),
+		.MICROOP_WIDTH     (MICROOP_WIDTH   ),
+		.VECTOR_FP_ALU     (VECTOR_FP_ALU   ),
+		.VECTOR_FXP_ALU    (VECTOR_FXP_ALU  )
 	) vex_stage_inst (
-		.clk         (clk_i        ),
-		.rst_n       (rstn_i       ),
-		.vex_idle_o  (vex_idle     ),
+		.clk         (clk_i      ),
+		.rst_n       (rstn_i     ),
+		.vex_idle_o  (vex_idle   ),
 		//Issue Interface
-		.valid_i     (exec_valid   ),
-		.exec_data_i (exec_data_o  ),
-		.exec_info_i (exec_info_o  ),
-		.ready_o     (exec_ready   ),
-		//Forward Point #1
-		.frw_a_en    (frw_a_en     ),
-		.frw_a_addr  (frw_a_addr   ),
-		.frw_a_data  (frw_a_data   ),
-		//Forward Point #2
-		.frw_b_en    (frw_b_en     ),
-		.frw_b_addr  (frw_b_addr   ),
-		.frw_b_data  (frw_b_data   ),
+		.valid_i     (exec_valid ),
+		.exec_data_i (exec_data_o),
+		.exec_info_i (exec_info_o),
+		.ready_o     (exec_ready ),
 		//Writeback
-		.wr_en       (wrtbck_en    ),
-		.wr_addr     (wrtbck_addr  ),
-		.wr_data     (wrtbck_data  ),
-		.rdc_done_o  (rdc_done     )
+		.wr_en       (wrtbck_en  ),
+		.wr_addr     (wrtbck_addr),
+		.wr_data     (wrtbck_data),
+		.rdc_done_o  (rdc_done   ),
+		//exception flags
+		.fflags_o    (fflags_o   )
 	);
 
 endmodule
