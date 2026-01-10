@@ -78,11 +78,12 @@ module cellrv32_cpu_alu #(
 
     /* co-processor interface */
     typedef logic [XLEN-1:0] cp_data_if_t [6:0];
-    cp_data_if_t cp_result; // co-processor result
-    logic [7:0] cp_start;   // trigger co-processor
-    logic [7:0] cp_valid;   // co-processor done
-    logic [4:0] fpu32_flags; // fp32 flags
-    logic [4:0] fpu16_flags; // fp16 flags
+    cp_data_if_t cp_result;   // co-processor result
+    logic [7:0] cp_start;     // trigger co-processor
+    logic [7:0] cp_valid;     // co-processor done
+    logic [4:0] vfpu32_flags; // vector fp32 flags
+    logic [4:0] fpu32_flags;  // fp32 flags
+    logic [4:0] fpu16_flags;  // fp16 flags
  
     // Comparator Unit (for conditional branches) ------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -134,7 +135,7 @@ module cellrv32_cpu_alu #(
     assign g = opa_v & opb_v; // generate
 
     // ----------------------------------------------------------------------------
-    // Prefix tree
+    // Prefix Adder
     // Each stage combines carries at increasing distance (1, 2, 4, 8, 16)
     // ----------------------------------------------------------------------------
     
@@ -239,7 +240,7 @@ module cellrv32_cpu_alu #(
     assign cp_done_o = |cp_valid;
 
     /* exceoption flags */
-    assign fpu_flags_o = fpu32_flags | fpu16_flags;
+    assign fpu_flags_o = vfpu32_flags | fpu32_flags | fpu16_flags;
 
     /* co-processor result */
     // -- > "cp_result" data has to be always zero unless the specific co-processor has been actually triggered
@@ -252,21 +253,21 @@ module cellrv32_cpu_alu #(
     // Co-Processor 0: Shifter Unit ('I'/'E' Base ISA) -------------------------------------------
     // -------------------------------------------------------------------------------------------
     cellrv32_cpu_cp_shifter  #(
-        .XLEN          (XLEN),
+        .XLEN          (XLEN         ),
         .FAST_SHIFT_EN (FAST_SHIFT_EN)
     )
     cellrv32_cpu_cp_shifter_inst (
         /* global control */
-        .clk_i   (clk_i),        // global clock, rising edge
-        .rstn_i  (rstn_i),       // global reset, low-active, async
-        .ctrl_i  (ctrl_i),       // main control bus
-        .start_i (cp_start[cp_sel_shifter_c]),  // trigger operation
+        .clk_i   (clk_i                      ), // global clock, rising edge
+        .rstn_i  (rstn_i                     ), // global reset, low-active, async
+        .ctrl_i  (ctrl_i                     ), // main control bus
+        .start_i (cp_start[cp_sel_shifter_c] ), // trigger operation
         /* data input */
-        .rs1_i   (rs1_i),        // rf source 1
-        .shamt_i (opb[$clog2(XLEN)-1:0]), // shift amount
+        .rs1_i   (rs1_i                      ), // rf source 1
+        .shamt_i (opb[$clog2(XLEN)-1:0]      ), // shift amount
         /* result and status */
         .res_o   (cp_result[cp_sel_shifter_c]), // operation result
-        .valid_o (cp_valid[cp_sel_shifter_c])   // data output valid
+        .valid_o (cp_valid[cp_sel_shifter_c] )  // data output valid
     );
 
     // -------------------------------------------------------------------------------------------
@@ -275,21 +276,21 @@ module cellrv32_cpu_alu #(
     generate
         if ((CPU_EXTENSION_RISCV_M == 1'b1) || (CPU_EXTENSION_RISCV_Zmmul == 1'b1)) begin : cellrv32_cpu_cp_muldiv_inst_ON
             cellrv32_cpu_cp_muldiv #(
-                .XLEN        (XLEN),
-                .FAST_MUL_EN (FAST_MUL_EN),
+                .XLEN        (XLEN                 ),
+                .FAST_MUL_EN (FAST_MUL_EN          ),
                 .DIVISION_EN (CPU_EXTENSION_RISCV_M)
             ) cellrv32_cpu_cp_muldiv_inst (
                 /* global control */
-                .clk_i   ( clk_i),       // global clock, rising edge
-                .rstn_i  (rstn_i),       // global reset, low-active, async
-                .ctrl_i  (ctrl_i),       // main control bus
-                .start_i (cp_start[cp_sel_muldiv_c]),  // trigger operation
+                .clk_i   (clk_i                     ), // global clock, rising edge
+                .rstn_i  (rstn_i                    ), // global reset, low-active, async
+                .ctrl_i  (ctrl_i                    ), // main control bus
+                .start_i (cp_start[cp_sel_muldiv_c] ),// trigger operation
                 /* data input */
-                .rs1_i   (rs1_i),        // rf source 1
-                .rs2_i   (rs2_i),        // rf source 2
+                .rs1_i   (rs1_i                     ), // rf source 1
+                .rs2_i   (rs2_i                     ), // rf source 2
                 /* result and status */
                 .res_o   (cp_result[cp_sel_muldiv_c]), // operation result
-                .valid_o (cp_valid[cp_sel_muldiv_c])   // data output valid
+                .valid_o (cp_valid[cp_sel_muldiv_c] )  // data output valid
             );
         end : cellrv32_cpu_cp_muldiv_inst_ON
     endgenerate
@@ -311,18 +312,18 @@ module cellrv32_cpu_alu #(
                 .FAST_SHIFT_EN (FAST_SHIFT_EN)
             ) cellrv32_cpu_cp_bitmanip_inst (
                 /* global control */
-                .clk_i   ( clk_i),       // global clock, rising edge
-                .rstn_i  (rstn_i),       // global reset, low-active, async
-                .ctrl_i  (ctrl_i),       // main control bus
-                .start_i (cp_start[cp_sel_bitmanip_c]),  // trigger operation
+                .clk_i   ( clk_i                      ), // global clock, rising edge
+                .rstn_i  (rstn_i                      ), // global reset, low-active, async
+                .ctrl_i  (ctrl_i                      ), // main control bus
+                .start_i (cp_start[cp_sel_bitmanip_c] ), // trigger operation
                 /* data input */
-                .cmp_i   (cmp),          // comparator status
-                .rs1_i   (rs1_i),        // rf source 1
-                .rs2_i   (rs2_i),        // rf source 2
+                .cmp_i   (cmp                         ), // comparator status
+                .rs1_i   (rs1_i                       ), // rf source 1
+                .rs2_i   (rs2_i                       ), // rf source 2
                 .shamt_i (opb[$clog2(XLEN)-1:0]), // shift amount
                 /* result and status */
                 .res_o   (cp_result[cp_sel_bitmanip_c]), // operation result
-                .valid_o (cp_valid[cp_sel_bitmanip_c])   // data output valid
+                .valid_o (cp_valid[cp_sel_bitmanip_c] )  // data output valid
             );
         end : cellrv32_cpu_cp_bitmanip_inst_ON
     endgenerate
@@ -343,19 +344,19 @@ module cellrv32_cpu_alu #(
                .XLEN (XLEN)
            ) cellrv32_cpu_cp_fpu32_inst (
                /* global control */
-               .clk_i    (clk_i),        // global clock, rising edge
-               .rstn_i   (rstn_i),       // global reset, low-active, async
-               .ctrl_i   (ctrl_i),       // main control bus
-               .start_i  (cp_start[cp_sel_fpu32_c]),  // trigger operation
+               .clk_i    (clk_i                    ), // global clock, rising edge
+               .rstn_i   (rstn_i                   ), // global reset, low-active, async
+               .ctrl_i   (ctrl_i                   ), // main control bus
+               .start_i  (cp_start[cp_sel_fpu32_c] ), // trigger operation
                /* data input */
-               .cmp_i    (cmp),          // comparator status
-               .rs1_i    (rs1_i),        // rf source 1
-               .rs2_i    (rs2_i),        // rf source 2
-               .rs3_i    (rs3_i),        // rf source 3
+               .cmp_i    (cmp                      ), // comparator status
+               .rs1_i    (rs1_i                    ), // rf source 1
+               .rs2_i    (rs2_i                    ), // rf source 2
+               .rs3_i    (rs3_i                    ), // rf source 3
                /* result and status */
                .res_o    (cp_result[cp_sel_fpu32_c]), // operation result
-               .fflags_o (fpu32_flags),  // exception flags
-               .valid_o  (cp_valid[cp_sel_fpu32_c])   // data output valid
+               .fflags_o (fpu32_flags              ), // exception flags
+               .valid_o  (cp_valid[cp_sel_fpu32_c] )  // data output valid
            );
        end : cellrv32_cpu_cp_fpu32_inst_ON
     endgenerate
@@ -363,7 +364,7 @@ module cellrv32_cpu_alu #(
     generate
        if (CPU_EXTENSION_RISCV_Zfinx == 1'b0) begin : cellrv32_cpu_cp_fpu32_inst_OFF
            assign cp_result[cp_sel_fpu32_c] = '0;
-           assign fpu32_flags  = '0;
+           assign fpu32_flags               = '0;
            assign cp_valid[cp_sel_fpu32_c]  = 1'b0;
        end : cellrv32_cpu_cp_fpu32_inst_OFF
     endgenerate
@@ -377,19 +378,19 @@ module cellrv32_cpu_alu #(
                .XLEN (XLEN)
            ) cellrv32_cpu_cp_fpu16_inst (
                /* global control */
-               .clk_i    (clk_i),        // global clock, rising edge
-               .rstn_i   (rstn_i),       // global reset, low-active, async
-               .ctrl_i   (ctrl_i),       // main control bus
-               .start_i  (cp_start[cp_sel_fpu16_c]),  // trigger operation
+               .clk_i    (clk_i                    ), // global clock, rising edge
+               .rstn_i   (rstn_i                   ), // global reset, low-active, async
+               .ctrl_i   (ctrl_i                   ), // main control bus
+               .start_i  (cp_start[cp_sel_fpu16_c] ), // trigger operation
                /* data input */
-               .cmp_i    (cmp),          // comparator status
-               .rs1_i    (rs1_i),        // rf source 1
-               .rs2_i    (rs2_i),        // rf source 2
-               .rs3_i    (rs3_i),        // rf source 3
+               .cmp_i    (cmp                      ), // comparator status
+               .rs1_i    (rs1_i                    ), // rf source 1
+               .rs2_i    (rs2_i                    ), // rf source 2
+               .rs3_i    (rs3_i                    ), // rf source 3
                /* result and status */
                .res_o    (cp_result[cp_sel_fpu16_c]), // operation result
-               .fflags_o (fpu16_flags),  // exception flags
-               .valid_o  (cp_valid[cp_sel_fpu16_c])   // data output valid
+               .fflags_o (fpu16_flags              ), // exception flags
+               .valid_o  (cp_valid[cp_sel_fpu16_c] )  // data output valid
            );
        end : cellrv32_cpu_cp_fpu16_inst_ON
     endgenerate
@@ -397,7 +398,7 @@ module cellrv32_cpu_alu #(
     generate
        if (CPU_EXTENSION_RISCV_Zhinx == 1'b0) begin : cellrv32_cpu_cp_fpu16_inst_OFF
            assign cp_result[cp_sel_fpu16_c] = '0;
-           assign fpu16_flags  = '0;
+           assign fpu16_flags               = '0;
            assign cp_valid[cp_sel_fpu16_c]  = 1'b0;
        end : cellrv32_cpu_cp_fpu16_inst_OFF
     endgenerate
@@ -411,18 +412,18 @@ module cellrv32_cpu_alu #(
                .XLEN(XLEN)
            ) cellrv32_cpu_cp_cfu_inst (
                /* global control */
-               .clk_i   (clk_i),        // global clock, rising edge
-               .rstn_i  (rstn_i),       // global reset, low-active, async
-               .ctrl_i  (ctrl_i),       // main control bus
-               .start_i (cp_start[cp_sel_cfu_c]),  // trigger operation
+               .clk_i   (clk_i                  ), // global clock, rising edge
+               .rstn_i  (rstn_i                 ), // global reset, low-active, async
+               .ctrl_i  (ctrl_i                 ), // main control bus
+               .start_i (cp_start[cp_sel_cfu_c] ), // trigger operation
                /* data input */
-               .rs1_i   (rs1_i),        // rf source 1
-               .rs2_i   (rs2_i),        // rf source 2
-               .rs3_i   (rs3_i),        // rf source 3
-               .rs4_i   (rs4_i),        // rf source 4
+               .rs1_i   (rs1_i                  ), // rf source 1
+               .rs2_i   (rs2_i                  ), // rf source 2
+               .rs3_i   (rs3_i                  ), // rf source 3
+               .rs4_i   (rs4_i                  ), // rf source 4
                /* result and status */
                .res_o   (cp_result[cp_sel_cfu_c]), // operation result
-               .valid_o (cp_valid[cp_sel_cfu_c])   // data output valid
+               .valid_o (cp_valid[cp_sel_cfu_c] )  // data output valid
            );
        end : cellrv32_cpu_cp_cfu_inst_ON
     endgenerate
@@ -442,15 +443,15 @@ module cellrv32_cpu_alu #(
            cellrv32_cpu_cp_cond #(.XLEN(XLEN))
            cellrv32_cpu_cp_cond_inst (
                /* global control */
-               .clk_i   (clk_i),        // global clock, rising edge
-               .ctrl_i  (ctrl_i),       // main control bus
-               .start_i (cp_start[cp_sel_cond_c]),  // trigger operation
+               .clk_i   (clk_i                   ), // global clock, rising edge
+               .ctrl_i  (ctrl_i                  ), // main control bus
+               .start_i (cp_start[cp_sel_cond_c] ), // trigger operation
                /* data input */
-               .rs1_i   (rs1_i),        // rf source 1
-               .rs2_i   (rs2_i),        // rf source 2
+               .rs1_i   (rs1_i                   ), // rf source 1
+               .rs2_i   (rs2_i                   ), // rf source 2
                /* result and status */
                .res_o   (cp_result[cp_sel_cond_c]), // operation result
-               .valid_o (cp_valid[cp_sel_cond_c])   // data output valid
+               .valid_o (cp_valid[cp_sel_cond_c] )  // data output valid
            );
        end : cellrv32_cpu_cp_cond_inst_ON
     endgenerate
@@ -474,24 +475,23 @@ module cellrv32_cpu_alu #(
                 .VECTOR_REQ_WIDTH  (VLEN)
             ) cellrv32_cpu_cp_vector_inst (
                 // global control
-                .clk_i            (clk_i),
-                .rstn_i           (rstn_i),
-                .vector_idle_o    ( ),
+                .clk_i            (clk_i                    ), // global clock, rising edge
+                .rstn_i           (rstn_i                   ), // global reset, negedge
                 .valid_in         (cp_start[cp_sel_vector_c]), // trigger operation
-                .pop              (),
-                .ctrl_i           (ctrl_i),
+                .ctrl_i           (ctrl_i                   ), // main control bus
                 /* data input */
-                .rs1_i            (rs1_i), // rf source 1
-                .rs2_i            (rs2_i), // rf source 2
+                .rs1_i            (rs1_i                    ), // rf source 1
+                .rs2_i            (rs2_i                    ), // rf source 2
                 //Cache Request Interface
-                .mem_req_valid_o  ( req_valid_o),
-                .mem_req_o        (mem_req_o),
-                .cache_ready_i    (multi_rsp_i),
+                .mem_req_valid_o  (req_valid_o              ), // memory request valid
+                .mem_req_o        (mem_req_o                ), // memory resquest addres and ticket
+                .cache_ready_i    (multi_rsp_i              ), // memory is ready
                 //Cache Response Interface
-                .mem_resp_valid_i (resp_valid_i ),
-                .mem_resp_i       (mem_resp_i),
+                .mem_resp_valid_i (resp_valid_i             ), // memory response valid
+                .mem_resp_i       (mem_resp_i               ), // memory response data and ticket
                 /* result and status */
-                .valid_o(cp_valid[cp_sel_vector_c]) // data output valid
+                .valid_o          (cp_valid[cp_sel_vector_c]), // data output valid
+                .fflags_o         (vfpu32_flags             )  // exception flags
             );
         end : cellrv32_cpu_cp_vector_inst_ON
     endgenerate
@@ -499,6 +499,7 @@ module cellrv32_cpu_alu #(
     generate
         if (CPU_EXTENSION_RISCV_V == 0) begin : cellrv32_cpu_cp_vector_inst_OFF
             assign cp_valid[cp_sel_vector_c] = 1'b0;
+            assign vfpu32_flags              = '0;
         end : cellrv32_cpu_cp_vector_inst_OFF
     endgenerate
 
