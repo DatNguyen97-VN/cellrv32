@@ -498,11 +498,11 @@ package cellrv32_package;
   const int fp_class_qnan_c       = 9; // quiet NaN (qNaN)
 
   // exception flags --
-  localparam int fp_exc_nv_c = 0; // invalid operation
-  localparam int fp_exc_dz_c = 1; // divide by zero
+  localparam int fp_exc_nv_c = 4; // invalid operation
+  localparam int fp_exc_dz_c = 3; // divide by zero
   localparam int fp_exc_of_c = 2; // overflow
-  localparam int fp_exc_uf_c = 3; // underflow
-  localparam int fp_exc_nx_c = 4; // inexact
+  localparam int fp_exc_uf_c = 1; // underflow
+  localparam int fp_exc_nx_c = 0; // inexact
 
   // special values (single-precision) --
   const logic [31:0] fp32_single_qnan_c     = 32'h7fc00000; // quiet NaN
