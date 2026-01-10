@@ -390,7 +390,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             remainder_ex1   = remainder_ex1 - divider_init_ex1;
         end
         //
-        for(int i = 0; i < DIV_BIT_GROUPS-1; i++) begin
+        repeat (DIV_BIT_GROUPS-1) begin
             remainder_ex1 = {remainder_ex1[DATA_WIDTH-2:0], quotient_ex1[DATA_WIDTH-1]};
             quotient_ex1  = quotient_ex1 << 1;
             diff_ex1      = remainder_ex1 - divider_init_ex1;
@@ -401,7 +401,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
                 remainder_ex1   = remainder_ex1 - divider_init_ex1;
             end
         end
-    end
+    end : division_ex1
 
     assign result_div_ex1 = {{EX1_W-3*DATA_WIDTH{1'b0}}, quotient_ex1, remainder_ex1, divider_init_ex1};
 
@@ -442,7 +442,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             remainder_ex2   = remainder_ex2 - divider_init_ex2;
         end
         //
-        for(int i = 0; i < DIV_BIT_GROUPS-1; i++) begin
+        repeat (DIV_BIT_GROUPS-1) begin
             remainder_ex2 = {remainder_ex2[DATA_WIDTH-2:0], quotient_ex2[DATA_WIDTH-1]};
             quotient_ex2  = quotient_ex2 << 1;
             diff_ex2      = remainder_ex2 - divider_init_ex2;
@@ -453,7 +453,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
                 remainder_ex2   = remainder_ex2 - divider_init_ex2;
             end
         end
-    end
+    end : division_ex2
 
     assign result_div_ex2 = {{EX2_W-3*DATA_WIDTH{1'b0}}, quotient_ex2, remainder_ex2, divider_init_ex2};
 
@@ -494,7 +494,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             remainder_ex3   = remainder_ex3 - divider_init_ex3;
         end
         //
-        for(int i = 0; i < DIV_BIT_GROUPS-1; i++) begin
+        repeat (DIV_BIT_GROUPS-1) begin
             remainder_ex3 = {remainder_ex3[DATA_WIDTH-2:0], quotient_ex3[DATA_WIDTH-1]};
             quotient_ex3  = quotient_ex3 << 1 ;
             diff_ex3      = remainder_ex3 - divider_init_ex3;
@@ -505,7 +505,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
                 remainder_ex3   = remainder_ex3 - divider_init_ex3;
             end
         end
-    end
+    end : division_ex3
 
     assign result_div_ex3 = {{EX3_W-3*DATA_WIDTH{1'b0}}, quotient_ex3, remainder_ex3, divider_init_ex3};
 
@@ -547,7 +547,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             remainder_ex4   = remainder_ex4 - divider_init_ex4;
         end
         //
-        for(int i = 0; i < DIV_BIT_GROUPS-1; i++)    begin
+        repeat (DIV_BIT_GROUPS-1) begin
             remainder_ex4 = {remainder_ex4[DATA_WIDTH-2:0], quotient_ex4[DATA_WIDTH-1]};
             quotient_ex4  = quotient_ex4 << 1;
             diff_ex4      = remainder_ex4 - divider_init_ex4;
@@ -558,7 +558,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
                 remainder_ex4   = remainder_ex4 - divider_init_ex4;
             end
         end
-    end
+    end : division_ex4
 
     assign remainder_final = sign_div_ex4     ? ~remainder_ex4 + 1'b1 : remainder_ex4;
     assign result_final    = sign_res_div_ex4 ? ~quotient_ex4 + 1'b1  : quotient_ex4;
