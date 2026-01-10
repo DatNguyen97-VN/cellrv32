@@ -15,8 +15,6 @@ module vex_pipe #(
     parameter int MICROOP_WIDTH      = 7 ,
     parameter int VECTOR_LANES       = 8 ,
     parameter int VECTOR_LANE_NUM    = 1 ,
-    parameter int FWD_POINT_A        = 1 ,
-    parameter int FWD_POINT_B        = 3 ,
     parameter     VECTOR_FP_ALU      = 1 ,
     parameter     VECTOR_FXP_ALU     = 0
 ) (
@@ -36,12 +34,6 @@ module vex_pipe #(
     input  logic [                                    4:0] vfunary_i     ,
     input  logic [                                    6:0] vl_i          ,
     input  logic                                           is_rdc_i      ,
-    //Forward Point #1
-    output logic                                           frw_a_en_o    ,
-    output logic [                         DATA_WIDTH-1:0] frw_a_data_o  ,
-    //Forward Point #2
-    output logic                                           frw_b_en_o    ,
-    output logic [                         DATA_WIDTH-1:0] frw_b_data_o  ,
     //Writeback
     input  logic                                           head_uop_ex4_i,
     input  logic                                           end_uop_ex4_i ,
@@ -59,7 +51,8 @@ module vex_pipe #(
     output logic [                         DATA_WIDTH-1:0] rdc_data_ex3_o,
     //EX4 Reduction Tree Intf
     input  logic [                         DATA_WIDTH-1:0] rdc_data_ex4_i,
-    output logic [                         DATA_WIDTH-1:0] rdc_data_ex4_o
+    output logic [                         DATA_WIDTH-1:0] rdc_data_ex4_o,
+    output logic [                                    4:0] pipe_fflags_o
 );
     localparam int EX1_W = 4*(DATA_WIDTH+8);
     localparam int EX2_W = 3*DATA_WIDTH    ;
@@ -117,15 +110,15 @@ module vex_pipe #(
     // Integer ALU
     //-----------------------------------------------
     cellrv32_cpu_cp_vector_vex_pipe_vint #(
-        .DATA_WIDTH        (DATA_WIDTH        ),
-        .MICROOP_WIDTH     (MICROOP_WIDTH     ),
-        .VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-        .VECTOR_LANES      (VECTOR_LANES      ),
-        .VECTOR_LANE_NUM   (VECTOR_LANE_NUM   ),
-        .EX1_W             (EX1_W             ),
-        .EX2_W             (EX2_W             ),
-        .EX3_W             (EX3_W             ),
-        .EX4_W             (EX4_W             )
+        .DATA_WIDTH        (DATA_WIDTH      ),
+        .MICROOP_WIDTH     (MICROOP_WIDTH   ),
+        .VECTOR_REGISTERS  (VECTOR_REGISTERS),
+        .VECTOR_LANES      (VECTOR_LANES    ),
+        .VECTOR_LANE_NUM   (VECTOR_LANE_NUM ),
+        .EX1_W             (EX1_W           ),
+        .EX2_W             (EX2_W           ),
+        .EX3_W             (EX3_W           ),
+        .EX4_W             (EX4_W           )
     ) cellrv32_cpu_cp_vector_vex_pipe_vint_inst (
         .clk            (clk              ),
         .rst_n          (rst_n            ),
@@ -171,13 +164,13 @@ module vex_pipe #(
     //-----------------------------------------------
     generate if (VECTOR_FP_ALU) begin : cellrv32_cpu_cp_vector_vex_pipe_vfp32_ON
         cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
-            .DATA_WIDTH        (DATA_WIDTH        ),
-            .MICROOP_WIDTH     (MICROOP_WIDTH     ),
-            .VECTOR_LANE_NUM   (VECTOR_LANE_NUM   ),
-            .EX1_W             (EX1_W             ),
-            .EX2_W             (EX2_W             ),
-            .EX3_W             (EX3_W             ),
-            .EX4_W             (EX4_W             )
+            .DATA_WIDTH        (DATA_WIDTH     ),
+            .MICROOP_WIDTH     (MICROOP_WIDTH  ),
+            .VECTOR_LANE_NUM   (VECTOR_LANE_NUM),
+            .EX1_W             (EX1_W          ),
+            .EX2_W             (EX2_W          ),
+            .EX3_W             (EX3_W          ),
+            .EX4_W             (EX4_W          )
         ) cellrv32_cpu_cp_vector_vex_pipe_vfp32_inst (
             .clk_i          (clk             ),
             .rstn_i         (rst_n           ),
@@ -202,7 +195,7 @@ module vex_pipe #(
             //Result Ex4 Out
             .ready_res_ex4_o(ready_res_fp_ex4),
             .result_ex4_o   (res_fp_ex4      ),
-            .flags_ex4_o    (                )
+            .flags_ex4_o    (pipe_fflags_o   )
         );
     end else begin : cellrv32_cpu_cp_vector_vex_pipe_vfp32_OFF
         assign ready_res_fp_ex1 = 1'b0;
@@ -394,70 +387,69 @@ module vex_pipe #(
         end
     end
     //------------------------------------------------------
-    // Forwarding Points
-    //------------------------------------------------------
-    // Forward Point #1
-    //------------------------------------------------------
-    assign frw_a_en_o   = ready_res_int_ex1;
-    assign frw_a_data_o = res_int_ex1[0 +: DATA_WIDTH];
-    //------------------------------------------------------
-    // Forward Point #2
-    //------------------------------------------------------
-    assign frw_b_en_o   = ready_res_ex4;
-    assign frw_b_data_o = mask_ex4 ? data_ex3[0 +: DATA_WIDTH] : '0;
-
     // Writeback Signals
+    //------------------------------------------------------
     assign wr_en_o    = valid_result_wr;
     assign rdc_done_o = use_temp_rdc_result;
     
-    always_comb begin
-        if (use_temp_rdc_result) begin
-            // vd[0] = vs1[0] + Σ vs2[i] with each i ∈ active elements, final result
-            case (rdc_op_ex4)
-                funct6_vredsum_c : begin
-                    // VRADD
-                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] + data_a_i;
+    generate
+        if (VECTOR_LANE_NUM == 0) begin : wrb_rdc_nor_output
+            always_comb begin
+                if (use_temp_rdc_result) begin
+                    // vd[0] = vs1[0] + Σ vs2[i] with each i ∈ active elements, final result
+                    case (rdc_op_ex4)
+                        funct6_vredsum_c : begin
+                            // VRADD
+                            wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] + data_a_i;
+                        end
+                        funct6_vredand_c : begin
+                            // VRAND
+                            wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] & data_a_i;
+                        end
+                        funct6_vredor_c : begin
+                            // VROR
+                            wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] | data_a_i;
+                        end
+                        funct6_vredxor_c : begin
+                            // VRXOR
+                            wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] ^ data_a_i;
+                        end
+                        funct6_vredminu_c : begin
+                            // VRMINU
+                            wr_data_o = ( $unsigned(temp_rdc_result_ex4[0 +: DATA_WIDTH]) < $unsigned(data_a_i) ) ?
+                                         temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
+                        end
+                        funct6_vredmin_c : begin
+                            // VRMIN
+                            wr_data_o = ( $signed(temp_rdc_result_ex4[0 +: DATA_WIDTH]) < $signed(data_a_i) ) ?
+                                         temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
+                        end
+                        funct6_vredmaxu_c : begin
+                            // VRMAXU
+                            wr_data_o = ( $unsigned(temp_rdc_result_ex4[0 +: DATA_WIDTH]) > $unsigned(data_a_i) ) ?
+                                         temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
+                        end
+                        funct6_vredmax_c : begin
+                            // VRMAX
+                            wr_data_o = ( $signed(temp_rdc_result_ex4[0 +: DATA_WIDTH]) > $signed(data_a_i) ) ?
+                                         temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
+                        end
+                        default : begin
+                            wr_data_o = 'x;
+                        end
+                    endcase
+                end else begin
+                    wr_data_o = data_ex4[0 +: DATA_WIDTH] & {DATA_WIDTH{mask_wr}};
                 end
-                funct6_vredand_c : begin
-                    // VRAND
-                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] & data_a_i;
-                end
-                funct6_vredor_c : begin
-                    // VROR
-                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] | data_a_i;
-                end
-                funct6_vredxor_c : begin
-                    // VRXOR
-                    wr_data_o = temp_rdc_result_ex4[0 +: DATA_WIDTH] ^ data_a_i;
-                end
-                funct6_vredminu_c : begin
-                    // VRMINU
-                    wr_data_o = ( $unsigned(temp_rdc_result_ex4[0 +: DATA_WIDTH]) < $unsigned(data_a_i) ) ?
-                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
-                end
-                funct6_vredmin_c : begin
-                    // VRMIN
-                    wr_data_o = ( $signed(temp_rdc_result_ex4[0 +: DATA_WIDTH]) < $signed(data_a_i) ) ?
-                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
-                end
-                funct6_vredmaxu_c : begin
-                    // VRMAXU
-                    wr_data_o = ( $unsigned(temp_rdc_result_ex4[0 +: DATA_WIDTH]) > $unsigned(data_a_i) ) ?
-                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
-                end
-                funct6_vredmax_c : begin
-                    // VRMAX
-                    wr_data_o = ( $signed(temp_rdc_result_ex4[0 +: DATA_WIDTH]) > $signed(data_a_i) ) ?
-                                 temp_rdc_result_ex4[0 +: DATA_WIDTH] : data_a_i;
-                end
-                default : begin
-                    wr_data_o = 'x;
-                end
-            endcase
-        end else begin
-            wr_data_o = data_ex4[0 +: DATA_WIDTH] & {DATA_WIDTH{mask_wr}};
-        end
-    end
+            end
+        end : wrb_rdc_nor_output
+    endgenerate
+
+    generate
+        if (VECTOR_LANE_NUM !=0) begin : wrb_nor_output
+            assign wr_data_o = data_ex4[0 +: DATA_WIDTH] & {DATA_WIDTH{mask_wr}};
+        end : wrb_nor_output
+    endgenerate
 
     // Reduction Signals
     assign rdc_data_ex1_o = data_b_i[0 +: DATA_WIDTH] & {DATA_WIDTH{use_reduce_tree_ex1}};
