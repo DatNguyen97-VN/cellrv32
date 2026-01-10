@@ -38,15 +38,7 @@ module vis #(
     //Unlock ports
     input  logic                                                                       unlock_en      ,
     input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               unlock_reg_a   ,
-    //Forward Point #1
-    input  logic          [            VECTOR_LANES-1:0]                               frw_a_en       ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               frw_a_addr     ,
-    input  logic          [            VECTOR_LANES-1:0][              DATA_WIDTH-1:0] frw_a_data     ,
-    //Forward Point #2
-    input  logic          [            VECTOR_LANES-1:0]                               frw_b_en       ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               frw_b_addr     ,
-    input  logic          [            VECTOR_LANES-1:0][              DATA_WIDTH-1:0] frw_b_data     ,
-    //Writeback (Forward Point #3)
+    //Writeback
     input  logic          [            VECTOR_LANES-1:0]                               wr_en          ,
     input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               wr_addr        ,
     input  logic          [            VECTOR_LANES-1:0][              DATA_WIDTH-1:0] wr_data        ,
