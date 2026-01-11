@@ -195,29 +195,32 @@ asm(".set RISCV_OPCODE_CUSTOM3 , 0b1111011");
 
 
 /**********************************************************************//**
- * @name R2-type instruction format
+ * @name R3-type instruction format
  * @warning NOT RISC-V-standard, CELLRV32-specific!
  **************************************************************************/
-#define CUSTOM_VECTOR_INSTR_R2_TYPE(funct12, vs3, rs1, funct3, opcode) \
-({                                                                     \
-    asm volatile (                                                     \
-      ""                                                               \
-      :                                                                \
-      : [input_i] "r" (vs3),                                           \
-        [input_j] "r" (rs1)                                            \
-    );                                                                 \
-    asm volatile (                                                     \
-      ".word (                                                         \
-        (((" #funct12") & 0x7f) << 20) |                               \
-        ((( regnum_%1 ) & 0x1f) << 15) |                               \
-        (((" #funct3 ") & 0x07) << 12) |                               \
-        ((( regnum_%0 ) & 0x1f) <<  7) |                               \
-        (((" #opcode ") & 0x7f) <<  0)                                 \
-      );"                                                              \
-      :                                                                \
-      : "r" (vs3),                                                     \
-        "r" (rs1)                                                      \
-    );                                                                 \
+#define CUSTOM_VECTOR_INSTR_R3_TYPE(funct7, vs3, rs2, rs1, funct3, opcode) \
+({                                                                         \
+    asm volatile (                                                         \
+      ""                                                                   \
+      :                                                                    \
+      : [input_i] "r" (vs3),                                               \
+        [input_j] "r" (rs1),                                               \
+        [input_k] "r" (rs2)                                                \
+    );                                                                     \
+    asm volatile (                                                         \
+      ".word (                                                             \
+        (((" #funct7 ") & 0x7f) << 25) |                                   \
+        ((( regnum_%2 ) & 0x1f) << 20) |                                   \
+        ((( regnum_%1 ) & 0x1f) << 15) |                                   \
+        (((" #funct3 ") & 0x07) << 12) |                                   \
+        ((( regnum_%0 ) & 0x1f) <<  7) |                                   \
+        (((" #opcode ") & 0x7f) <<  0)                                     \
+      );"                                                                  \
+      :                                                                    \
+      : "r" (vs3),                                                         \
+        "r" (rs1),                                                         \
+        "r" (rs2)                                                          \
+    );                                                                     \
 })
 
 
