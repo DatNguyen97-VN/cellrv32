@@ -202,11 +202,11 @@ module vmu_ld_eng #(
             OP_UNIT_STRIDED : current_addr = current_addr_r;
             OP_STRIDED      : current_addr = current_addr_r;
             OP_INDEXED      : current_addr = base_addr_r + offset_read;
-            default          : current_addr = 'X;
+            default          : current_addr = '0;
         endcase
     end
 
-    assign nxt_base_addr    = instr_in.data1 + instr_in.data2; // first element address
+    assign nxt_base_addr    = instr_in.data1; // first element address
     assign nxt_strided_addr = current_addr_r + stride_r;
 
     // size_r indicates the size of each element (8/16/32 bits)
@@ -244,8 +244,7 @@ module vmu_ld_eng #(
     // valid element mask
     // not UNIT_STRIDED: Each request loads only 1 element
     // UNIT_STRIDED: A request can load multiple elements consecutively
-    assign resp_elem_th = (memory_op_r != OP_UNIT_STRIDED) ? (1 << resp_ticket_i[ELEMENT_ADDR_WIDTH-1:0]) : 
-                                                              ((~('1 << resp_el_count)) << resp_ticket_i[ELEMENT_ADDR_WIDTH-1:0]);
+    assign resp_elem_th = (1 << resp_ticket_i[ELEMENT_ADDR_WIDTH-1:0]);
     // Unpack the data into elements
     always_comb begin
         unpacked_data = '0;

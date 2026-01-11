@@ -154,11 +154,11 @@ module vmu_st_eng #(
              OP_UNIT_STRIDED : current_addr = current_addr_r;
              OP_STRIDED      : current_addr = current_addr_r;
              OP_INDEXED      : current_addr = base_addr_r + offset_read;
-            default          : current_addr = 'X;
+            default          : current_addr = '0;
         endcase
     end
 
-    assign nxt_base_addr    = instr_in.data1 + instr_in.data2;
+    assign nxt_base_addr    = instr_in.data1;
     assign nxt_strided_addr = current_addr_r + stride_r;
     assign nxt_unit_strided_addr = current_addr_r + (1 << 2);
 
