@@ -139,14 +139,69 @@ inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vle32v(int32_t rs
 
 
 /**********************************************************************//**
+ * Vector Stride Load 32-bit elements
+ *
+ * @param[in] rs1 Base address.
+ * @param[in] rs2 Stride offset (power of two, min is 4, byte).
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vlse32v(int32_t rs1, int32_t rs2) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000100, rs2, rs1, 0b010, 0b0000111);
+}
+
+
+/**********************************************************************//**
+ * Vector Indexed Load 32-bit elements
+ *
+ * @param[in] rs1 Source operand 1.
+ * @param[in] vs2 Source operand 2.
+ * @return Result.
+ **************************************************************************/
+inline int32_t __attribute__ ((always_inline)) riscv_intrinsic_vlxei32v(int32_t rs1, int32_t vs2) {
+
+  return CUSTOM_INSTR_R3_TYPE(0b0000110, vs2, rs1, 0b010, 0b0000111);
+}
+
+
+/**********************************************************************//**
  * Vector Unit-Stride Store 32-bit elements
  *
  * @param[in] rs1 Source operand 1.
+ * @param[in] vs3 Source operand 2.
  * @return Result.
  **************************************************************************/
 inline void __attribute__ ((always_inline)) riscv_intrinsic_vse32v(int32_t rs1, int32_t vs3) {
 
-  CUSTOM_VECTOR_INSTR_R2_TYPE(0b000000000000, vs3, rs1, 0b010, 0b0100111);
+  CUSTOM_VECTOR_INSTR_R3_TYPE(0b0000000, vs3, 0b00000, rs1, 0b010, 0b0100111);
+}
+
+
+/**********************************************************************//**
+ * Vector Stride Store 32-bit elements
+ *
+ * @param[in] vs3 Destination address.
+ * @param[in] rs1 Base address.
+ * @param[in] rs2 Stride offset (power of two, min is 4, byte).
+ * @return Result.
+ **************************************************************************/
+inline void __attribute__ ((always_inline)) riscv_intrinsic_vsse32v(int32_t vs3, int32_t rs1, int32_t rs2) {
+
+  CUSTOM_VECTOR_INSTR_R3_TYPE(0b0000100, vs3, rs2, rs1, 0b010, 0b0100111);
+}
+
+
+/**********************************************************************//**
+ * Vector Indexed Store 32-bit elements
+ *
+ * @param[in] vs3 Destination address.
+ * @param[in] rs1 Base address.
+ * @param[in] vs2 Address offset.
+ * @return Result.
+ **************************************************************************/
+inline void __attribute__ ((always_inline)) riscv_intrinsic_vsxei32v(int32_t vs3, int32_t rs1, int32_t vs2) {
+
+  CUSTOM_VECTOR_INSTR_R3_TYPE(0b0000110, vs3, vs2, rs1, 0b010, 0b0100111);
 }
 
 

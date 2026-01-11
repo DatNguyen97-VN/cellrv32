@@ -38,11 +38,15 @@
 //** Number of test cases for each instruction */
 #define NUM_TEST_CASES          (235)
 //** Number of element for each array */
-#define NUM_ELEM_ARRAY          (500)
+#define NUM_ELEM_ARRAY          (666)
 //** Run Vector CSR tests when != 0 */
 #define RUN_CSR_TESTS           (0)
-//** Run Load/Store tests when != 0 */
+//** Run Unit-Stride Load/Store tests when != 0 */
 #define RUN_LOADSTORE_TESTS     (0)
+//** Run Stride Load/Store tests when != 0 */
+#define RUN_STR_LOADSTORE_TESTS (1)
+//** Run Indexed Load/Store tests when != 0 */
+#define RUN_IDX_LOADSTORE_TESTS (0)
 //** Run Add/Sub tests when != 0 */
 #define RUN_ADDSUB_TESTS        (0)
 //** Run Bitwise tests when != 0 */
@@ -60,25 +64,25 @@
 //** Run Divide tests when != 0 */
 #define RUN_DIV_TESTS           (0)
 //** Run Move tests when != 0 */
-#define RUN_MOV_TESTS           (1)
+#define RUN_MOV_TESTS           (0)
 //** Run Reduction Compute tests when != 0 */
-#define RUN_RDCCOMP_TESTS       (1)
+#define RUN_RDCCOMP_TESTS       (0)
 //** Run Reduction Compare tests when != 0 */
-#define RUN_RDCCOMPR_TESTS      (1)
+#define RUN_RDCCOMPR_TESTS      (0)
 //** Run Fp32 Addition/Subtraction tests when != 0 */
-#define RUN_FP32_ADDSUB_TESTS   (1)
+#define RUN_FP32_ADDSUB_TESTS   (0)
 //** Run Fp32 Multiply/Divide tests when != 0 */
-#define RUN_FP32_MULDIV_TESTS   (1)
+#define RUN_FP32_MULDIV_TESTS   (0)
 //** Run Fp32 Square tests when != 0 */
-#define RUN_FP32_SQRT_TESTS     (1)
+#define RUN_FP32_SQRT_TESTS     (0)
 //** Run Fp32 Min/max tests when != 0 */
-#define RUN_FP32_MINMAX_TESTS   (1)
+#define RUN_FP32_MINMAX_TESTS   (0)
 //** Run Fp32 Sign-Injection tests when != 0 */
-#define RUN_FP32_SGNIJ_TESTS    (1)
+#define RUN_FP32_SGNIJ_TESTS    (0)
 //** Run Fp32 Classify tests when != 0 */
-#define RUN_FP32_CLASSIFY_TESTS (1)
+#define RUN_FP32_CLASSIFY_TESTS (0)
 //** Run Fp32 Conversion tests when != 0 */
-#define RUN_FP32_CONV_TESTS     (1)
+#define RUN_FP32_CONV_TESTS     (0)
 /**@}*/
 
 // Prototypes
@@ -407,7 +411,173 @@ int main() {
   }
   cellrv32_uart0_printf("\n\n[INF]: Vector Load/Store Instructions completed.\n");
 
-  print_report(err_cnt);
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
+
+#if (RUN_STR_LOADSTORE_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Stride Load/Store Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n#%u: Vector Stride Load/Store Instructions...\n", test_cnt);
+  err_cnt = 0;
+  round = 0;
+  uint32_t stride = 8; // 8 byte
+  uint32_t step = stride / 4;
+
+  int32_t vec_mem1_stride_load[NUM_ELEM_ARRAY*step]; // memory for vector load/store tests
+  int32_t vec_mem2_stride_load[NUM_ELEM_ARRAY*step]; // vector register emulation
+  int32_t vec_mem3_stride_load[NUM_ELEM_ARRAY*step]; // memory for vector load/store tests
+  int32_t vec_mem4_stride_load[NUM_ELEM_ARRAY*step]; // vector register emulation
+
+  int32_t vec_mem1_stride_store[NUM_ELEM_ARRAY*step]; // memory for vector load/store tests
+  int32_t vec_mem2_stride_store[NUM_ELEM_ARRAY*step]; // vector register emulation
+  int32_t vec_mem3_stride_store[NUM_ELEM_ARRAY*step]; // memory for vector load/store tests
+  int32_t vec_mem4_stride_store[NUM_ELEM_ARRAY*step]; // vector register emulation
+
+  ptr1_load = (uint32_t)&vec_mem1_stride_load[0];
+  ptr2_load = (uint32_t)&vec_mem2_stride_load[0];
+  ptr3_load = (uint32_t)&vec_mem3_stride_load[0];
+  ptr4_load = (uint32_t)&vec_mem4_stride_load[0];
+
+  ptr1_store = (uint32_t)&vec_mem1_stride_store[0];
+  ptr2_store = (uint32_t)&vec_mem2_stride_store[0];
+  ptr3_store = (uint32_t)&vec_mem3_stride_store[0];
+  ptr4_store = (uint32_t)&vec_mem4_stride_store[0];
+
+  // initialize memory with test data
+  for (i = 0; i < (uint32_t)NUM_ELEM_ARRAY*step; i = i + step) {
+    vec_mem1_stride_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_stride_load[i]);
+  }
+
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+
+  for (i = 0; i < (uint32_t)NUM_ELEM_ARRAY*step; i = i + step) {
+    vec_mem2_stride_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem2 = 0x%x", i, vec_mem2_stride_load[i]);
+  }
+  
+  cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
+
+  for (i = 0; i < (uint32_t)NUM_ELEM_ARRAY*step; i = i + step) {
+    vec_mem3_stride_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem2 = 0x%x", i, vec_mem3_stride_load[i]);
+  }
+  
+  cellrv32_uart0_printf("\nvec_mem3 is successfully initialized.");
+
+  for (i = 0; i < (uint32_t)NUM_ELEM_ARRAY*step; i = i + step) {
+    vec_mem4_stride_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem2 = 0x%x", i, vec_mem4_stride_load[i]);
+  }
+  
+  cellrv32_uart0_printf("\nvec_mem4 is successfully initialized.");
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Load Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_stride_load[NUM_ELEM_ARRAY*step-1]);
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_stride_load[NUM_ELEM_ARRAY*step-1]);
+  cellrv32_uart0_printf("\n Base address 3 = 0x%x", ptr3_load);
+  cellrv32_uart0_printf("\n End address 3 = 0x%x", &vec_mem3_stride_load[NUM_ELEM_ARRAY*step-1]);
+  cellrv32_uart0_printf("\n Base address 4 = 0x%x", ptr4_load);
+  cellrv32_uart0_printf("\n End address 4 = 0x%x", &vec_mem4_stride_load[NUM_ELEM_ARRAY*step-1]);
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Store Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_stride_store[NUM_ELEM_ARRAY*step-1]);
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_store);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_stride_store[NUM_ELEM_ARRAY*step-1]);
+  cellrv32_uart0_printf("\n Base address 3 = 0x%x", ptr3_store);
+  cellrv32_uart0_printf("\n End address 3 = 0x%x", &vec_mem3_stride_store[NUM_ELEM_ARRAY*step-1]);
+  cellrv32_uart0_printf("\n Base address 4 = 0x%x", ptr4_store);
+  cellrv32_uart0_printf("\n End address 4 = 0x%x\n", &vec_mem4_stride_store[NUM_ELEM_ARRAY*step-1]);
+
+  opa.binary_value = NUM_ELEM_ARRAY;
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Stride Load/Store Phase");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // ================== CONFIGURARE =================
+    // SEW=32b, VLMUL=1, only valid VTYPE bits
+    //opb.binary_value = 0x00000010 & 0x800000FF;
+    // SEW=32b, VLMUL=2, only valid VTYPE bits
+    //opb.binary_value = 0x00000011 & 0x800000FF;
+    // SEW=32b, VLMUL=4, only valid VTYPE bits
+    //opb.binary_value = 0x00000012 & 0x800000FF;
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== STRIDE LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vlse32v(ptr1_load, stride);
+    ope.binary_value = riscv_intrinsic_vlse32v(ptr2_load, stride);
+    opf.binary_value = riscv_intrinsic_vlse32v(ptr3_load, stride);
+    oph.binary_value = riscv_intrinsic_vlse32v(ptr4_load, stride);
+    // ================== STRIDE STORE PHASE ==================
+    riscv_intrinsic_vsse32v(opd.binary_value, ptr1_store, stride);
+    riscv_intrinsic_vsse32v(ope.binary_value, ptr2_store, stride);
+    riscv_intrinsic_vsse32v(opf.binary_value, ptr3_store, stride);
+    riscv_intrinsic_vsse32v(oph.binary_value, ptr4_store, stride);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value*stride;
+    ptr2_load += opc.binary_value*stride;
+    ptr3_load += opc.binary_value*stride;
+    ptr4_load += opc.binary_value*stride;
+    //
+    ptr1_store += opc.binary_value*stride;
+    ptr2_store += opc.binary_value*stride;
+    ptr3_store += opc.binary_value*stride;
+    ptr4_store += opc.binary_value*stride;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector Stride Load/Store Verification 1\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY*step; i=i+step) {
+    res_sw.binary_value = vec_mem1_stride_load[i];
+    res_hw.binary_value = vec_mem1_stride_store[i];
+    err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+
+  cellrv32_uart0_printf("\n\nVector Stride Load/Store Verification 2\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY*step; i=i+step) {
+    res_sw.binary_value = vec_mem2_stride_load[i];
+    res_hw.binary_value = vec_mem2_stride_store[i];
+    err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  
+  cellrv32_uart0_printf("\n\nVector Stride Load/Store Verification 3\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY*step; i=i+step) {
+    res_sw.binary_value = vec_mem3_stride_load[i];
+    res_hw.binary_value = vec_mem3_stride_store[i];
+    err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+  
+  cellrv32_uart0_printf("\n\nVector Stride Load/Store Verification 4\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY*step; i=i+step) {
+    res_sw.binary_value = vec_mem4_stride_load[i];
+    res_hw.binary_value = vec_mem4_stride_store[i];
+    err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector Stride Load/Store Instructions completed.\n");
+
+  print_vector_report(err_cnt);
   err_cnt_total += err_cnt;
   test_cnt++;
 #endif
