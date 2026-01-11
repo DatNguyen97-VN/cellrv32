@@ -30,7 +30,7 @@ SEARCH_DIR("=/usr/lib")
 
 /* Default rom/ram (IMEM/DMEM) sizes */
 __cellrv32_rom_size = DEFINED(__cellrv32_rom_size) ? __cellrv32_rom_size : 32k;
-__cellrv32_ram_size = DEFINED(__cellrv32_ram_size) ? __cellrv32_ram_size : 32K;
+__cellrv32_ram_size = DEFINED(__cellrv32_ram_size) ? __cellrv32_ram_size : 64K;
 
 /* Default HEAP size (= 0; no heap at all) */
 __cellrv32_heap_size = DEFINED(__cellrv32_heap_size) ? __cellrv32_heap_size : 0;
