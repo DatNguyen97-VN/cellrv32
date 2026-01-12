@@ -31,7 +31,7 @@ module cellrv32_tb_simple #(
     // -------------------------------------------------------------------------------------------
     /* general */
     localparam logic ext_dmem_c                  = 1'b0;      // false: use proc-internal DMEM, true: use external simulated DMEM (ext. mem B)
-    localparam int   dmem_size_c                 = 32*1024;   // size in bytes of processor-internal DMEM / external mem B
+    localparam int   dmem_size_c                 = 64*1024;   // size in bytes of processor-internal DMEM / external mem B
     localparam int   f_clock_c                   = 100000000; // main clock in Hz
     localparam int   baud0_rate_c                = 19200;     // simulation UART0 (primary UART) baud rate
     localparam int   baud1_rate_c                = 19200;     // simulation UART1 (secondary UART) baud rate
@@ -199,7 +199,7 @@ module cellrv32_tb_simple #(
         .ICACHE_BLOCK_SIZE            (icache_block_size_c), // i-cache: block size in bytes (min 4), has to be a power of 2
         .ICACHE_ASSOCIATIVITY         (2),             // i-cache: associativity / number of sets (1=direct_mapped), has to be a power of 2
         /* External memory interface */
-        .MEM_EXT_EN                   (1'b1),          // implement external memory bus interface?
+        .MEM_EXT_EN                   (1'b0),          // implement external memory bus interface?
         .MEM_EXT_TIMEOUT              (256),           // cycles after a pending bus access auto-terminates (0 = disabled)
         .MEM_EXT_PIPE_MODE            (1'b0),          // protocol: false=classic/standard wishbone mode, true=pipelined wishbone mode
         .MEM_EXT_BIG_ENDIAN           (1'b0),          // byte order: true=big-endian, false=little-endian
