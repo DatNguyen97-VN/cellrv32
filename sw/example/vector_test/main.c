@@ -44,9 +44,9 @@
 //** Run Unit-Stride Load/Store tests when != 0 */
 #define RUN_LOADSTORE_TESTS     (0)
 //** Run Stride Load/Store tests when != 0 */
-#define RUN_STR_LOADSTORE_TESTS (1)
+#define RUN_STR_LOADSTORE_TESTS (0)
 //** Run Indexed Load/Store tests when != 0 */
-#define RUN_IDX_LOADSTORE_TESTS (0)
+#define RUN_IDX_LOADSTORE_TESTS (1)
 //** Run Add/Sub tests when != 0 */
 #define RUN_ADDSUB_TESTS        (0)
 //** Run Bitwise tests when != 0 */
@@ -417,7 +417,6 @@ int main() {
 #endif
 
 
-
 #if (RUN_STR_LOADSTORE_TESTS != 0)
   // ----------------------------------------------------------------------------
   // Stride Load/Store Tests
@@ -580,6 +579,123 @@ int main() {
   print_vector_report(err_cnt);
   err_cnt_total += err_cnt;
   test_cnt++;
+#endif
+
+
+#if (RUN_IDX_LOADSTORE_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // Indexed Load/Store Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n#%u: Vector Indexed Load/Store Instructions...\n", test_cnt);
+  err_cnt = 0;
+  round = 0;
+  uint32_t index = 0;
+  uint32_t NUM_ARRAY = 0;
+  
+  ptr1_load = (uint32_t)&vec_mem1_load[0];
+  ptr2_load = (uint32_t)&vec_mem2_load[0];
+  ptr1_store = (uint32_t)&vec_mem1_store[0];
+  ptr2_store = (uint32_t)&vec_mem2_store[0];
+
+  // convert an any integer into power of two
+  uint32_t mask = 1;
+  if (NUM_ELEM_ARRAY == 0) {
+    NUM_ARRAY = 0;
+    mask = 0;
+  } else {
+    while ((mask << 1) <= NUM_ELEM_ARRAY) mask <<= 1;
+    NUM_ARRAY = mask;
+    mask = mask - 1;
+  }
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ARRAY; i++) {
+    index = get_test_vector() & mask;
+    // generate data
+    vec_mem1_load[index] = get_test_vector();
+    // random address load
+    vec_mem2_load[i] = ptr1_load + index * 4;
+    // masked
+    vec_mem3_load[i] = 0x0;
+    vec_mem3_load[index] = 0x1;
+    // ramdom address store
+    vec_mem2_store[i] = ptr1_store + index * 4;
+  }
+
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Load Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", vec_mem2_load[0]);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", vec_mem2_load[NUM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Store Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", vec_mem2_store[0]);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", vec_mem2_store[NUM_ARRAY-1]);
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Indexed Load/Store Phase");
+  cellrv32_uart0_printf("\n---------------------------------");
+
+  opa.binary_value = NUM_ARRAY;
+  uint32_t base_address = 0x0;
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // ================== CONFIGURARE =================
+    // SEW=32b, VLMUL=1, only valid VTYPE bits
+    //opb.binary_value = 0x00000010 & 0x800000FF;
+    // SEW=32b, VLMUL=2, only valid VTYPE bits
+    //opb.binary_value = 0x00000011 & 0x800000FF;
+    // SEW=32b, VLMUL=4, only valid VTYPE bits
+    //opb.binary_value = 0x00000012 & 0x800000FF;
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    opd.binary_value = riscv_intrinsic_vlxei32v(base_address, ope.binary_value);
+    // ================== STORE PHASE ==================
+    opf.binary_value = riscv_intrinsic_vle32v(ptr2_store);
+    riscv_intrinsic_vsxei32v(opd.binary_value, base_address, opf.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr2_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector Load/Store Verification 1\n");
+  for (int i = 0; i < NUM_ARRAY; i++) {
+    if (vec_mem3_load[i]) {
+       res_sw.binary_value = vec_mem1_load[i];
+       res_hw.binary_value = vec_mem1_store[i];
+       err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
+    }
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector Indexed Load/Store Instructions completed.\n");
+
+  cellrv32_uart0_printf("Errors: %u/%u ", err_cnt, NUM_ARRAY);
+
+  if (err_cnt == 0) {
+    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
+  }
+  else {
+    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
+  }
+
+  err_cnt_total += err_cnt;
+  test_cnt++;
+
 #endif
 
 
