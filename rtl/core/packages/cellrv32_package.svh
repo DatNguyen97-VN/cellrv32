@@ -947,7 +947,6 @@ package cellrv32_package;
       logic [02:0] frm      ;
       logic [06:0] vl       ;
       logic        is_rdc   ;
-      logic        is_fp_rdc;
       logic        head_uop ;
       logic        end_uop  ;
   } to_vector_exec_info;
