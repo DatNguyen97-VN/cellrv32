@@ -74,7 +74,6 @@ module vmu_st_eng #(
     logic                                           start_new_loop              ;
     logic                                           new_transaction_en          ;
     logic                                           request_ready               ;
-    logic                                           multi_valid                 ;
     logic [    $clog2(VECTOR_LANES*DATA_WIDTH)-1:0] element_index               ;
     logic [                         ADDR_WIDTH-1:0] offset_read                 ;
     logic [                         ADDR_WIDTH-1:0] current_addr                ;
@@ -145,7 +144,6 @@ module vmu_st_eng #(
     //=======================================================
     // Address Generation
     //=======================================================
-    assign multi_valid   = 1'b0;
     assign element_index = current_pointer_wb_r << 5; //*32
     assign offset_read   = rd_data_2_i[element_index +: DATA_WIDTH];
     // Generate next non-multi consecutive address
@@ -195,13 +193,7 @@ module vmu_st_eng #(
     // create the final data vector
     always_comb begin
         data_selected = '0;
-        if(!multi_valid) begin
-            data_selected[0 +:32] = data_selected_el;
-        end else begin
-            for (int i = 0; i < MAX_SERVED_COUNT; i++) begin
-                data_selected[i*32 +: 32] = data_selected_v[i*32 +: 32]; // pick 32bits from each elem
-            end
-        end
+        data_selected[0 +:32] = data_selected_el;
     end
 
     //=======================================================
@@ -255,9 +247,7 @@ module vmu_st_eng #(
                     pending_elem[i] <= nxt_pending_elem[i];
                 end else if (start_new_loop) begin
                     pending_elem[i] <= nxt_pending_elem_loop[i];
-                end else if(new_transaction_en && current_served_th[i] && multi_valid) begin // multi-request
-                    pending_elem[i] <= 1'b0;
-                end else if(new_transaction_en && current_pointer_oh[i] && !multi_valid) begin // single-request
+                end else if(new_transaction_en && current_pointer_oh[i]) begin // single-request
                     pending_elem[i] <= 1'b0;
                 end
             end

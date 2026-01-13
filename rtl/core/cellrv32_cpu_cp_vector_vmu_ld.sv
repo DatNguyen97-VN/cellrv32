@@ -83,7 +83,6 @@ module vmu_ld_eng #(
     logic                                                             request_ready               ;
     logic                                                             row_0_ready                 ;
     logic                                                             row_1_ready                 ;
-    logic                                                             multi_valid                 ;
     logic [    $clog2(VECTOR_LANES*DATA_WIDTH)-1:0]                   element_index               ;
     logic [                         ADDR_WIDTH-1:0]                   offset_read                 ;
     logic [                         ADDR_WIDTH-1:0]                   current_addr                ;
@@ -193,7 +192,6 @@ module vmu_ld_eng #(
     //=======================================================
     // Address Generation
     //=======================================================
-    assign multi_valid   = 1'b0; // Each request can load multiple elements at once.
     assign element_index = current_pointer_wb_r << 5; //*32, each lane has 32 bits
     assign offset_read   = rd_data_i[element_index +: DATA_WIDTH];
     // Generate next non-multi consecutive address
@@ -248,13 +246,7 @@ module vmu_ld_eng #(
     // Unpack the data into elements
     always_comb begin
         unpacked_data = '0;
-        if(!multi_valid) begin
-            unpacked_data[0 +: 32] = resp_data_i[0 +: 32];
-        end else begin
-            for (int i = 0; i < MAX_SERVED_COUNT; i++) begin
-                unpacked_data[i*32 +: 32] = resp_data_i[i*32 +: 32]; // pick 32-bits for each elem
-            end
-        end
+        unpacked_data[0 +: 32] = resp_data_i[0 +: 32];
     end
 
     // Shift unpacked data vector to match the elements positions
@@ -319,7 +311,7 @@ module vmu_ld_eng #(
 
     // Maintain current pointer and row
     assign nxt_row  = ~current_row;
-    assign nxt_elem = multi_valid ? (current_pointer_wb_r + el_served_count) : (current_pointer_wb_r + 1);
+    assign nxt_elem = current_pointer_wb_r + 1;
     always_ff @(posedge clk_i or negedge rstn_i) begin : current_ptr
         if(!rstn_i) begin
             current_pointer_wb_r <= 0;
@@ -368,9 +360,7 @@ module vmu_ld_eng #(
                     pending_elem[0][i] <= nxt_pending_elem[i];
                 end else if(start_new_loop && !nxt_row) begin
                     pending_elem[0][i] <= nxt_pending_elem_loop[i];
-                end else if(new_transaction_en && current_served_th[i] && multi_valid && !current_row) begin // multi-request
-                    pending_elem[0][i] <= 1'b0;
-                end else if(new_transaction_en && current_pointer_oh[i] && !multi_valid && !current_row) begin // single-request
+                end else if(new_transaction_en && current_pointer_oh[i] && !current_row) begin // single-request
                     pending_elem[0][i] <= 1'b0;
                 end
                 //row 1 maintenance
@@ -378,9 +368,7 @@ module vmu_ld_eng #(
                     pending_elem[1][i] <= 1'b0;
                 end else if(start_new_loop && nxt_row) begin
                     pending_elem[1][i] <= nxt_pending_elem_loop[i];
-                end else if(new_transaction_en && current_served_th[i] && multi_valid && current_row) begin // multi-request
-                    pending_elem[1][i] <= 1'b0;
-                end else if(new_transaction_en && current_pointer_oh[i] && !multi_valid && current_row) begin // single-request
+                end else if(new_transaction_en && current_pointer_oh[i] && current_row) begin // single-request
                     pending_elem[1][i] <= 1'b0;
                 end
             end
