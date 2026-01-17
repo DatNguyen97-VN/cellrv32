@@ -764,7 +764,7 @@ module cellrv32_cpu_cp_fpu32 #(
                             division.state    <= DIV_DONE;
                         end else if (fpu_operands.rs1[22:0] < fpu_operands.rs2[22:0]) begin
                             division.quotient <= 1'b0;
-                            division.rem_buf <= 2*{1'b1, fpu_operands.rs1[22:0]} - {1'b1, fpu_operands.rs2[22:0]};
+                            division.rem_buf <= {2'b01, fpu_operands.rs1[22:0], 1'b0} - {3'b001, fpu_operands.rs2[22:0]};
                             division.state    <= DIV_BUSY;
                         end else if (fpu_operands.rs1[22:0] == fpu_operands.rs2[22:0]) begin
                             division.quotient <= 1'b1; // exact 1.0 result
@@ -784,7 +784,7 @@ module cellrv32_cpu_cp_fpu32 #(
                 // ===========================================
                 DIV_PRE_BUSY: begin
                     // first step of the restoring division algorithm
-                    division.rem_buf <= 2*division.rem_buf - division.opb;
+                    division.rem_buf <= {division.rem_buf[$bits(division.rem_buf)-2:0], 1'b0} - division.opb;
                     division.state   <= DIV_BUSY;
                 end
                 // ===========================================
@@ -805,10 +805,10 @@ module cellrv32_cpu_cp_fpu32 #(
                 DIV_BUSY: begin
                     if (division.rem_buf[$bits(division.rem_buf)-1]) begin
                         division.rem     <= {division.rem[$bits(division.rem)-2:0], 1'b0};
-                        division.rem_buf <= 2*division.rem_buf + division.opb;
+                        division.rem_buf <= {division.rem_buf[$bits(division.rem_buf)-2:0], 1'b0} + division.opb;
                     end else begin
                         division.rem     <= {division.rem[$bits(division.rem)-2:0], 1'b1};
-                        division.rem_buf <= 2*division.rem_buf - division.opb;
+                        division.rem_buf <= {division.rem_buf[$bits(division.rem_buf)-2:0], 1'b0} - division.opb;
                     end
                     // increment bit counter
                     // after 23-bits mantissa and 16-bits G/R/S we are done
@@ -817,7 +817,7 @@ module cellrv32_cpu_cp_fpu32 #(
                         division.latency <= '0;
                         division.state   <= DIV_DONE;
                     end else begin
-                        division.latency <= division.latency + 1;
+                        division.latency <= division.latency + 6'd1;
                     end
                 end
                 // ===========================================
@@ -1012,7 +1012,7 @@ module cellrv32_cpu_cp_fpu32 #(
                 // ===========================================
                 SQRT_PRE_BUSY : begin
                     // first step of the restoring division algorithm
-                    sqrt.rem   <= 2*sqrt.rem - 2*{1'b0, fpu_operands.rs1[23], sqrt.result} - sqrt.half;
+                    sqrt.rem   <= {sqrt.rem[$bits(sqrt.rem)-2:0], 1'b0} - {fpu_operands.rs1[23], sqrt.result, 1'b0} - sqrt.half;
                     sqrt.state <= SQRT_BUSY;
                 end
                 // ===========================================
@@ -1033,7 +1033,7 @@ module cellrv32_cpu_cp_fpu32 #(
                 SQRT_BUSY : begin
                     if (sqrt.rem[$bits(sqrt.rem)-1]) begin
                         sqrt.result[$bits(sqrt.result)-1-sqrt.latency] <= 1'b0;
-                        sqrt.rem <= sqrt.rem + 2*{1'b0, fpu_operands.rs1[23], sqrt.result} + sqrt.half;
+                        sqrt.rem <= sqrt.rem + {fpu_operands.rs1[23], sqrt.result, 1'b0} + sqrt.half;
                     end else begin
                         sqrt.result[$bits(sqrt.result)-1-sqrt.latency] <= 1'b1;
                     end
@@ -1047,7 +1047,7 @@ module cellrv32_cpu_cp_fpu32 #(
                         sqrt.latency <= '0;
                         sqrt.state   <= SQRT_DONE;
                     end else begin
-                        sqrt.latency <= sqrt.latency + 1;
+                        sqrt.latency <= sqrt.latency + 6'd1;
                         sqrt.state   <= SQRT_PRE_BUSY;
                     end
                 end
