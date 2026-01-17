@@ -82,7 +82,7 @@ module vis #(
     //Check if instr expansion finished
     assign total_remaining_elements = instr_in.vl - (current_exp_loop*VECTOR_LANES); // number of unprocessed vector elements
     assign expansion_finished       = maxvl_reached | vl_reached;
-    assign maxvl_reached            = (current_exp_loop === (max_expansion-1)); // Check if we are on the last µop according to the hardware configuration
+    assign maxvl_reached            = (current_exp_loop == (max_expansion-1)); // Check if we are on the last µop according to the hardware configuration
     assign vl_reached               = (((current_exp_loop+1) << $clog2(VECTOR_LANES)) >= instr_in.vl); // Check if after the next µop we have covered the entire VL.
 
     //Check if the EX is ready to accept (only those that you need to send to)
@@ -169,9 +169,10 @@ module vis #(
                                (instr_in.ir_funct3 == funct3_opfvx_c) ||
                                (instr_in.ir_funct3 == funct3_opmvx_c);
     //
+    genvar k;
     generate
-        for (genvar k = 0; k < VECTOR_LANES; k++) begin : g_data_selection
-            assign data_to_exec[k].valid     = valid_output[k];
+        for (k = 0; k < VECTOR_LANES; k++) begin : g_data_selection
+            assign data_to_exec[k].valid  = valid_output[k];
             // DATA 1 Selection
             assign data_to_exec[k].data1  = is_operand_imm    ? {{27{instr_in.immediate[4]}}, instr_in.immediate} :
                                             is_operand_scalar ? instr_in.data1                                    :
@@ -186,40 +187,22 @@ module vis #(
         end : g_data_selection
     endgenerate
 
-    //Convert to OH
-    logic [VECTOR_LANES-1:0][VECTOR_REGISTERS-1:0] wr_addr_oh, mem_wr_addr_oh;
-    logic [VECTOR_REGISTERS-1:0] dst_oh, src1_oh, src2_oh, unlock_reg_a_oh;
-
-    assign dst_oh          = (1 << dst);
-    assign src1_oh         = (1 << src_1);
-    assign src2_oh         = (1 << src_2);
-    assign unlock_reg_a_oh = (1 << unlock_reg_a);
-
-    generate
-        for (genvar m = 0; m < VECTOR_LANES; m++) begin : g_oh_pntrs
-            assign wr_addr_oh[m]     = (1 << wr_addr);
-            assign mem_wr_addr_oh[m] = (1 << mem_wr_addr);
-        end : g_oh_pntrs
-    endgenerate
-
     always_ff @(posedge clk_i or negedge rstn_i) begin : StatusPending
-        if(!rstn_i) begin
+        if (!rstn_i) begin
             pending <= '0;
         end else begin
-            if(do_reconfigure) begin
+            if (do_reconfigure) begin
                 pending <= '0;
             end else if (!instr_in.reconfigure) begin
                 for (int k = 0; k < VECTOR_LANES; k++) begin
-                    for (int i = 0; i < VECTOR_REGISTERS; i++) begin
-                        if(dst_oh[i] && vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
-                            pending[i][k] <= 1;
-                        end else if(dst_oh[i] && ~vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
-                            pending[i][k] <= 0;
-                        end else if(wr_en[k] && wr_addr_oh[k][i]) begin
-                            pending[i][k] <= 0;
-                        end else if (mem_wr_en[k] && mem_wr_addr_oh[k][i]) begin
-                            pending[i][k] <= 0;
-                        end
+                    if (vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
+                        pending[dst][k] <= 1'b1;
+                    end else if (~vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
+                        pending[dst][k] <= 1'b0;
+                    end else if (wr_en[k]) begin
+                        pending[wr_addr][k] <= 1'b0;
+                    end else if (mem_wr_en[k]) begin
+                        pending[mem_wr_addr][k] <= 1'b0;
                     end
                 end
             end
@@ -232,12 +215,10 @@ module vis #(
             locked <= '0;
         end else begin
             for (int k = 0; k < VECTOR_LANES; k++) begin
-                for (int i = 0; i < VECTOR_REGISTERS; i++) begin
-                    if(do_issue && vl_therm[k] && dst_oh[i] && instr_in.lock) begin
-                        locked[i][k] <= 1;
-                    end else if (unlock_en && unlock_reg_a_oh[i]) begin
-                        locked[i][k] <= 0;
-                    end
+                if(do_issue && vl_therm[k] && instr_in.lock) begin
+                    locked[dst][k] <= 1'b1;
+                end else if (unlock_en) begin
+                    locked[unlock_reg_a][k] <= 1'b0;
                 end
             end
         end
@@ -249,7 +230,7 @@ module vis #(
         for (int i = 0; i < VECTOR_LANES; i++) begin
             wr_en_masked[i] = instr_is_rdc ? (rdc_done[i] & wr_en[i] & ~locked[wr_addr][i]) : (wr_en[i] & ~locked[wr_addr][i]);
         end
-    end
+    end : WBmask
 
     // Vector Register File
     vrf #(
@@ -260,25 +241,25 @@ module vis #(
         .clk_i       (clk_i         ),
         .reset       (do_reconfigure), // state resetted during reconfiguration
         //Read Ports
-        .rd_addr_1   (src_1       ),
-        .data_out_1  (data_1      ),
-        .rd_addr_2   (src_2       ),
-        .data_out_2  (data_2      ),
-        //Element Write Ports (per element enabled)
-        .el_wr_en    (wr_en_masked),
-        .el_wr_addr  (wr_addr     ),
-        .el_wr_data  (wr_data     ),
+        .rd_addr_1   (src_1         ),
+        .data_out_1  (data_1        ),
+        .rd_addr_2   (src_2         ),
+        .data_out_2  (data_2        ),
+        //Element Write Ports (per   element enabled)
+        .el_wr_en    (wr_en_masked  ),
+        .el_wr_addr  (wr_addr       ),
+        .el_wr_data  (wr_data       ),
         //Register Read Port
-        .v_rd_addr_0 (mem_addr_0  ),
-        .v_data_out_0(mem_data_0  ),
-        .v_rd_addr_1 (mem_addr_1  ),
-        .v_data_out_1(mem_data_1  ),
-        .v_rd_addr_2 (mem_addr_2  ),
-        .v_data_out_2(mem_data_2  ),
+        .v_rd_addr_0 (mem_addr_0    ),
+        .v_data_out_0(mem_data_0    ),
+        .v_rd_addr_1 (mem_addr_1    ),
+        .v_data_out_1(mem_data_1    ),
+        .v_rd_addr_2 (mem_addr_2    ),
+        .v_data_out_2(mem_data_2    ),
         //Register Write Port (per element enabled)
-        .v_wr_en     (mem_wr_en   ),
-        .v_wr_addr   (mem_wr_addr ),
-        .v_wr_data   (mem_wr_data )
+        .v_wr_en     (mem_wr_en     ),
+        .v_wr_addr   (mem_wr_addr   ),
+        .v_wr_data   (mem_wr_data   )
     );
 
     assign is_idle_o = ~valid_in & ~|pending & ~|locked;
