@@ -107,7 +107,7 @@ module cellrv32_debug_dm (
     dm_reg_t dm_reg;
 
     /* cpu program buffer */
-    typedef logic [31:0] cpu_progbuf_t [0:4];
+    typedef logic [31:0] cpu_progbuf_t [0:3];
     cpu_progbuf_t cpu_progbuf;
 
     // **********************************************************
