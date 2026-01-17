@@ -35,38 +35,26 @@ module vrf #(
     input  logic [ELEMENTS*DATA_WIDTH-1:0]                 v_wr_data
 );
 
-    //Internal Signals
-    logic [VREGS-1:0][ELEMENTS-1:0][DATA_WIDTH-1:0] memory      ;
-    logic [VREGS-1:0]                               wr_addr_oh  ;
-    logic [VREGS-1:0]                               v_wr_addr_oh;
-    // Convert to one-hot
-    assign v_wr_addr_oh = (1 << v_wr_addr);
-    assign wr_addr_oh   = (1 << el_wr_addr);
-    //Store new Data
+    // Internal Signals
+    logic [ELEMENTS-1:0][DATA_WIDTH-1:0] memory [VREGS-1:0];
+
+    // Store new Data
     always_ff @(posedge clk_i) begin : memManage
-        if(reset) begin
-            memory <= '0;
-        end else begin
-            for (int k = 0; k < ELEMENTS; k++) begin
-                for (int i = 0; i < VREGS; i++) begin
-                    if(v_wr_addr_oh[i] && v_wr_en[k]) begin
-                        memory[i][k] <= v_wr_data[k*DATA_WIDTH +: DATA_WIDTH];
-                    end else if(wr_addr_oh[i] && el_wr_en[k]) begin
-                        memory[i][k] <= el_wr_data[k];
-                    end
+        for (int k = 0; k < ELEMENTS; k++) begin
+                if (v_wr_en[k]) begin
+                    memory[v_wr_addr][k]  <= v_wr_data[k*DATA_WIDTH +: DATA_WIDTH];
+                end else if (el_wr_en[k]) begin
+                    memory[el_wr_addr][k] <= el_wr_data[k];
                 end
             end
-        end
-    end
+    end : memManage
+
     // Pick the Data and push them to the Output
     assign v_data_out_0 = memory[v_rd_addr_0];
     assign v_data_out_1 = memory[v_rd_addr_1];
     assign v_data_out_2 = memory[v_rd_addr_2];
-    always_comb begin : DataOut
-        for (int i = 0; i < ELEMENTS; i++) begin
-            data_out_1[i] = memory[rd_addr_1][i];
-            data_out_2[i] = memory[rd_addr_2][i];
-        end
-    end
+
+    assign data_out_1 = memory[rd_addr_1];
+    assign data_out_2 = memory[rd_addr_2];
 
 endmodule
