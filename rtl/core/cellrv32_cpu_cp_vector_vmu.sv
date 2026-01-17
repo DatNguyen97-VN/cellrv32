@@ -7,42 +7,42 @@
 `endif // _INCL_DEFINITIONS
  
 module vmu #(
-    parameter int REQ_DATA_WIDTH     = 256,
+    parameter int REQ_DATA_WIDTH     = 32 ,
     parameter int VECTOR_REGISTERS   = 32 ,
     parameter int VECTOR_LANES       = 8  ,
     parameter int DATA_WIDTH         = 32 ,
     parameter int ADDR_WIDTH         = 32 ,
     parameter int MICROOP_WIDTH      = 5  
 ) (
-    input  logic                                                              clk                ,
-    input  logic                                                              rst_n              ,
-    output logic                                                              vmu_idle_o         ,
+    input  logic                                clk             ,
+    input  logic                                rst_n           ,
+    output logic                                vmu_idle_o      ,
     //Instruction In
-    input  logic                                                              valid_in           ,
-    input  memory_remapped_v_instr                                            instr_in           ,
-    output logic                                                              ready_o            ,
+    input  logic                                valid_in        ,
+    input  memory_remapped_v_instr              instr_in        ,
+    output logic                                ready_o         ,
     //Cache Interface (OUT)
-    output logic                                                              mem_req_valid_o    ,
-    output vector_mem_req                                                     mem_req_o          ,
+    output logic                                mem_req_valid_o ,
+    output vector_mem_req                       mem_req_o       ,
     //Cache Interface (IN)
-    input  logic                                                              cache_ready_i      ,
-    input  logic                                                              mem_resp_valid_i   ,
-    input  vector_mem_resp                                                    mem_resp_i         ,
+    input  logic                                cache_ready_i   ,
+    input  logic                                mem_resp_valid_i,
+    input  vector_mem_resp                      mem_resp_i      ,
     //RF Interface - Loads
-    output logic [$clog2(VECTOR_REGISTERS)-1:0]                               rd_addr_0_o        ,
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0]                               rd_data_0_i        ,
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_0_o     ,
+    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_0_i     ,
     //RF Interface - Stores
-    output logic [$clog2(VECTOR_REGISTERS)-1:0]                               rd_addr_1_o        ,
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0]                               rd_data_1_i        ,
-    output logic [$clog2(VECTOR_REGISTERS)-1:0]                               rd_addr_2_o        ,
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0]                               rd_data_2_i        ,
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_1_o     ,
+    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_1_i     ,
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_2_o     ,
+    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_2_i     ,
     //RF Writeback Interface
-    output logic [            VECTOR_LANES-1:0]                               wrtbck_en_o        ,
-    output logic [$clog2(VECTOR_REGISTERS)-1:0]                               wrtbck_reg_o       ,
-    output logic [ VECTOR_LANES*DATA_WIDTH-1:0]                               wrtbck_data_o      ,
+    output logic [            VECTOR_LANES-1:0] wrtbck_en_o     ,
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_reg_o    ,
+    output logic [ VECTOR_LANES*DATA_WIDTH-1:0] wrtbck_data_o   ,
     //Unlock Interface
-    output logic                                                              unlock_en_o        ,
-    output logic [$clog2(VECTOR_REGISTERS)-1:0]                               unlock_reg_a_o     
+    output logic                                unlock_en_o     ,
+    output logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a_o  
 );
 
     //=======================================================
@@ -51,8 +51,6 @@ module vmu #(
     logic                                load_unlock_en    ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] load_unlock_reg_a ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] load_unlock_reg_b ;
-    logic [              ADDR_WIDTH-1:0] load_start_addr   ;
-    logic [              ADDR_WIDTH-1:0] load_end_addr     ;
     logic [              ADDR_WIDTH-1:0] load_req_addr     ;
     logic [      $clog2(VECTOR_LANES):0] load_req_ticket   ;
     logic [            VECTOR_LANES-1:0] ld_wb_en          ;
@@ -62,10 +60,7 @@ module vmu #(
     logic                                store_unlock_en    ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] store_unlock_reg_a ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] store_unlock_reg_b ;
-    logic [              ADDR_WIDTH-1:0] store_start_addr   ;
-    logic [              ADDR_WIDTH-1:0] store_end_addr     ;
     logic [              ADDR_WIDTH-1:0] store_req_addr     ;
-    logic [  $clog2(REQ_DATA_WIDTH/8):0] store_req_size     ;
     logic [          REQ_DATA_WIDTH-1:0] store_req_data     ;
 
     logic [1:0] is_busy     ;
@@ -123,56 +118,53 @@ module vmu #(
     // LOAD ENGINE
     // ---------------------------------------------------------------
     vmu_ld_eng #(
-        .REQ_DATA_WIDTH    (REQ_DATA_WIDTH    ),
-        .VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-        .VECTOR_LANES      (VECTOR_LANES      ),
-        .DATA_WIDTH        (DATA_WIDTH        ),
-        .ADDR_WIDTH        (ADDR_WIDTH        ),
-        .MICROOP_WIDTH     (MICROOP_WIDTH     )
+        .REQ_DATA_WIDTH   (REQ_DATA_WIDTH  ),
+        .VECTOR_REGISTERS (VECTOR_REGISTERS),
+        .VECTOR_LANES     (VECTOR_LANES    ),
+        .DATA_WIDTH       (DATA_WIDTH      ),
+        .ADDR_WIDTH       (ADDR_WIDTH      ),
+        .MICROOP_WIDTH    (MICROOP_WIDTH   )
     ) vmu_ld_eng (
-        .clk_i                 (clk                   ),
-        .rstn_i                (rst_n                 ),
+        .clk_i                 (clk              ),
+        .rstn_i                (rst_n            ),
         //input Interface
-        .valid_in              (push_load             ),
-        .instr_in              (instr_in              ),
-        .ready_o               (load_ready            ),
+        .valid_in              (push_load        ),
+        .instr_in              (instr_in         ),
+        .ready_o               (load_ready       ),
         //RF read Interface (for indexed stride)
-        .rd_addr_o             (rd_addr_0_o           ),
-        .rd_data_i             (rd_data_0_i           ),
+        .rd_addr_o             (rd_addr_0_o      ),
+        .rd_data_i             (rd_data_0_i      ),
         //RF write Interface
-        .wrtbck_req_o          (                      ),
-        .wrtbck_en_o           (ld_wb_en              ),
-        .wrtbck_reg_o          (ld_wb_reg             ),
-        .wrtbck_data_o         (ld_wb_data            ),
+        .wrtbck_req_o          (                 ),
+        .wrtbck_en_o           (ld_wb_en         ),
+        .wrtbck_reg_o          (ld_wb_reg        ),
+        .wrtbck_data_o         (ld_wb_data       ),
         //Unlock Interface
-        .unlock_en_o           (load_unlock_en        ),
-        .unlock_reg_a_o        (load_unlock_reg_a     ),
+        .unlock_en_o           (load_unlock_en   ),
+        .unlock_reg_a_o        (load_unlock_reg_a),
         //Request Interface
-        .grant_i               (cache_ready_i         ),
-        .req_en_o              (ld_request            ),
-        .req_addr_o            (load_req_addr         ),
-        .req_size_o            (                      ),
-        .req_ticket_o          (load_req_ticket       ),
+        .grant_i               (cache_ready_i    ),
+        .req_en_o              (ld_request       ),
+        .req_addr_o            (load_req_addr    ),
+        .req_ticket_o          (load_req_ticket  ),
         // Incoming Data from Cache
-        .resp_valid_i          (mem_resp_valid_i      ),
-        .resp_ticket_i         (mem_resp_i.ticket     ),
-        .resp_data_i           (mem_resp_i.data       ),
+        .resp_valid_i          (mem_resp_valid_i ),
+        .resp_ticket_i         (mem_resp_i.ticket),
+        .resp_data_i           (mem_resp_i.data  ),
         //Sync Interface
-        .is_busy_o             (is_busy[0]            ),
-        .start_addr_o          (load_start_addr       ),
-        .end_addr_o            (load_end_addr         )
+        .is_busy_o             (is_busy[0]       )
     );
 
     // ---------------------------------------------------------------
     // STORE ENGINE
     // ---------------------------------------------------------------
     vmu_st_eng #(
-        .REQ_DATA_WIDTH    (REQ_DATA_WIDTH    ),
-        .VECTOR_REGISTERS  (VECTOR_REGISTERS  ),
-        .VECTOR_LANES      (VECTOR_LANES      ),
-        .DATA_WIDTH        (DATA_WIDTH        ),
-        .ADDR_WIDTH        (ADDR_WIDTH        ),
-        .MICROOP_WIDTH     (MICROOP_WIDTH     )
+        .REQ_DATA_WIDTH   (REQ_DATA_WIDTH  ),
+        .VECTOR_REGISTERS (VECTOR_REGISTERS),
+        .VECTOR_LANES     (VECTOR_LANES    ),
+        .DATA_WIDTH       (DATA_WIDTH      ),
+        .ADDR_WIDTH       (ADDR_WIDTH      ),
+        .MICROOP_WIDTH    (MICROOP_WIDTH   )
     ) vmu_st_eng (
         .clk            (clk               ),
         .rst_n          (rst_n             ),
@@ -193,12 +185,9 @@ module vmu #(
         .req_en_o       (st_request        ),
         .grant_i        (cache_ready_i     ),
         .req_addr_o     (store_req_addr    ),
-        .req_size_o     (store_req_size    ),
         .req_data_o     (store_req_data    ),
         //Sync Interface
-        .is_busy_o      (is_busy[1]        ),
-        .start_addr_o   (store_start_addr  ),
-        .end_addr_o     (store_end_addr    )
+        .is_busy_o      (is_busy[1]        )
     );
 
 endmodule
