@@ -11,7 +11,7 @@
 module cellrv32_cpu_alu #(
     parameter int XLEN             = 32,  // data path width
     parameter int VLEN             = 256, // vector length
-    parameter int VECTOR_LANES     = 8,   // Number of SIMD lanes (width of vector datapath)
+    parameter int VECTOR_LANES     = 2,   // Number of SIMD lanes (width of vector datapath)
 	parameter int VECTOR_REGISTERS = 32,  // Number of architectural vector registers
     /* RISC-V CPU Extensions */
     parameter int CPU_EXTENSION_RISCV_B      = 0, // implement bit-manipulation extension?
@@ -131,8 +131,8 @@ module cellrv32_cpu_alu #(
     // ----------------------------------------------------------------------------
     // Initial propagate and generate terms
     // ----------------------------------------------------------------------------
-    assign p = opa_v | opb_v; // propagate
-    assign g = opa_v & opb_v; // generate
+    assign p = opa_v[$bits(opa_v)-3:0] | opb_v[$bits(opb_v)-3:0]; // propagate
+    assign g = opa_v[$bits(opa_v)-3:0] & opb_v[$bits(opb_v)-3:0]; // generate
 
     // ----------------------------------------------------------------------------
     // Prefix Adder
@@ -308,7 +308,7 @@ module cellrv32_cpu_alu #(
     generate
         if (CPU_EXTENSION_RISCV_B == 1'b1) begin : cellrv32_cpu_cp_bitmanip_inst_ON
             cellrv32_cpu_cp_bitmanip #(
-                .XLEN          (XLEN),
+                .XLEN          (XLEN         ),
                 .FAST_SHIFT_EN (FAST_SHIFT_EN)
             ) cellrv32_cpu_cp_bitmanip_inst (
                 /* global control */
@@ -471,8 +471,7 @@ module cellrv32_cpu_alu #(
                 cellrv32_cpu_cp_vector #(
                 .VECTOR_REGISTERS  (VECTOR_REGISTERS),
                 .VECTOR_LANES      (VECTOR_LANES),
-                .DATA_WIDTH        (XLEN),
-                .VECTOR_REQ_WIDTH  (VLEN)
+                .DATA_WIDTH        (XLEN)
             ) cellrv32_cpu_cp_vector_inst (
                 // global control
                 .clk_i            (clk_i                    ), // global clock, rising edge
@@ -500,6 +499,8 @@ module cellrv32_cpu_alu #(
         if (CPU_EXTENSION_RISCV_V == 0) begin : cellrv32_cpu_cp_vector_inst_OFF
             assign cp_valid[cp_sel_vector_c] = 1'b0;
             assign vfpu32_flags              = '0;
+            assign req_valid_o               = 1'b0;
+            assign mem_req_o                 = '0;
         end : cellrv32_cpu_cp_vector_inst_OFF
     endgenerate
 
