@@ -137,7 +137,7 @@ module cellrv32_xip_phy (
     end : serial_engine
 
     /* serial unit busy */
-    assign op_busy_o = ((ctrl.state === S_IDLE) || (ctrl.state == S_WAIT)) ? 1'b1 : 1'b0;
+    assign op_busy_o = ((ctrl.state == S_IDLE) || (ctrl.state == S_WAIT)) ? 1'b1 : 1'b0;
 
     /* serial data output */
     assign spi_dat_o = ctrl.sreg[$bits(ctrl.sreg)-1];
