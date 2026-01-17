@@ -954,17 +954,17 @@ package cellrv32_package;
   //--------------------------------------
   //Vector memory Request
   typedef struct packed {
-      logic [31:0]  address;
-      logic [06:0]  microop;
-      logic [255:0] data   ;
-      logic [03:0]  ticket ;
+      logic [31:0] address;
+      logic [06:0] microop;
+      logic [31:0] data   ;
+      logic [03:0] ticket ;
   } vector_mem_req;
 
   //--------------------------------------
   //Vector memory response
   typedef struct packed {
-      logic [03:0]  ticket;
-      logic [255:0] data  ;
+      logic [03:0] ticket;
+      logic [31:0] data  ;
   } vector_mem_resp;
 
   // Comparator Bus ----------------------------------------------------------------------------
