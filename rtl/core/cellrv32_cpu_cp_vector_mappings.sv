@@ -73,8 +73,8 @@ module vrrm #(
                                                    instr_in.dst;
 
     // Pick the correct source vregs
-    assign instr_out.src1 = (instr_in.src1 === instr_in.dst) ? instr_out.dst : remapped_src1;
-    assign instr_out.src2 = (instr_in.src2 === instr_in.dst) ? instr_out.dst : remapped_src2;
+    assign instr_out.src1 = (instr_in.src1 == instr_in.dst) ? instr_out.dst : remapped_src1;
+    assign instr_out.src2 = (instr_in.src2 == instr_in.dst) ? instr_out.dst : remapped_src2;
     //Assign Locking Bits based on Instruction Type
     assign instr_out.lock = !instr_in.reconfigure && (load_instr || store_instr);
 	//Memory Instr Out Generation
