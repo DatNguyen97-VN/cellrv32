@@ -118,7 +118,7 @@ module cellrv32_bus_keeper (
             control.bus_err <= 1'b0;
             // IDLE
             if (control.pending == 1'b0) begin
-                control.timeout <= max_proc_int_response_time_c - 1;
+                control.timeout <= max_proc_int_response_time_c - 4'd1;
                 control.ignore <= 1'b0;
                 if (bus_rden_i || bus_wren_i) begin
                     control.pending <= 1'b1;
