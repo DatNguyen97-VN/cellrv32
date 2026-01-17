@@ -18,28 +18,27 @@ module cellrv32_cpu_cp_vector #(
     parameter int ADDR_WIDTH         = 32 , // Address width used by memory ops
     parameter int MEM_MICROOP_WIDTH  = 7  , // Width of micro-op encoding for memory ops
     parameter int MICROOP_WIDTH      = 5  , // Generic micro-op width (execution encoding)
-    parameter int VECTOR_REQ_WIDTH   = 256, // Width (bits) of request payload to cache
-    parameter int VECTOR_FP_ALU      = 1  , // Enable floating-point lanes
+    parameter int VECTOR_FP_ALU      = 0  , // Enable floating-point lanes
     parameter int VECTOR_FXP_ALU     = 0    // Enable fixed-point lanes
 ) (
-	input  logic           clk_i           , // System clock
-	input  logic           rstn_i          , // Active-low asynchronous reset
+	input  logic                  clk_i           , // System clock
+	input  logic                  rstn_i          , // Active-low asynchronous reset
 	// Instruction In
-	input  logic           valid_in        , // Indicates a valid vector instruction is available
-    input  ctrl_bus_t      ctrl_i          , // main control bus
+	input  logic                  valid_in        , // Indicates a valid vector instruction is available
+    input  ctrl_bus_t             ctrl_i          , // main control bus
     /* RF Data Inputs */
-    input  logic [DATA_WIDTH-1:0] rs1_i    , // RF source 1
-    input  logic [DATA_WIDTH-1:0] rs2_i    , // RF source 2
+    input  logic [DATA_WIDTH-1:0] rs1_i           , // RF source 1
+    input  logic [DATA_WIDTH-1:0] rs2_i           , // RF source 2
 	// Cache Request Interface
-	output logic           mem_req_valid_o , // Memory request valid signal to cache/memory subsystem
-	output vector_mem_req  mem_req_o       , // Memory request payload
-	input  logic           cache_ready_i   , // Indicates cache/memory interface is ready to accept requests
+	output logic                  mem_req_valid_o , // Memory request valid signal to cache/memory subsystem
+	output vector_mem_req         mem_req_o       , // Memory request payload
+	input  logic                  cache_ready_i   , // Indicates cache/memory interface is ready to accept requests
 	// Cache Response Interface
-	input  logic           mem_resp_valid_i, // Indicates a valid memory response
-	input  vector_mem_resp mem_resp_i      , // Memory response payload from cache/memory
+	input  logic                  mem_resp_valid_i, // Indicates a valid memory response
+	input  vector_mem_resp        mem_resp_i      , // Memory response payload from cache/memory
 	// Result and Status
-	output logic		   valid_o         , // Indicates a valid vector instruction has completed execution
-	output logic [4:0]     fflags_o          // exceprtion flags
+	output logic		          valid_o         , // Indicates a valid vector instruction has completed execution
+	output logic [4:0]            fflags_o          // exceprtion flags
 );
 
     // Idle stage
@@ -79,8 +78,8 @@ module cellrv32_cpu_cp_vector #(
                         state               <= S_PUSH;
                     end
 					// auto reconfigure
-                    instr_in.maxvl       <= ctrl_i.alu_vlmax;
-                    instr_in.vl          <= ctrl_i.alu_vl;
+                    instr_in.maxvl       <= 7'(ctrl_i.alu_vlmax);
+                    instr_in.vl          <= 7'(ctrl_i.alu_vl);
 					instr_in.reconfigure <= ctrl_i.alu_reconfig;
 					//
 					valid_o <= 1'b0;
@@ -214,7 +213,7 @@ module cellrv32_cpu_cp_vector #(
 	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_2     ;
 
 	vmu #(
-		.REQ_DATA_WIDTH    (VECTOR_REQ_WIDTH ),
+		.REQ_DATA_WIDTH    (DATA_WIDTH       ),
 		.VECTOR_REGISTERS  (VECTOR_REGISTERS ),
 		.VECTOR_LANES      (VECTOR_LANES     ),
 		.DATA_WIDTH        (DATA_WIDTH       ),
