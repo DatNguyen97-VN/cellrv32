@@ -13,12 +13,13 @@ module cellrv32_test_setup_bootloader #(
     /* adapt these for your setup */
     parameter CLOCK_FREQUENCY              = 50000000, // clock frequency of clk_i in Hz
     parameter MEM_INT_IMEM_SIZE            = 32*1024,  // size of processor-internal instruction memory in bytes
-    parameter MEM_INT_DMEM_SIZE            = 8*1024,   // size of processor-internal data memory in bytes
+    parameter MEM_INT_DMEM_SIZE            = 64*1024,  // size of processor-internal data memory in bytes
     parameter CPU_EXTENSION_RISCV_B        = true,
     parameter CPU_EXTENSION_RISCV_C        = true,
     parameter CPU_EXTENSION_RISCV_E        = false,
     parameter CPU_EXTENSION_RISCV_M        = true,
     parameter CPU_EXTENSION_RISCV_U        = true,
+    parameter CPU_EXTENSION_RISCV_V        = true,
     parameter CPU_EXTENSION_RISCV_Zicsr    = true,
     parameter CPU_EXTENSION_RISCV_Zifencei = true,
     parameter EXT_IMEM_C                   = false   // false: use and boot from proc-internal IMEM, true: use and boot from external (initialized) simulated IMEM (ext. mem A)
@@ -59,6 +60,7 @@ module cellrv32_test_setup_bootloader #(
         .CPU_EXTENSION_RISCV_E        (CPU_EXTENSION_RISCV_E), // implement embedded RF extension?
         .CPU_EXTENSION_RISCV_M        (CPU_EXTENSION_RISCV_M), // implement mul/div extension?
         .CPU_EXTENSION_RISCV_U        (CPU_EXTENSION_RISCV_U), // implement user mode extension?
+        .CPU_EXTENSION_RISCV_V        (CPU_EXTENSION_RISCV_V), // implement vector extension?
         .CPU_EXTENSION_RISCV_Zfinx    (true),          // implement 32-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zhinx    (true),          // implement 16-bit floating-point extension (using INT reg!)
         .CPU_EXTENSION_RISCV_Zicsr    (CPU_EXTENSION_RISCV_Zicsr), // implement CSR system?
@@ -116,7 +118,7 @@ module cellrv32_test_setup_bootloader #(
         .IO_TWI_EN                    (true),          // implement two-wire interface (TWI)?
         .IO_PWM_NUM_CH                (12),            // number of PWM channels to implement (0..12); 0 = disabled
         .IO_WDT_EN                    (true),          // implement watch dog timer (WDT)?
-        .IO_TRNG_EN                   (true),          // implement true random number generator (TRNG)?
+        .IO_TRNG_EN                   (false),         // implement true random number generator (TRNG)?
         .IO_TRNG_FIFO                 (4),             // TRNG fifo depth, has to be a power of two, min 1
         .IO_CFS_EN                    (true),          // implement custom functions subsystem (CFS)?
         .IO_CFS_CONFIG                ('b0),           // custom CFS configuration generic
