@@ -7,44 +7,34 @@
 `endif // _INCL_DEFINITIONS
 
 module cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
-    parameter int DATA_WIDTH      = 32 ,
-    parameter int MICROOP_WIDTH   = 5  ,
-    parameter int VECTOR_LANE_NUM = 1  ,
-    parameter int EX1_W           = 160,
-    parameter int EX2_W           = 96 ,
-    parameter int EX3_W           = 96 ,
-    parameter int EX4_W           = 32
+    parameter int XLEN      = 32
 ) (
-    input  logic                  clk_i          ,
-    input  logic                  rstn_i         ,
-    input  logic                  valid_i        ,
-    input  logic                  done_all_i     ,
-    input  logic [DATA_WIDTH-1:0] data_a_ex1_i   ,
-    input  logic [DATA_WIDTH-1:0] data_b_ex1_i   ,
-    input  logic [           5:0] funct6_i       ,
-    input  logic [           2:0] funct3_i       ,
-    input  logic [           2:0] frm_i          ,
-    input  logic                  mask_i         ,
-    input  logic [           4:0] vfunary_i      ,
-    input  logic [           6:0] vl_i           ,
-    input  logic                  is_rdc_i       ,
-    output logic                  ready_o        ,
-    output logic                  fp32_valid_o   ,
+    input  logic            clk_i          ,
+    input  logic            rstn_i         ,
+    input  logic            valid_i        ,
+    input  logic            done_all_i     ,
+    input  logic [XLEN-1:0] data_a_ex1_i   ,
+    input  logic [XLEN-1:0] data_b_ex1_i   ,
+    input  logic [     5:0] funct6_i       ,
+    input  logic [     2:0] funct3_i       ,
+    input  logic [     2:0] frm_i          ,
+    input  logic            mask_i         ,
+    input  logic [     4:0] vfunary_i      ,
+    input  logic [     6:0] vl_i           ,
+    input  logic            is_rdc_i       ,
+    output logic            ready_o        ,
+    output logic            fp32_valid_o   ,
     // Reduction Tree Inputs
-    input  logic [DATA_WIDTH-1:0] rdc_data_ex1_i ,
-    input  logic [DATA_WIDTH-1:0] rdc_data_ex2_i ,
-    input  logic [DATA_WIDTH-1:0] rdc_data_ex3_i ,
-    input  logic [DATA_WIDTH-1:0] rdc_data_ex4_i ,
+    input  logic [XLEN-1:0] rdc_data_ex1_i ,
+    input  logic [XLEN-1:0] rdc_data_ex2_i ,
+    input  logic [XLEN-1:0] rdc_data_ex3_i ,
+    input  logic [XLEN-1:0] rdc_data_ex4_i ,
     // Result EX4 Out
-    output logic                  ready_res_ex4_o,
-    output logic [     EX4_W-1:0] result_ex4_o,
-    output logic [           4:0] flags_ex4_o
+    output logic            ready_res_ex4_o,
+    output logic [XLEN-1:0] result_ex4_o,
+    output logic [     4:0] flags_ex4_o
 );
-    logic [EX1_W-1:0] result_rdc_ex1;
-    logic [EX2_W-1:0] result_rdc_ex2;
-    logic [EX3_W-1:0] result_rdc_ex3;
-    logic [EX4_W-1:0] result_rdc_ex4;
-
+   
     /* FPU core functions */
     const logic [3:0] op_class_c  = 4'b0000;
     const logic [3:0] op_i2f_c    = 4'b0010;
@@ -508,7 +498,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
     // Convert: Float to [unsigned] int (VFCVT.W[U].S) -------------------------------------------
     // ===========================================================================================
     cellrv32_cpu_cp_fpu32_f2i #(
-        .XLEN(DATA_WIDTH)) // data path width
+        .XLEN(XLEN)) // data path width
     cellrv32_cpu_cp_fpu32_f2i_inst (
         /* control */
         .clk_i      (clk_i                  ), // global clock, rising edge
