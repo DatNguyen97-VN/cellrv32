@@ -11,43 +11,41 @@ module vis #(
     parameter int VECTOR_LANES       = 8 ,
     parameter int DATA_WIDTH         = 32
 ) (
-    input  logic                                                                       clk_i          ,
-    input  logic                                                                       rstn_i         ,
-    output logic                                                                       is_idle_o      ,
-    output logic                                                                       exec_finished_o,
+    input  logic                                                         clk_i          ,
+    input  logic                                                         rstn_i         ,
+    output logic                                                         is_idle_o      ,
+    output logic                                                         exec_finished_o,
     //Instruction In
-    input  logic                                                                       valid_in       ,
-    input  remapped_v_instr                                                            instr_in       ,
-    output logic                                                                       ready_o        ,
+    input  logic                                                         valid_in       ,
+    input  remapped_v_instr                                              instr_in       ,
+    output logic                                                         ready_o        ,
     //Instruction Out
-    output logic                                                                       valid_o        ,
-    output to_vector_exec [            VECTOR_LANES-1:0]                               data_to_exec   ,
-    output to_vector_exec_info                                                         info_to_exec   ,
-    input  logic                                                                       ready_i        ,
+    output logic                                                         valid_o        ,
+    output to_vector_exec [            VECTOR_LANES-1:0]                 data_to_exec   ,
+    output to_vector_exec_info                                           info_to_exec   ,
+    input  logic                                                         ready_i        ,
     //Memory Unit read ports
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               mem_addr_0     ,
-    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                               mem_data_0     ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               mem_addr_1     ,
-    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                               mem_data_1     ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               mem_addr_2     ,
-    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                               mem_data_2     ,
+    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_addr_0     ,
+    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                 mem_data_0     ,
+    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_addr_1     ,
+    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                 mem_data_1     ,
+    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_addr_2     ,
+    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                 mem_data_2     ,
     //Memory Unit write port
-    input  logic          [            VECTOR_LANES-1:0]                               mem_wr_en      ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               mem_wr_addr    ,
-    input  logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                               mem_wr_data    ,
+    input  logic          [            VECTOR_LANES-1:0]                 mem_wr_en      ,
+    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_wr_addr    ,
+    input  logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                 mem_wr_data    ,
     //Unlock ports
-    input  logic                                                                       unlock_en      ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               unlock_reg_a   ,
+    input  logic                                                         unlock_en      ,
+    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 unlock_reg_a   ,
     //Writeback
-    input  logic          [            VECTOR_LANES-1:0]                               wr_en          ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                               wr_addr        ,
-    input  logic          [            VECTOR_LANES-1:0][              DATA_WIDTH-1:0] wr_data        ,
-    input  logic          [            VECTOR_LANES-1:0]                               rdc_done        
+    input  logic          [            VECTOR_LANES-1:0]                 wr_en          ,
+    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 wr_addr        ,
+    input  logic          [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] wr_data        ,
+    input  logic          [            VECTOR_LANES-1:0]                 rdc_done        
 );
 
-    localparam int TOTAL_ELEMENT_ADDR_WIDTH = $clog2(VECTOR_REGISTERS*VECTOR_LANES);
-    localparam int ELEMENT_ADDR_WIDTH       = $clog2(VECTOR_LANES)                 ;
-    localparam int VREG_ADDR_WIDTH          = $clog2(VECTOR_REGISTERS)             ;
+    localparam int VREG_ADDR_WIDTH = $clog2(VECTOR_REGISTERS);
     //=======================================================
     //Internal Status tracking
     //=======================================================
@@ -102,8 +100,8 @@ module vis #(
 
     // Track Instruction Expansion
     always_ff @(posedge clk_i or negedge rstn_i) begin : ExpansionTracker
-        if(!rstn_i) begin
-            current_exp_loop <= '0;
+        if (!rstn_i) begin
+           current_exp_loop <= '0;
         end else begin
             // new instruction or reconfiguration
             if (do_reconfigure | pop) begin
@@ -187,22 +185,39 @@ module vis #(
         end : g_data_selection
     endgenerate
 
+    //Convert to OH
+    logic [VECTOR_LANES-1:0][VECTOR_REGISTERS-1:0] wr_addr_oh, mem_wr_addr_oh;
+    logic [VECTOR_REGISTERS-1:0] dst_oh, unlock_reg_a_oh;
+
+    assign dst_oh          = (1 << dst);
+    assign unlock_reg_a_oh = (1 << unlock_reg_a);
+
+    genvar m;
+    generate
+        for (m = 0; m < VECTOR_LANES; m++) begin : g_oh_pntrs
+            assign wr_addr_oh[m]     = (1 << wr_addr);
+            assign mem_wr_addr_oh[m] = (1 << mem_wr_addr);
+        end : g_oh_pntrs
+    endgenerate
+
     always_ff @(posedge clk_i or negedge rstn_i) begin : StatusPending
-        if (!rstn_i) begin
+        if(!rstn_i) begin
             pending <= '0;
         end else begin
-            if (do_reconfigure) begin
+            if(do_reconfigure) begin
                 pending <= '0;
             end else if (!instr_in.reconfigure) begin
                 for (int k = 0; k < VECTOR_LANES; k++) begin
-                    if (vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
-                        pending[dst][k] <= 1'b1;
-                    end else if (~vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
-                        pending[dst][k] <= 1'b0;
-                    end else if (wr_en[k]) begin
-                        pending[wr_addr][k] <= 1'b0;
-                    end else if (mem_wr_en[k]) begin
-                        pending[mem_wr_addr][k] <= 1'b0;
+                    for (int i = 0; i < VECTOR_REGISTERS; i++) begin
+                        if(dst_oh[i] && vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
+                            pending[i][k] <= 1;
+                        end else if(dst_oh[i] && ~vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
+                            pending[i][k] <= 0;
+                        end else if(wr_en[k] && wr_addr_oh[k][i]) begin
+                            pending[i][k] <= 0;
+                        end else if (mem_wr_en[k] && mem_wr_addr_oh[k][i]) begin
+                            pending[i][k] <= 0;
+                        end
                     end
                 end
             end
@@ -215,10 +230,12 @@ module vis #(
             locked <= '0;
         end else begin
             for (int k = 0; k < VECTOR_LANES; k++) begin
-                if(do_issue && vl_therm[k] && instr_in.lock) begin
-                    locked[dst][k] <= 1'b1;
-                end else if (unlock_en) begin
-                    locked[unlock_reg_a][k] <= 1'b0;
+                for (int i = 0; i < VECTOR_REGISTERS; i++) begin
+                    if(do_issue && vl_therm[k] && dst_oh[i] && instr_in.lock) begin
+                        locked[i][k] <= 1;
+                    end else if (unlock_en && unlock_reg_a_oh[i]) begin
+                        locked[i][k] <= 0;
+                    end
                 end
             end
         end
