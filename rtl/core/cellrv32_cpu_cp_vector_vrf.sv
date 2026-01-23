@@ -37,17 +37,19 @@ module vrf #(
 
     // Internal Signals
     logic [ELEMENTS-1:0][DATA_WIDTH-1:0] memory [VREGS-1:0];
+    logic [$clog2(VREGS)-1:0]            wr_addr;
 
     // Store new Data
     always_ff @(posedge clk_i) begin : memManage
         for (int k = 0; k < ELEMENTS; k++) begin
-                if (v_wr_en[k]) begin
-                    memory[v_wr_addr][k]  <= v_wr_data[k*DATA_WIDTH +: DATA_WIDTH];
-                end else if (el_wr_en[k]) begin
-                    memory[el_wr_addr][k] <= el_wr_data[k];
-                end
+            if (v_wr_en[k] || el_wr_en[k]) begin
+                memory[wr_addr][k] <= v_wr_en[k] ? v_wr_data[k*DATA_WIDTH +: DATA_WIDTH] : el_wr_data[k];
             end
+        end
     end : memManage
+
+    // Pick the address to write data
+    assign wr_addr = |v_wr_en ? v_wr_addr : el_wr_addr;
 
     // Pick the Data and push them to the Output
     assign v_data_out_0 = memory[v_rd_addr_0];
