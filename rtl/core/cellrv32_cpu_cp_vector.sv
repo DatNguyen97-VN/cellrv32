@@ -18,7 +18,7 @@ module cellrv32_cpu_cp_vector #(
     parameter int ADDR_WIDTH         = 32 , // Address width used by memory ops
     parameter int MEM_MICROOP_WIDTH  = 7  , // Width of micro-op encoding for memory ops
     parameter int MICROOP_WIDTH      = 5  , // Generic micro-op width (execution encoding)
-    parameter int VECTOR_FP_ALU      = 0  , // Enable floating-point lanes
+    parameter int VECTOR_FP_ALU      = 1  , // Enable floating-point lanes
     parameter int VECTOR_FXP_ALU     = 0    // Enable fixed-point lanes
 ) (
 	input  logic                  clk_i           , // System clock
@@ -356,13 +356,11 @@ module cellrv32_cpu_cp_vector #(
 	//                   EX STAGE                   //
 	//////////////////////////////////////////////////
 	vex #(
-		.VECTOR_REGISTERS  (VECTOR_REGISTERS),
-		.VECTOR_LANES      (VECTOR_LANES    ),
-		.ADDR_WIDTH        (ADDR_WIDTH      ),
-		.DATA_WIDTH        (DATA_WIDTH      ),
-		.MICROOP_WIDTH     (MICROOP_WIDTH   ),
-		.VECTOR_FP_ALU     (VECTOR_FP_ALU   ),
-		.VECTOR_FXP_ALU    (VECTOR_FXP_ALU  )
+		.VECTOR_REGISTERS (VECTOR_REGISTERS),
+		.VECTOR_LANES     (VECTOR_LANES    ),
+		.XLEN             (DATA_WIDTH      ),
+		.VECTOR_FP_ALU    (VECTOR_FP_ALU   ),
+		.VECTOR_FXP_ALU   (VECTOR_FXP_ALU  )
 	) vex_stage_inst (
 		.clk         (clk_i      ),
 		.rst_n       (rstn_i     ),
