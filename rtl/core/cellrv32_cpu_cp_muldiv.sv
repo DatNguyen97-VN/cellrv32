@@ -65,8 +65,6 @@ module cellrv32_cpu_cp_muldiv #(
     } div_t;
     div_t div;
 
-    localparam int STEPS = XLEN/2;         // number of Booth radix-4 steps
-
     /* multiplier core */
     typedef struct {
         // State registers
