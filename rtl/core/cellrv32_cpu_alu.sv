@@ -11,7 +11,7 @@
 module cellrv32_cpu_alu #(
     parameter int XLEN             = 32,  // data path width
     parameter int VLEN             = 256, // vector length
-    parameter int VECTOR_LANES     = 2,   // Number of SIMD lanes (width of vector datapath)
+    parameter int VECTOR_LANES     = 8,   // Number of SIMD lanes (width of vector datapath)
 	parameter int VECTOR_REGISTERS = 32,  // Number of architectural vector registers
     /* RISC-V CPU Extensions */
     parameter int CPU_EXTENSION_RISCV_B      = 0, // implement bit-manipulation extension?
