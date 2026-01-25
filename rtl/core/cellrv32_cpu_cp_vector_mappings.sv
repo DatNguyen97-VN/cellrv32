@@ -65,7 +65,6 @@ module vrrm #(
     assign instr_out.data1       = instr_in.data1;
     assign instr_out.data2       = instr_in.data2;
     assign instr_out.immediate   = instr_in.immediate;
-    assign instr_out.dst_iszero  = store_instr; // store instructions do not write anything
     assign instr_out.reconfigure = instr_in.reconfigure;
     // Pick the correct destination vreg
     assign instr_out.dst         = rdst_remapped ? rdst_destination :
@@ -81,7 +80,6 @@ module vrrm #(
     assign m_instr_out.valid            = instr_out.valid;
     assign m_instr_out.dst              = instr_out.dst;
     assign m_instr_out.src1             = instr_out.src1;
-    assign m_instr_out.src2             = instr_out.src2;
     assign m_instr_out.data1            = instr_out.data1;
     assign m_instr_out.data2            = instr_out.data2;
     assign m_instr_out.ir_funct12       = instr_out.ir_funct12;
