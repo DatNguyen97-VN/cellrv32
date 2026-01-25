@@ -473,7 +473,7 @@ module cellrv32_cpu_cp_bitmanip #(
   assign res_out[op_orcb_c]  = (cmd_buf[op_orcb_c]  == 1'b1) ? res_int[op_orcb_c]  : '0;
   assign res_out[op_rev8_c]  = (cmd_buf[op_rev8_c]  == 1'b1) ? res_int[op_rev8_c]  : '0;
   //
-  assign res_out[op_sh1add_c] = ((cmd_buf[op_sh1add_c] || cmd_buf[op_sh2add_c] || cmd_buf[op_sh3add_c])  == 1'b1) ? res_int[op_sh1add_c] : '0;
+  assign res_out[op_sh1add_c] = (cmd_buf[op_sh1add_c] || cmd_buf[op_sh2add_c] || cmd_buf[op_sh3add_c]) ? res_int[op_sh1add_c] : '0;
   assign res_out[op_sh2add_c] = '0; // unused/redundant
   assign res_out[op_sh3add_c] = '0; // unused/redundant
   //
