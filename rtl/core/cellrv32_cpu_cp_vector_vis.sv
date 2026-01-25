@@ -25,12 +25,8 @@ module vis #(
     output to_vector_exec_info                                           info_to_exec   ,
     input  logic                                                         ready_i        ,
     //Memory Unit read ports
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_addr_0     ,
-    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                 mem_data_0     ,
     input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_addr_1     ,
     output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                 mem_data_1     ,
-    input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_addr_2     ,
-    output logic          [ VECTOR_LANES*DATA_WIDTH-1:0]                 mem_data_2     ,
     //Memory Unit write port
     input  logic          [            VECTOR_LANES-1:0]                 mem_wr_en      ,
     input  logic          [$clog2(VECTOR_REGISTERS)-1:0]                 mem_wr_addr    ,
@@ -49,7 +45,7 @@ module vis #(
     //=======================================================
     //Internal Status tracking
     //=======================================================
-    logic [VECTOR_REGISTERS-1:0][VECTOR_LANES-1:0] pending, locked;
+    logic [VECTOR_REGISTERS-1:0][VECTOR_LANES-1:0] pending;
     logic [    VECTOR_LANES-1:0] vl_therm;
     logic [ VREG_ADDR_WIDTH-1:0] current_exp_loop  ; // Count the number of µops issued
     logic                        do_issue, output_ready;
@@ -64,18 +60,18 @@ module vis #(
 
     logic [6:0] total_remaining_elements;
     logic [VECTOR_LANES-1:0][DATA_WIDTH-1:0] data_1, data_2;
-    logic [VREG_ADDR_WIDTH-1:0] src_1, src_2, dst;
+    logic [VREG_ADDR_WIDTH-1:0] src_1, src_2, src2, dst;
     logic [  VREG_ADDR_WIDTH:0] max_expansion;
     logic [   VECTOR_LANES-1:0] valid_output;
 
     // Check if instr is memory operation
-    assign memory_instr = (instr_in.microop == opcode_vload_c) || (instr_in.microop == opcode_vstore_c) ? valid_in : 1'b0;
+    assign memory_instr = (instr_in.microop == opcode_vload_c) || (instr_in.microop == opcode_vstore_c);
 
     assign start_new_instr = do_issue & ~|current_exp_loop;
 
     // Do reconfiguration
     assign do_reconfigure  = instr_in.reconfigure & exec_finished_o;
-    assign exec_finished_o = instr_is_rdc ? rdc_done[0] : ~(|pending) & ~(|locked);
+    assign exec_finished_o = instr_is_rdc ? rdc_done[0] : ~|pending;
 
     //Check if instr expansion finished
     assign total_remaining_elements = instr_in.vl - (current_exp_loop*VECTOR_LANES); // number of unprocessed vector elements
@@ -94,7 +90,7 @@ module vis #(
     assign valid_output = (do_issue & ~memory_instr & ~instr_in.reconfigure) ? vl_therm : '0; // mask lane, disable output if memory/reconfiguration instruction 
 
 
-    assign ready_o = instr_in.reconfigure ?  exec_finished_o                    : // all pending/locked clear
+    assign ready_o = instr_in.reconfigure ?  exec_finished_o                    : // all pending clear
                      memory_instr         ? (expansion_finished)                : // run out of µops memory
                      valid_in             ? (expansion_finished & output_ready) : 1'b0; // run out of µops compute and EX ready
 
@@ -209,13 +205,17 @@ module vis #(
             end else if (!instr_in.reconfigure) begin
                 for (int k = 0; k < VECTOR_LANES; k++) begin
                     for (int i = 0; i < VECTOR_REGISTERS; i++) begin
-                        if(dst_oh[i] && vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
+                        // active lane for the current µop
+                        if(dst_oh[i] && vl_therm[k] && do_issue) begin
                             pending[i][k] <= 1;
-                        end else if(dst_oh[i] && ~vl_therm[k] && do_issue && !instr_in.dst_iszero) begin
+                        // unactive lane for the current µop
+                        end else if(dst_oh[i] && ~vl_therm[k] && do_issue) begin
                             pending[i][k] <= 0;
+                        // from execution unit
                         end else if(wr_en[k] && wr_addr_oh[k][i]) begin
                             pending[i][k] <= 0;
-                        end else if (mem_wr_en[k] && mem_wr_addr_oh[k][i]) begin
+                        // from load/store unit
+                        end else if ((mem_wr_en[k] && mem_wr_addr_oh[k][i]) || (unlock_en && unlock_reg_a_oh[i])) begin
                             pending[i][k] <= 0;
                         end
                     end
@@ -224,28 +224,11 @@ module vis #(
         end
     end : StatusPending
 
-    // Locked status per elem/vreg
-    always_ff @(posedge clk_i or negedge rstn_i) begin : StatusLocked
-        if(!rstn_i) begin
-            locked <= '0;
-        end else begin
-            for (int k = 0; k < VECTOR_LANES; k++) begin
-                for (int i = 0; i < VECTOR_REGISTERS; i++) begin
-                    if(do_issue && vl_therm[k] && dst_oh[i] && instr_in.lock) begin
-                        locked[i][k] <= 1;
-                    end else if (unlock_en && unlock_reg_a_oh[i]) begin
-                        locked[i][k] <= 0;
-                    end
-                end
-            end
-        end
-    end : StatusLocked
-
     // Mask the writebacks
     logic [VECTOR_LANES-1:0] wr_en_masked;
     always_comb begin : WBmask
         for (int i = 0; i < VECTOR_LANES; i++) begin
-            wr_en_masked[i] = instr_is_rdc ? (rdc_done[i] & wr_en[i] & ~locked[wr_addr][i]) : (wr_en[i] & ~locked[wr_addr][i]);
+            wr_en_masked[i] = instr_is_rdc ? (rdc_done[i] & wr_en[i]) : wr_en[i];
         end
     end : WBmask
 
@@ -260,25 +243,22 @@ module vis #(
         //Read Ports
         .rd_addr_1   (src_1         ),
         .data_out_1  (data_1        ),
-        .rd_addr_2   (src_2         ),
+        .rd_addr_2   (src2          ),
         .data_out_2  (data_2        ),
         //Element Write Ports (per   element enabled)
         .el_wr_en    (wr_en_masked  ),
         .el_wr_addr  (wr_addr       ),
         .el_wr_data  (wr_data       ),
-        //Register Read Port
-        .v_rd_addr_0 (mem_addr_0    ),
-        .v_data_out_0(mem_data_0    ),
-        .v_rd_addr_1 (mem_addr_1    ),
-        .v_data_out_1(mem_data_1    ),
-        .v_rd_addr_2 (mem_addr_2    ),
-        .v_data_out_2(mem_data_2    ),
         //Register Write Port (per element enabled)
         .v_wr_en     (mem_wr_en     ),
         .v_wr_addr   (mem_wr_addr   ),
         .v_wr_data   (mem_wr_data   )
     );
 
-    assign is_idle_o = ~valid_in & ~|pending & ~|locked;
+    // Memory instruction src2 selection
+    assign src2 = memory_instr ? mem_addr_1 : src_2;
+    assign mem_data_1 = data_2;
+
+    assign is_idle_o = ~valid_in & ~|pending;
 
 endmodule
