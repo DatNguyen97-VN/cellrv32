@@ -205,12 +205,8 @@ module cellrv32_cpu_cp_vector #(
 	logic [            VECTOR_LANES-1:0] mem_wrtbck_en  ;
 	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_wrtbck_reg ;
 	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_wrtbck_data;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_0     ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_0     ;
 	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_1     ;
 	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_1     ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_2     ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_2     ;
 
 	vmu #(
 		.REQ_DATA_WIDTH    (DATA_WIDTH       ),
@@ -234,14 +230,9 @@ module cellrv32_cpu_cp_vector #(
 		//Cache Interface (IN)
 		.mem_resp_valid_i   (mem_resp_valid_i),
 		.mem_resp_i         (mem_resp_i      ),
-		//RF Interface - Loads
-		.rd_addr_0_o        (mem_addr_0      ),
-		.rd_data_0_i        (mem_data_0      ),
 		//RF Interface - Stores 
 		.rd_addr_1_o        (mem_addr_1      ),
 		.rd_data_1_i        (mem_data_1      ),
-		.rd_addr_2_o        (mem_addr_2      ),
-		.rd_data_2_i        (mem_data_2      ),
 		//RF Writeback Interface 
 		.wrtbck_en_o        (mem_wrtbck_en   ),
 		.wrtbck_reg_o       (mem_wrtbck_reg  ),
@@ -283,12 +274,8 @@ module cellrv32_cpu_cp_vector #(
 		.info_to_exec    (iss_to_exec_info),
 		.ready_i         (iss_ex_ready    ),
 		//Memory Unit read port
-		.mem_addr_0      (mem_addr_0      ),
-		.mem_data_0      (mem_data_0      ),
 		.mem_addr_1      (mem_addr_1      ),
 		.mem_data_1      (mem_data_1      ),
-		.mem_addr_2      (mem_addr_2      ),
-		.mem_data_2      (mem_data_2      ),
 		//Memory Unit write port
 		.mem_wr_en       (mem_wrtbck_en   ),
 		.mem_wr_addr     (mem_wrtbck_reg  ),
