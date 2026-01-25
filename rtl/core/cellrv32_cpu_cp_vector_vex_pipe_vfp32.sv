@@ -93,7 +93,6 @@ module cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
 
     /* floating-point comparator */
     logic [1:0] cmp_ff;
-    logic comp_equal_ff;
     logic comp_less_ff;
 
     /* functional units interface */
@@ -431,16 +430,6 @@ module cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
     logic [1:0] cond_v;
     //
     always_ff @( posedge clk_i ) begin : float_comparator
-        /* equal */
-        if ((fpu_operands.rs1_class[fp_class_pos_inf_c] && fpu_operands.rs2_class[fp_class_pos_inf_c]) || // +inf == +inf
-            (fpu_operands.rs1_class[fp_class_neg_inf_c] && fpu_operands.rs2_class[fp_class_neg_inf_c]) || // -inf == -inf
-           ((fpu_operands.rs1_class[fp_class_pos_zero_c] || fpu_operands.rs1_class[fp_class_neg_zero_c]) &&
-            (fpu_operands.rs2_class[fp_class_pos_zero_c] || fpu_operands.rs2_class[fp_class_neg_zero_c])) ||  // +/-zero == +/-zero
-             cmp_ff[cmp_equal_c]) begin // identical in every way (comparator result from main ALU)
-            comp_equal_ff <= 1'b1;
-        end else begin
-            comp_equal_ff <= 1'b0;
-        end
         /* less than */
         if (((fpu_operands.rs1_class[fp_class_pos_inf_c]  == 1'b1) && (fpu_operands.rs2_class[fp_class_pos_inf_c] == 1'b1)) || // +inf !< +inf
          ((fpu_operands.rs1_class[fp_class_neg_inf_c]  == 1'b1) && (fpu_operands.rs2_class[fp_class_neg_inf_c] == 1'b1)) || // -inf !< -inf
