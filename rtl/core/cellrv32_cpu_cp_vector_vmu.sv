@@ -28,14 +28,9 @@ module vmu #(
     input  logic                                cache_ready_i   ,
     input  logic                                mem_resp_valid_i,
     input  vector_mem_resp                      mem_resp_i      ,
-    //RF Interface - Loads
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_0_o     ,
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_0_i     ,
     //RF Interface - Stores
     output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_1_o     ,
     input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_1_i     ,
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_2_o     ,
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_2_i     ,
     //RF Writeback Interface
     output logic [            VECTOR_LANES-1:0] wrtbck_en_o     ,
     output logic [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_reg_o    ,
@@ -131,9 +126,6 @@ module vmu #(
         .valid_in              (push_load        ),
         .instr_in              (instr_in         ),
         .ready_o               (load_ready       ),
-        //RF read Interface (for indexed stride)
-        .rd_addr_o             (rd_addr_0_o      ),
-        .rd_data_i             (rd_data_0_i      ),
         //RF write Interface
         .wrtbck_req_o          (                 ),
         .wrtbck_en_o           (ld_wb_en         ),
@@ -175,9 +167,6 @@ module vmu #(
         //RF Interface vreg)
         .rd_addr_1_o    (rd_addr_1_o       ),
         .rd_data_1_i    (rd_data_1_i       ),
-        //RF Interface indexed stride)
-        .rd_addr_2_o    (rd_addr_2_o       ),
-        .rd_data_2_i    (rd_data_2_i       ),
         //Unlock Interface
         .unlock_en_o    (store_unlock_en   ),
         .unlock_reg_a_o (store_unlock_reg_a),
