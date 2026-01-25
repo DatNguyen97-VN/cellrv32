@@ -27,11 +27,6 @@ module vmu_ld_eng #(
     input  memory_remapped_v_instr              instr_in      , // Remapped vector load instruction (decoded fields).
     output logic                                ready_o       , // Engine can accept a new instruction when high.
     //=======================================================
-    // RF Read Interface (for OP_INDEXED only)
-    //=======================================================
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_o     , // Address of vector register to read index values from.
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_i     , // Lane-wise data read from RF (used to compute indexed addresses).
-    //=======================================================
     // RF Writeback Interface
     //=======================================================
     output logic                                wrtbck_req_o  , // Request to write back the loaded vector elements.
@@ -75,8 +70,6 @@ module vmu_ld_eng #(
     logic                                                             request_ready               ;
     logic                                                             row_0_ready                 ;
     logic                                                             row_1_ready                 ;
-    logic [    $clog2(VECTOR_LANES*DATA_WIDTH)-1:0]                   element_index               ;
-    logic [                         ADDR_WIDTH-1:0]                   offset_read                 ;
     logic [                         ADDR_WIDTH-1:0]                   current_addr                ;
     logic [                         ADDR_WIDTH-1:0]                   nxt_base_addr               ;
     logic [                         ADDR_WIDTH-1:0]                   nxt_strided_addr            ;
@@ -84,7 +77,6 @@ module vmu_ld_eng #(
     logic                                                             start_new_instruction       ;
     logic                                                             new_transaction_en          ;
     logic [                         ADDR_WIDTH-1:0]                   current_addr_r              ;
-    logic [                         ADDR_WIDTH-1:0]                   base_addr_r                 ;
     logic [                         ADDR_WIDTH-1:0]                   nxt_stride                  ;
     logic [                         ADDR_WIDTH-1:0]                   stride_r                    ;
     logic                                                             resp_row                    ;
@@ -110,7 +102,6 @@ module vmu_ld_eng #(
     logic                                                             writeback_complete          ;
     logic                                                             writeback_row               ;
     logic [                    VREG_ADDR_WIDTH-1:0]                   current_exp_loop_r          ;
-    logic [                    VREG_ADDR_WIDTH-1:0]                   src2_r                      ;
     logic [                    VREG_ADDR_WIDTH-1:0]                   rdst_r                      ;
     logic [                    VREG_ADDR_WIDTH-1:0]                   max_expansion_r             ;
     logic [$clog2(VECTOR_REGISTERS*VECTOR_LANES):0]                   instr_vl_r                  ;
@@ -166,19 +157,14 @@ module vmu_ld_eng #(
     assign wrtbck_data_o   = row_0_ready ? scratchpad_1 : scratchpad_2;
     assign wrtbck_reg_o    = row_0_ready ? row_0_rdst    : row_1_rdst;
 
-    // assign the rest of the outputs
-    assign rd_addr_o    = src2_r;
     //=======================================================
     // Address Generation
     //=======================================================
-    assign element_index = current_pointer_wb_r << 5; //*32, each lane has 32 bits
-    assign offset_read   = rd_data_i[element_index +: DATA_WIDTH];
     // Generate next non-multi consecutive address
     always_comb begin
         case (memory_op_r)
             OP_UNIT_STRIDED : current_addr = current_addr_r;
             OP_STRIDED      : current_addr = current_addr_r;
-            OP_INDEXED      : current_addr = base_addr_r + offset_read;
             default         : current_addr = '0;
         endcase
     end
@@ -198,12 +184,6 @@ module vmu_ld_eng #(
             current_addr_r <= nxt_strided_addr;
         end else if (new_transaction_en && memory_op_r == OP_UNIT_STRIDED) begin
             current_addr_r <= nxt_unit_strided_addr;
-        end
-    end
-    //Hold base address
-    always_ff @(posedge clk_i) begin
-        if (start_new_instruction) begin
-            base_addr_r <= nxt_base_addr;
         end
     end
     //Hold stride
@@ -396,11 +376,9 @@ module vmu_ld_eng #(
         end else begin
             if (start_new_instruction) begin
                 current_exp_loop_r <= 0;
-                src2_r             <= instr_in.src2;
                 rdst_r             <= instr_in.dst;
             end else if (start_new_loop) begin
                 current_exp_loop_r <= current_exp_loop_r + 1;
-                src2_r             <= src2_r + 1;
                 rdst_r             <= rdst_r + 1;
             end
         end
