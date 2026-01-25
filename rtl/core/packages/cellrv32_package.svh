@@ -889,7 +889,6 @@ package cellrv32_package;
       logic        valid      ;
   
       logic [04:0] dst        ;
-      logic        dst_iszero ;
       logic [04:0] src1       ;
       logic [04:0] src2       ;
       logic [04:0] immediate  ;
@@ -913,14 +912,10 @@ package cellrv32_package;
   //Remapped Memory Vector Instruction
   typedef struct packed {
       logic       valid       ;
-  
       logic [04:0] dst        ;
       logic [04:0] src1       ;
-      logic [04:0] src2       ;
-
       logic [31:0] data1      ;
       logic [31:0] data2      ;
-
       logic [06:0] microop    ;
       logic        reconfigure;
       logic [11:0] ir_funct12 ;
@@ -932,11 +927,10 @@ package cellrv32_package;
   //--------------------------------------
   //to_Execution Stage
   typedef struct packed {
-      logic        valid    ;
-      logic        mask     ;
-  
-      logic [31:0] data1    ;
-      logic [31:0] data2    ;
+      logic        valid;
+      logic        mask ;
+      logic [31:0] data1;
+      logic [31:0] data2;
   } to_vector_exec;
 
   typedef struct packed {
