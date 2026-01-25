@@ -31,11 +31,6 @@ module vmu_st_eng #(
     output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_1_o   , // Read address for source vector register (SRC1)
     input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_1_i   , // Lane-packed SRC1 data read from RF
     //=======================================================
-    // RF Interface (for `OP_INDEXED stride)
-    //=======================================================
-    output logic [$clog2(VECTOR_REGISTERS)-1:0] rd_addr_2_o   , // Read address for source vector register (SRC2)
-    input  logic [ VECTOR_LANES*DATA_WIDTH-1:0] rd_data_2_i   , // Lane-packed SRC2 data read from RF
-    //=======================================================
     // Unlock Interface
     //=======================================================
     output logic                                unlock_en_o   , // Indicates SRC registers are ready to be unlocked
@@ -69,13 +64,11 @@ module vmu_st_eng #(
     logic                                           new_transaction_en          ;
     logic                                           request_ready               ;
     logic [    $clog2(VECTOR_LANES*DATA_WIDTH)-1:0] element_index               ;
-    logic [                         ADDR_WIDTH-1:0] offset_read                 ;
     logic [                         ADDR_WIDTH-1:0] current_addr                ;
     logic [                         ADDR_WIDTH-1:0] nxt_base_addr               ;
     logic [                         ADDR_WIDTH-1:0] nxt_strided_addr            ;
     logic [                         ADDR_WIDTH-1:0] nxt_unit_strided_addr       ;
     logic [                         ADDR_WIDTH-1:0] current_addr_r              ;
-    logic [                         ADDR_WIDTH-1:0] base_addr_r                 ;
     logic [                         ADDR_WIDTH-1:0] nxt_stride                  ;
     logic [                         ADDR_WIDTH-1:0] stride_r                    ;
     logic [                         DATA_WIDTH-1:0] data_selected_el            ;
@@ -88,7 +81,6 @@ module vmu_st_eng #(
     logic [                       VECTOR_LANES-1:0] pending_elem                ;
     logic [                    VREG_ADDR_WIDTH-1:0] current_exp_loop_r          ;
     logic [                    VREG_ADDR_WIDTH-1:0] src1_r                      ;
-    logic [                    VREG_ADDR_WIDTH-1:0] src2_r                      ;
     logic [                    VREG_ADDR_WIDTH-1:0] max_expansion_r             ;
     logic [$clog2(VECTOR_REGISTERS*VECTOR_LANES):0] instr_vl_r                  ;
     logic [                                    1:0] memory_op_r                 ;
@@ -125,18 +117,15 @@ module vmu_st_eng #(
 
     // assign the rest of the outputs
     assign rd_addr_1_o = src1_r;
-    assign rd_addr_2_o = src2_r;
     //=======================================================
     // Address Generation
     //=======================================================
     assign element_index = current_pointer_wb_r << 5; //*32
-    assign offset_read   = rd_data_2_i[element_index +: DATA_WIDTH];
     // Generate next non-multi consecutive address
     always_comb begin
         case (memory_op_r)
              OP_UNIT_STRIDED : current_addr = current_addr_r;
              OP_STRIDED      : current_addr = current_addr_r;
-             OP_INDEXED      : current_addr = base_addr_r + offset_read;
             default          : current_addr = '0;
         endcase
     end
@@ -153,12 +142,6 @@ module vmu_st_eng #(
             current_addr_r <= nxt_strided_addr;
         end else if(new_transaction_en && memory_op_r == OP_UNIT_STRIDED) begin
             current_addr_r <= nxt_unit_strided_addr;
-        end
-    end
-    // Hold base address
-    always_ff @(posedge clk) begin
-        if (start_new_instruction) begin
-            base_addr_r <= nxt_base_addr;
         end
     end
     // Hold stride
@@ -236,11 +219,9 @@ module vmu_st_eng #(
             if (start_new_instruction) begin
                 current_exp_loop_r <= 0;
                 src1_r             <= instr_in.dst;
-                src2_r             <= instr_in.src2;
             end else if (start_new_loop) begin
                 current_exp_loop_r <= current_exp_loop_r + 1;
                 src1_r             <= src1_r + 1;
-                src2_r             <= src2_r + 1;
             end
         end
     end
