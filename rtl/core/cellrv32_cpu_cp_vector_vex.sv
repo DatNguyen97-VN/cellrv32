@@ -16,20 +16,20 @@ module vex #(
     parameter     VECTOR_FP_ALU    = 1 ,
     parameter     VECTOR_FXP_ALU   = 0
 ) (
-    input  logic                                                         clk        ,
-    input  logic                                                         rst_n      ,
-    output logic                                                         vex_idle_o ,
+    input  logic                                         clk        ,
+    input  logic                                         rst_n      ,
+    output logic                                         vex_idle_o ,
     // Issue Interface
-    input  logic                                                         valid_i    ,
-    input  to_vector_exec [            VECTOR_LANES-1:0]                 exec_data_i,
-    input  to_vector_exec_info                                           exec_info_i,
-    output logic                                                         ready_o    ,
+    input  logic                                         valid_i    ,
+    input  to_vector_exec [            VECTOR_LANES-1:0] exec_data_i,
+    input  to_vector_exec_info                           exec_info_i,
+    output logic                                         ready_o    ,
     // Writeback
-    output logic          [            VECTOR_LANES-1:0]                 wr_en      ,
-    output logic          [$clog2(VECTOR_REGISTERS)-1:0]                 wr_addr    ,
-    output logic          [            VECTOR_LANES-1:0][XLEN-1:0] wr_data    ,
-    output logic          [            VECTOR_LANES-1:0]                 rdc_done_o ,
-    output logic          [                         4:0]                 fflags_o    
+    output logic          [            VECTOR_LANES-1:0] wr_en      ,
+    output logic          [$clog2(VECTOR_REGISTERS)-1:0] wr_addr    ,
+    output logic          [       VECTOR_LANES*XLEN-1:0] wr_data    ,
+    output logic          [            VECTOR_LANES-1:0] rdc_done_o ,
+    output logic          [                         4:0] fflags_o    
 ); 
 
 
@@ -54,6 +54,7 @@ module vex #(
     logic [VECTOR_LANES-1:0] ready;
     logic [VECTOR_LANES-1:0] vex_pipe_valid;
     logic [VECTOR_LANES-1:0] vex_fp_valid;
+    logic is_int_one;
     logic is_fp32;
     logic is_mul_div;
     logic all_thread_done;
@@ -63,6 +64,7 @@ module vex #(
     assign ready_o = |ready;
     assign is_fp32 = (exec_info_i.ir_funct3 == funct3_opfvv_c) || (exec_info_i.ir_funct3 == funct3_opfvx_c);
     assign is_mul_div = ((exec_info_i.ir_funct3 == funct3_opmvv_c) || (exec_info_i.ir_funct3 == funct3_opmvx_c)) & ~exec_info_i.is_rdc;
+    assign is_int_one = ((exec_info_i.ir_funct3 == funct3_opivv_c) || (exec_info_i.ir_funct3 == funct3_opivi_c) || (exec_info_i.ir_funct3 == funct3_opivx_c)) & ~exec_info_i.is_rdc;
 
     always_comb begin
       fflags_o = '0;
@@ -103,7 +105,7 @@ module vex #(
                 .head_uop_ex4_i (head_ex4             ),
                 .end_uop_ex4_i  (end_ex4              ),
                 .wr_en_o        (wr_en[k]             ),
-                .wr_data_o      (wr_data[k]           ),
+                .wr_data_o      (wr_data[k*XLEN +: XLEN]),
                 .rdc_done_o     (rdc_done_o[k]        ),
                 //EX1 Reduction Tree Intf
                 .rdc_data_ex1_i (rdc_data_ex1_i[k]    ),
@@ -301,7 +303,8 @@ module vex #(
     // Writeback Signals
     //------------------------------------------------------
     assign wr_addr    = is_fp32    ? fp_dst      : 
-                        is_mul_div ? mul_div_dst : dst_wr;
+                        is_mul_div ? mul_div_dst : 
+                        is_int_one ? dst_ex2     : dst_wr;
     assign vex_idle_o = ~valid_i & ~valid_ex2 & ~valid_ex3 & ~valid_ex4;
 
 endmodule

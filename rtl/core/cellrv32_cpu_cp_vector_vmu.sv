@@ -127,7 +127,6 @@ module vmu #(
         .instr_in              (instr_in         ),
         .ready_o               (load_ready       ),
         //RF write Interface
-        .wrtbck_req_o          (                 ),
         .wrtbck_en_o           (ld_wb_en         ),
         .wrtbck_reg_o          (ld_wb_reg        ),
         .wrtbck_data_o         (ld_wb_data       ),

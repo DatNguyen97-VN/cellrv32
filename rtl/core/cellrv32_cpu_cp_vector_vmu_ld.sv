@@ -29,7 +29,6 @@ module vmu_ld_eng #(
     //=======================================================
     // RF Writeback Interface
     //=======================================================
-    output logic                                wrtbck_req_o  , // Request to write back the loaded vector elements.
     output logic [            VECTOR_LANES-1:0] wrtbck_en_o   , // Per-lane write-enable vector.
     output logic [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_reg_o  , // Destination vector register index.
     output logic [ VECTOR_LANES*DATA_WIDTH-1:0] wrtbck_data_o , // Lane-wise load data returned to RF.
@@ -77,7 +76,6 @@ module vmu_ld_eng #(
     logic                                                             start_new_instruction       ;
     logic                                                             new_transaction_en          ;
     logic [                         ADDR_WIDTH-1:0]                   current_addr_r              ;
-    logic [                         ADDR_WIDTH-1:0]                   nxt_stride                  ;
     logic [                         ADDR_WIDTH-1:0]                   stride_r                    ;
     logic                                                             resp_row                    ;
     logic [                         VECTOR_LANES:0]                   resp_elem_th                ;
@@ -142,9 +140,7 @@ module vmu_ld_eng #(
     assign unlock_en_o     = writeback_complete;
     assign unlock_reg_a_o  = row_0_ready ? row_0_rdst : row_1_rdst;
 
-
     // Create the writeback signals for the RF
-    assign wrtbck_req_o       = writeback_complete;
     assign writeback_complete = row_0_ready | row_1_ready;
     assign writeback_row      = row_0_ready ? 1'b0 : 1'b1;
 
@@ -155,7 +151,7 @@ module vmu_ld_eng #(
     assign wrtbck_en_o     = row_0_ready ? {VECTOR_LANES{writeback_complete}} & served_elem_1 :
                                            {VECTOR_LANES{writeback_complete}} & served_elem_2;
     assign wrtbck_data_o   = row_0_ready ? scratchpad_1 : scratchpad_2;
-    assign wrtbck_reg_o    = row_0_ready ? row_0_rdst    : row_1_rdst;
+    assign wrtbck_reg_o    = row_0_ready ? row_0_rdst   : row_1_rdst;
 
     //=======================================================
     // Address Generation
@@ -176,7 +172,8 @@ module vmu_ld_eng #(
     // the number of elements loaded in a request
     // --> multiply by size to get the number of bytes to add
     assign nxt_unit_strided_addr = current_addr_r + 4;
-    //Hold current address
+    
+    // Hold current address
     always_ff @(posedge clk_i) begin
         if (start_new_instruction) begin
             current_addr_r <= nxt_base_addr;
@@ -186,10 +183,10 @@ module vmu_ld_eng #(
             current_addr_r <= nxt_unit_strided_addr;
         end
     end
-    //Hold stride
-    assign nxt_stride = instr_in.data2;
+
+    // Hold stride
     always_ff @(posedge clk_i) begin
-        if (start_new_instruction) stride_r <= nxt_stride; // distance between two consecutive elements (in bytes)
+        if (start_new_instruction) stride_r <= instr_in.data2; // distance between two consecutive elements (in bytes)
     end
     //=======================================================
     // Scratchpad maintenance

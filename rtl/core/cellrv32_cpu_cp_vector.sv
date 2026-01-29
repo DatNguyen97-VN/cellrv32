@@ -119,6 +119,35 @@ module cellrv32_cpu_cp_vector #(
 	logic                   ready;
 	logic                   m_ready_r;
 
+	remapped_v_instr        instr_remapped_o;
+	logic                   r_valid_o;
+	logic                   i_ready;
+	memory_remapped_v_instr m_instr_out_r;
+	logic                   m_valid_r;
+	logic                   m_r_ready;
+
+	logic                                unlock_en      ;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a   ;
+	logic [            VECTOR_LANES-1:0] mem_wrtbck_en  ;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_wrtbck_reg ;
+	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_wrtbck_data;
+	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_1     ;
+	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_1     ;
+
+	to_vector_exec [ VECTOR_LANES-1:0] exec_data_o;
+	to_vector_exec_info                exec_info_o;
+	logic exec_valid, exec_ready;
+
+	logic               [            VECTOR_LANES-1:0] wrtbck_en       ;
+	logic               [            VECTOR_LANES-1:0] rdc_done        ;
+	logic               [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_addr     ;
+	logic               [ VECTOR_LANES*DATA_WIDTH-1:0] wrtbck_data     ;
+	logic                                              iss_valid       ;
+	logic                                              iss_ex_ready    ;
+	to_vector_exec      [VECTOR_LANES-1:0]             iss_to_exec_data;
+	to_vector_exec_info                                iss_to_exec_info;
+
+
 	vrrm #(
 		.VECTOR_REGISTERS  (VECTOR_REGISTERS),
 		.VECTOR_LANES      (VECTOR_LANES    )
@@ -143,13 +172,6 @@ module cellrv32_cpu_cp_vector #(
 	// ================================================
 	//           vRR/vIS PIPELINE REGISTER          
 	// ================================================
-	remapped_v_instr        instr_remapped_o;
-	logic                   r_valid_o;
-	logic                   i_ready;
-	memory_remapped_v_instr m_instr_out_r;
-	logic                   m_valid_r;
-	logic                   m_r_ready;
-
 	cellrv32_fifo #(
          .FIFO_DEPTH (1                    ), // number of fifo entries; has to be a power of two; min 1
          .FIFO_WIDTH ($bits(instr_remapped)), // size of data elements in fifo
@@ -200,14 +222,6 @@ module cellrv32_cpu_cp_vector #(
 	//////////////////////////////////////////////////
 	//                 MEMORY UNIT                  //
 	//////////////////////////////////////////////////
-	logic                                unlock_en      ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] unlock_reg_a   ;
-	logic [            VECTOR_LANES-1:0] mem_wrtbck_en  ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_wrtbck_reg ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_wrtbck_data;
-	logic [$clog2(VECTOR_REGISTERS)-1:0] mem_addr_1     ;
-	logic [ VECTOR_LANES*DATA_WIDTH-1:0] mem_data_1     ;
-
 	vmu #(
 		.REQ_DATA_WIDTH    (DATA_WIDTH       ),
 		.VECTOR_REGISTERS  (VECTOR_REGISTERS ),
@@ -245,16 +259,6 @@ module cellrv32_cpu_cp_vector #(
 	// ================================================
 	//                 ISSUE STAGE                  
 	// ================================================
-	logic [            VECTOR_LANES-1:0]                 wrtbck_en    ;
-	logic [            VECTOR_LANES-1:0]                 rdc_done     ;
-	logic [$clog2(VECTOR_REGISTERS)-1:0]                 wrtbck_addr  ;
-	logic [            VECTOR_LANES-1:0][DATA_WIDTH-1:0] wrtbck_data  ;
-	logic                                                iss_valid    ;
-	logic                                                iss_ex_ready ;
-	to_vector_exec                    [VECTOR_LANES-1:0] iss_to_exec_data;
-	to_vector_exec_info                                  iss_to_exec_info;
-
-
 	vis #(
 		.VECTOR_REGISTERS  (VECTOR_REGISTERS),
 		.VECTOR_LANES      (VECTOR_LANES    ),
@@ -292,10 +296,6 @@ module cellrv32_cpu_cp_vector #(
 
 	// ================================================
 	//           vIS/vEX PIPELINE REGISTER          
-	to_vector_exec [ VECTOR_LANES-1:0] exec_data_o;
-	to_vector_exec_info                exec_info_o;
-	logic exec_valid, exec_ready;
-
 	cellrv32_fifo #(
          .FIFO_DEPTH (1                      ), // number of fifo entries; has to be a power of two; min 1
          .FIFO_WIDTH ($bits(iss_to_exec_data)), // size of data elements in fifo
