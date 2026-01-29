@@ -70,6 +70,7 @@ module vex_pipe #(
 
     //Wire Declaration
     logic            valid_int          ;
+    logic            valid_int_done     ;
     logic            valid_int_ex1      ;
     logic            valid_fp_ex1       ;
     logic            ready_res_int_ex1  ;
@@ -96,12 +97,13 @@ module vex_pipe #(
     logic             vfp32_ready;
     logic             vint_ready;
 
-    assign ready_o       = valid_fp_ex1 ? vfp32_ready : vint_ready;
-    assign valid_int_ex1 = (funct3_i == funct3_opivv_c) || (funct3_i == funct3_opivi_c) || (funct3_i == funct3_opivx_c) || is_rdc_i ? valid_i : 1'b0; // integer op
-    assign valid_int     = (funct3_i == funct3_opivv_c) || (funct3_i == funct3_opivi_c) || (funct3_i == funct3_opivx_c) ||
+    assign ready_o        = valid_fp_ex1 ? vfp32_ready : vint_ready;
+    assign valid_int_ex1  =  is_rdc_i & valid_i; // rdc op
+    assign valid_int_done = (funct3_i == funct3_opivv_c) || (funct3_i == funct3_opivi_c) || (funct3_i == funct3_opivx_c) ? valid_i : 1'b0; // integer op
+    assign valid_int      = (funct3_i == funct3_opivv_c) || (funct3_i == funct3_opivi_c) || (funct3_i == funct3_opivx_c) ||
                            (funct3_i == funct3_opmvv_c) || (funct3_i == funct3_opmvx_c) ? valid_i : 1'b0; // integer op
-    assign valid_fp_ex1  = (funct3_i == funct3_opfvv_c) || (funct3_i == funct3_opfvx_c) ? valid_i : 1'b0; // floating point op
-    assign use_reduce_tree_ex1 = is_rdc_i & valid_i;
+    assign valid_fp_ex1   = (funct3_i == funct3_opfvv_c) || (funct3_i == funct3_opfvx_c) ? valid_i : 1'b0; // floating point op
+    assign use_reduce_tree_ex1 = valid_int_ex1;
     
     //-----------------------------------------------
     // Integer ALU
@@ -352,7 +354,9 @@ module vex_pipe #(
     //-----------------------------------------------
     // Data storage
     always_ff @(posedge clk) begin
-        if (ready_res_fp_ex4) begin
+        if (valid_int_done) begin
+            data_ex4 <= res_int_ex1;
+        end else if (ready_res_fp_ex4) begin
             data_ex4 <= res_fp_ex4;
         end else if (ready_res_int_ex4) begin
             data_ex4 <= res_int_ex4;
@@ -371,8 +375,8 @@ module vex_pipe #(
             mask_wr         <= 1'b1;
         end else begin
             // force writeback to happen on all elements
-            valid_result_wr <= valid_int_ex4 | ready_res_int_ex4 | ready_res_fp_ex4;
-            mask_wr         <= mask_ex4 | ready_res_int_ex4 | ready_res_fp_ex4;
+            valid_result_wr <= valid_int_ex4 | ready_res_int_ex4 | ready_res_fp_ex4 | valid_int_done;
+            mask_wr         <= mask_ex4 | ready_res_int_ex4 | ready_res_fp_ex4 | valid_int_done;
         end
     end
     //------------------------------------------------------
