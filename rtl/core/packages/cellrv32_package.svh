@@ -951,7 +951,7 @@ package cellrv32_package;
       logic [31:0] address;
       logic [06:0] microop;
       logic [31:0] data   ;
-      logic [03:0] ticket ;
+      logic [02:0] ticket ;
   } vector_mem_req;
 
   //--------------------------------------

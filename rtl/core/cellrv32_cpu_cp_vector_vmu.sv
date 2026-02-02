@@ -47,7 +47,7 @@ module vmu #(
     logic [$clog2(VECTOR_REGISTERS)-1:0] load_unlock_reg_a ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] load_unlock_reg_b ;
     logic [              ADDR_WIDTH-1:0] load_req_addr     ;
-    logic [      $clog2(VECTOR_LANES):0] load_req_ticket   ;
+    logic [    $clog2(VECTOR_LANES)-1:0] load_req_ticket   ;
     logic [            VECTOR_LANES-1:0] ld_wb_en          ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] ld_wb_reg         ;
     logic [ VECTOR_LANES*DATA_WIDTH-1:0] ld_wb_data        ;
