@@ -37,32 +37,8 @@ module cellrv32_imem #(
     logic        rden;
     logic [$clog2(IMEM_SIZE/4)-1 : 0] addr;
 
-    /* --------------------------- */
-    /* IMEM as pre-initialized ROM */
-    /* --------------------------- */
-
     /* application (image) size in bytes */
     const int imem_app_size_c = ($size(application_init_image))*4;
-
-    /* ROM - initialized with executable code */
-    const logic [31:0] mem_rom [32*1024] = mem32_init_app_f(application_init_image, IMEM_SIZE/4);
-
-    /* read data */
-    logic [31:0] mem_rom_rd;
-
-    /* -------------------------------------------------------------------------------------------------------------- */
-    /* The memory (RAM) is built from 4 individual byte-wide memories b0..b3, since some synthesis tools have         */
-    /* problems with 32-bit memories that provide dedicated byte-enable signals AND/OR with multi-dimensional arrays. */
-    /* -------------------------------------------------------------------------------------------------------------- */
-
-    /* RAM - not initialized at all */
-    logic [7:0] mem_ram_b0 [0 : IMEM_SIZE/4-1];
-    logic [7:0] mem_ram_b1 [0 : IMEM_SIZE/4-1];
-    logic [7:0] mem_ram_b2 [0 : IMEM_SIZE/4-1];
-    logic [7:0] mem_ram_b3 [0 : IMEM_SIZE/4-1];
-
-    /* read data */
-    logic [7:0] mem_b0_rd, mem_b1_rd, mem_b2_rd, mem_b3_rd;
 
     // Sanity Checks -----------------------------------------------------------------------------
     // -------------------------------------------------------------------------------------------
@@ -82,6 +58,14 @@ module cellrv32_imem #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IMEM_AS_IROM == 1'b1) begin : imem_rom
+            /* --------------------------- */
+            /* IMEM as pre-initialized ROM */
+            /* --------------------------- */
+            /* ROM - initialized with executable code */
+            const logic [31:0] mem_rom [32*1024] = mem32_init_app_f(application_init_image, IMEM_SIZE/4);
+             /* read data */
+            logic [31:0] mem_rom_rd;
+
             always_ff @( posedge clk_i ) begin : mem_access
                  if (acc_en == 1'b1) begin // reduce switching activity when not accessed
                    mem_rom_rd <= mem_rom[addr];
@@ -96,6 +80,19 @@ module cellrv32_imem #(
     // -------------------------------------------------------------------------------------------
     generate
         if (IMEM_AS_IROM == 1'b0) begin : imem_ram
+            /* -------------------------------------------------------------------------------------------------------------- */
+            /* The memory (RAM) is built from 4 individual byte-wide memories b0..b3, since some synthesis tools have         */
+            /* problems with 32-bit memories that provide dedicated byte-enable signals AND/OR with multi-dimensional arrays. */
+            /* -------------------------------------------------------------------------------------------------------------- */
+            /* RAM - not initialized at all */
+            logic [7:0] mem_ram_b0 [0 : IMEM_SIZE/4-1];
+            logic [7:0] mem_ram_b1 [0 : IMEM_SIZE/4-1];
+            logic [7:0] mem_ram_b2 [0 : IMEM_SIZE/4-1];
+            logic [7:0] mem_ram_b3 [0 : IMEM_SIZE/4-1];
+        
+            /* read data */
+            logic [7:0] mem_b0_rd, mem_b1_rd, mem_b2_rd, mem_b3_rd;
+            
             always_ff @( posedge clk_i ) begin : mem_access
                 // this RAM style should not require "no_rw_check" attributes as the read-after-write behavior
                 // is intended to be defined implicitly via the if-WRITE-else-READ construct
