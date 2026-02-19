@@ -30,7 +30,7 @@ echo "☢ Using simulation runtime args: $QUESTA_RUN_ARGS ☢";
 
 # -voptargs="+acc" option for debug mode to add wave internal signal
 vsim -do "source ../add_wave_debug.tcl; run $QUESTA_RUN_ARGS; exit" \
-      -c -l sim_log.log \
+       -l sim_log.log \
       -debugDB \
       -voptargs=+acc \
       cellrv32.cellrv32_tb_simple
