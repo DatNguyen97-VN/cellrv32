@@ -1,6 +1,10 @@
 # Define the top-level module
 set top_level "/cellrv32_tb_simple"
 
+# Define wildcard filters to exclude certain types of signals
+set WildcardFilter [lsearch -not -all -inline $WildcardFilter Memory]
+set WildcardFilter [lsearch -not -all -inline $WildcardFilter Parameter]
+
 # Gets all signals of entire design
 set signals_string [find signals -r /$top_level/*]
 
@@ -48,13 +52,12 @@ foreach element $signals_string {
 }
 
 # Additional signals
-add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_cpu_inst" -group "cellrv32_cpu_regfile_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/reg_file
-add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_cpu_inst" -group "cellrv32_cpu_regfile_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/reg_file_emb
+#add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_cpu_inst" -group "cellrv32_cpu_regfile_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/reg_file
+#add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_cpu_inst" -group "cellrv32_cpu_regfile_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_regfile_inst/reg_file_emb
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_int_dmem_inst_ON" -group "cellrv32_int_dmem_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_dmem_inst_ON/cellrv32_int_dmem_inst/mem_ram_b0
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_int_dmem_inst_ON" -group "cellrv32_int_dmem_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_dmem_inst_ON/cellrv32_int_dmem_inst/mem_ram_b1
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_int_dmem_inst_ON" -group "cellrv32_int_dmem_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_dmem_inst_ON/cellrv32_int_dmem_inst/mem_ram_b2
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_int_dmem_inst_ON" -group "cellrv32_int_dmem_inst" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_int_dmem_inst_ON/cellrv32_int_dmem_inst/mem_ram_b3
-add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" /cellrv32_tb_simple/cellrv32_top_inst/resp_bus
 add wave -group "cellrv32_tb_simple" -group "cellrv32_top_inst" -group "cellrv32_cpu_inst" -group "cellrv32_cpu_alu_inst" -group "cellrv32_cpu_cp_vector_inst_ON" -group "cellrv32_cpu_cp_vector_inst" -group "vis_stage_inst" -group "vrf" /cellrv32_tb_simple/cellrv32_top_inst/cellrv32_cpu_inst/cellrv32_cpu_alu_inst/cellrv32_cpu_cp_vector_inst_ON/cellrv32_cpu_cp_vector_inst/vis_stage_inst/vrf/memory
 # Output the completion message
 puts "Added waves for signals in entire design"
