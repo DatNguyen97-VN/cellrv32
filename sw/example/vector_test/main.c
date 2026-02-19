@@ -41,12 +41,12 @@
 #define NUM_ELEM_ARRAY          (333)
 //** Run Vector CSR tests when != 0 */
 #define RUN_CSR_TESTS           (0)
+//** Run Saxpy tests when != 0 */
+#define RUN_SAXPY_TESTS         (0)
 //** Run Unit-Stride Load/Store tests when != 0 */
 #define RUN_LOADSTORE_TESTS     (0)
 //** Run Stride Load/Store tests when != 0 */
 #define RUN_STR_LOADSTORE_TESTS (0)
-//** Run Indexed Load/Store tests when != 0 */
-#define RUN_IDX_LOADSTORE_TESTS (0)
 //** Run Add/Sub tests when != 0 */
 #define RUN_ADDSUB_TESTS        (0)
 //** Run Bitwise tests when != 0 */
@@ -64,11 +64,11 @@
 //** Run Divide tests when != 0 */
 #define RUN_DIV_TESTS           (0)
 //** Run Move tests when != 0 */
-#define RUN_MOV_TESTS           (0)
+#define RUN_MOV_TESTS           (1)
 //** Run Reduction Compute tests when != 0 */
-#define RUN_RDCCOMP_TESTS       (0)
+#define RUN_RDCCOMP_TESTS       (1)
 //** Run Reduction Compare tests when != 0 */
-#define RUN_RDCCOMPR_TESTS      (0)
+#define RUN_RDCCOMPR_TESTS      (1)
 //** Run Fp32 Addition/Subtraction tests when != 0 */
 #define RUN_FP32_ADDSUB_TESTS   (1)
 //** Run Fp32 Multiply/Divide tests when != 0 */
@@ -105,7 +105,7 @@ int main() {
   uint32_t err_cnt_total = 0;
   uint32_t test_cnt = 0;
   uint32_t i = 0;
-  uint32_t round =0;
+  uint32_t round = 0;
 
   float_conv_t opa;
   float_conv_t opb;
@@ -283,6 +283,98 @@ int main() {
 #endif
 
 
+#if (RUN_SAXPY_TESTS != 0)
+  // ----------------------------------------------------------------------------
+  // SAXPY Tests
+  // ----------------------------------------------------------------------------
+  cellrv32_uart0_printf("\n#%u: SAXPY Test...\n", test_cnt);
+  err_cnt = 0;
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem1_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+
+  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
+
+  // initialize memory with test data
+  for (i=0;i<(uint32_t)NUM_ELEM_ARRAY; i++) {
+    vec_mem2_load[i] = get_test_vector();
+    //cellrv32_uart0_printf("\n%d vec_mem1 = 0x%x", i, vec_mem1_load[i]);
+  }
+  
+  cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 1 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Source 2 Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr1_load);
+  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_ELEM_ARRAY-1]);
+
+
+  cellrv32_uart0_printf("\n\n---------------------------------");
+  cellrv32_uart0_printf("\nVector Destination Base Address");
+  cellrv32_uart0_printf("\n---------------------------------");
+  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
+  cellrv32_uart0_printf("\n End address Dst = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
+
+  opa.binary_value = NUM_ELEM_ARRAY;
+
+  // ===================================================
+  // VLOAD + VSTORE + VADD.VV + VMUL.VX SAXPY implementation
+  // ===================================================
+  round = 0;
+  opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  opf.binary_value = 13; // scalar multiplier
+
+  do {
+    // ================== INTRO ==================
+    cellrv32_uart0_printf("\n Start ROUND: %d", round);
+    // SEW=32b, VLMUL=8, only valid VTYPE bits
+    opb.binary_value = 0x00000013 & 0x800000FF;
+    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
+    // ================== LOAD PHASE ==================
+    opd.binary_value = riscv_intrinsic_vle32v(ptr1_load);
+    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
+    // ================== ADD AND MUL PHASE ==================
+    opd.binary_value = riscv_intrinsic_vmulvx(opd.binary_value, opf.binary_value);
+    oph.binary_value = riscv_intrinsic_vaddvv(opd.binary_value, ope.binary_value);
+    // ================== STORE PHASE ==================
+    riscv_intrinsic_vse32v(ptr1_store, oph.binary_value);
+    // increate pointer, each element is 4 bytes
+    ptr1_load += opc.binary_value * 4;
+    ptr2_load += opc.binary_value * 4;
+    //
+    ptr1_store += opc.binary_value * 4;
+    // decreate number of elements to load
+    opa.binary_value -= opc.binary_value;
+    //
+    round += 1;
+  } while (opa.binary_value > 0);
+
+  // verification
+  cellrv32_uart0_printf("\n\nVector SAXPY Verification\n");
+  for (int i = 0; i < NUM_ELEM_ARRAY; i++) {
+    res_sw.binary_value = opf.binary_value * vec_mem1_load[i] + vec_mem2_load[i];
+    err_cnt += verify_result(i, vec_mem1_load[i], vec_mem2_load[i], res_sw.binary_value, vec_mem1_store[i]);
+  }
+
+  cellrv32_uart0_printf("\n\n[INF]: Vector SAXPY Instructions completed.\n");
+  print_vector_report(err_cnt);
+  err_cnt_total += err_cnt;
+  test_cnt++;
+#endif
+
+
 #if (RUN_LOADSTORE_TESTS != 0)
   // ----------------------------------------------------------------------------
   // Load/Store Tests
@@ -320,31 +412,16 @@ int main() {
   
   cellrv32_uart0_printf("\nvec_mem4 is successfully initialized.");
 
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Load Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
-  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
-  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_load);
-  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_ELEM_ARRAY-1]);
-  cellrv32_uart0_printf("\n Base address 3 = 0x%x", ptr3_load);
-  cellrv32_uart0_printf("\n End address 3 = 0x%x", &vec_mem3_load[NUM_ELEM_ARRAY-1]);
-  cellrv32_uart0_printf("\n Base address 4 = 0x%x", ptr4_load);
-  cellrv32_uart0_printf("\n End address 4 = 0x%x", &vec_mem4_load[NUM_ELEM_ARRAY-1]);
-
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Store Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_store);
-  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
-  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_store);
-  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_store[NUM_ELEM_ARRAY-1]);
-  cellrv32_uart0_printf("\n Base address 3 = 0x%x", ptr3_store);
-  cellrv32_uart0_printf("\n End address 3 = 0x%x", &vec_mem3_store[NUM_ELEM_ARRAY-1]);
-  cellrv32_uart0_printf("\n Base address 4 = 0x%x", ptr4_store);
-  cellrv32_uart0_printf("\n End address 4 = 0x%x\n", &vec_mem4_store[NUM_ELEM_ARRAY-1]);
-
   opa.binary_value = NUM_ELEM_ARRAY;
+  ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
+  ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
+  ptr3_load = (uint32_t)&vec_mem3_load[0]; // base address memory
+  ptr4_load = (uint32_t)&vec_mem4_load[0]; // base address memory
+
+  ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
+  ptr2_store = (uint32_t)&vec_mem2_store[0]; // base address memory
+  ptr3_store = (uint32_t)&vec_mem3_store[0]; // base address memory
+  ptr4_store = (uint32_t)&vec_mem4_store[0]; // base address memory
 
   cellrv32_uart0_printf("\n\n---------------------------------");
   cellrv32_uart0_printf("\nVector Load/Store Phase");
@@ -467,30 +544,6 @@ int main() {
   
   cellrv32_uart0_printf("\nvec_mem4 is successfully initialized.");
 
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Load Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
-  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_STRIDE_ARRAY*step-1]);
-  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_load);
-  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_STRIDE_ARRAY*step-1]);
-  cellrv32_uart0_printf("\n Base address 3 = 0x%x", ptr3_load);
-  cellrv32_uart0_printf("\n End address 3 = 0x%x", &vec_mem3_load[NUM_STRIDE_ARRAY*step-1]);
-  cellrv32_uart0_printf("\n Base address 4 = 0x%x", ptr4_load);
-  cellrv32_uart0_printf("\n End address 4 = 0x%x", &vec_mem4_load[NUM_STRIDE_ARRAY*step-1]);
-
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Store Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_store);
-  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_store[NUM_STRIDE_ARRAY*step-1]);
-  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr2_store);
-  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_store[NUM_STRIDE_ARRAY*step-1]);
-  cellrv32_uart0_printf("\n Base address 3 = 0x%x", ptr3_store);
-  cellrv32_uart0_printf("\n End address 3 = 0x%x", &vec_mem3_store[NUM_STRIDE_ARRAY*step-1]);
-  cellrv32_uart0_printf("\n Base address 4 = 0x%x", ptr4_store);
-  cellrv32_uart0_printf("\n End address 4 = 0x%x\n", &vec_mem4_store[NUM_STRIDE_ARRAY*step-1]);
-
   opa.binary_value = NUM_STRIDE_ARRAY;
 
   cellrv32_uart0_printf("\n\n---------------------------------");
@@ -578,123 +631,6 @@ int main() {
 
   err_cnt_total += err_cnt;
   test_cnt++;
-#endif
-
-
-#if (RUN_IDX_LOADSTORE_TESTS != 0)
-  // ----------------------------------------------------------------------------
-  // Indexed Load/Store Tests
-  // ----------------------------------------------------------------------------
-  cellrv32_uart0_printf("\n#%u: Vector Indexed Load/Store Instructions...\n", test_cnt);
-  err_cnt = 0;
-  round = 0;
-  uint32_t index = 0;
-  uint32_t NUM_ARRAY = 0;
-  
-  ptr1_load = (uint32_t)&vec_mem1_load[0];
-  ptr2_load = (uint32_t)&vec_mem2_load[0];
-  ptr1_store = (uint32_t)&vec_mem1_store[0];
-  ptr2_store = (uint32_t)&vec_mem2_store[0];
-
-  // convert an any integer into power of two
-  uint32_t mask = 1;
-  if (NUM_ELEM_ARRAY == 0) {
-    NUM_ARRAY = 0;
-    mask = 0;
-  } else {
-    while ((mask << 1) <= NUM_ELEM_ARRAY) mask <<= 1;
-    NUM_ARRAY = mask;
-    mask = mask - 1;
-  }
-
-  // initialize memory with test data
-  for (i=0;i<(uint32_t)NUM_ARRAY; i++) {
-    index = get_test_vector() & mask;
-    // generate data
-    vec_mem1_load[index] = get_test_vector();
-    // random address load
-    vec_mem2_load[i] = ptr1_load + index * 4;
-    // masked
-    vec_mem3_load[i] = 0x0;
-    vec_mem3_load[index] = 0x1;
-    // ramdom address store
-    vec_mem2_store[i] = ptr1_store + index * 4;
-  }
-
-  cellrv32_uart0_printf("\nvec_mem1 is successfully initialized.");
-
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Load Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 1 = 0x%x", vec_mem2_load[0]);
-  cellrv32_uart0_printf("\n End address 1 = 0x%x", vec_mem2_load[NUM_ARRAY-1]);
-
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Store Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 1 = 0x%x", vec_mem2_store[0]);
-  cellrv32_uart0_printf("\n End address 1 = 0x%x", vec_mem2_store[NUM_ARRAY-1]);
-
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Indexed Load/Store Phase");
-  cellrv32_uart0_printf("\n---------------------------------");
-
-  opa.binary_value = NUM_ARRAY;
-  uint32_t base_address = 0x0;
-
-  do {
-    // ================== INTRO ==================
-    cellrv32_uart0_printf("\n Start ROUND: %d", round);
-    // ================== CONFIGURARE =================
-    // SEW=32b, VLMUL=1, only valid VTYPE bits
-    //opb.binary_value = 0x00000010 & 0x800000FF;
-    // SEW=32b, VLMUL=2, only valid VTYPE bits
-    //opb.binary_value = 0x00000011 & 0x800000FF;
-    // SEW=32b, VLMUL=4, only valid VTYPE bits
-    //opb.binary_value = 0x00000012 & 0x800000FF;
-    // SEW=32b, VLMUL=8, only valid VTYPE bits
-    opb.binary_value = 0x00000013 & 0x800000FF;
-    opc.binary_value = riscv_intrinsic_vsetvl(opa.binary_value, opb.binary_value);
-    // ================== LOAD PHASE ==================
-    ope.binary_value = riscv_intrinsic_vle32v(ptr2_load);
-    opd.binary_value = riscv_intrinsic_vlxei32v(base_address, ope.binary_value);
-    // ================== STORE PHASE ==================
-    opf.binary_value = riscv_intrinsic_vle32v(ptr2_store);
-    riscv_intrinsic_vsxei32v(opd.binary_value, base_address, opf.binary_value);
-    // increate pointer, each element is 4 bytes
-    ptr2_load += opc.binary_value * 4;
-    //
-    ptr2_store += opc.binary_value * 4;
-    // decreate number of elements to load
-    opa.binary_value -= opc.binary_value;
-    //
-    round += 1;
-  } while (opa.binary_value > 0);
-
-  // verification
-  cellrv32_uart0_printf("\n\nVector Indexed Load/Store Verification\n");
-  for (int i = 0; i < NUM_ARRAY; i++) {
-    if (vec_mem3_load[i]) {
-       res_sw.binary_value = vec_mem1_load[i];
-       res_hw.binary_value = vec_mem1_store[i];
-       err_cnt += verify_result(i, res_sw.binary_value, res_hw.binary_value, res_sw.binary_value, res_hw.binary_value);
-    }
-  }
-
-  cellrv32_uart0_printf("\n\n[INF]: Vector Indexed Load/Store Instructions completed.\n");
-
-  cellrv32_uart0_printf("Errors: %u/%u ", err_cnt, NUM_ARRAY);
-
-  if (err_cnt == 0) {
-    cellrv32_uart0_printf("%c[1m[ok]%c[0m\n", 27, 27);
-  }
-  else {
-    cellrv32_uart0_printf("%c[1m[FAILED]%c[0m\n", 27, 27);
-  }
-
-  err_cnt_total += err_cnt;
-  test_cnt++;
-
 #endif
 
 
@@ -799,6 +735,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
@@ -847,6 +784,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
@@ -896,6 +834,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr2_load = (uint32_t)&vec_mem2_load[0]; // base address memory
@@ -946,6 +885,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
@@ -994,6 +934,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
@@ -1042,6 +983,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&vec_mem1_load[0]; // base address memory
   ptr1_store = (uint32_t)&vec_mem1_store[0]; // base address memory
@@ -2610,24 +2552,6 @@ int main() {
   }
   cellrv32_uart0_printf("\nvec_mem2 is successfully initialized.");
 
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Source 1 Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 1 = 0x%x", ptr1_load);
-  cellrv32_uart0_printf("\n End address 1 = 0x%x", &vec_mem1_load[NUM_ELEM_ARRAY-1]);
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Source 2 Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address 2 = 0x%x", ptr1_load);
-  cellrv32_uart0_printf("\n End address 2 = 0x%x", &vec_mem2_load[NUM_ELEM_ARRAY-1]);
-
-  cellrv32_uart0_printf("\n\n---------------------------------");
-  cellrv32_uart0_printf("\nVector Destination Base Address");
-  cellrv32_uart0_printf("\n---------------------------------");
-  cellrv32_uart0_printf("\n Base address Dst = 0x%x", ptr1_store);
-  cellrv32_uart0_printf("\n End address Dst = 0x%x", &vec_mem1_store[NUM_ELEM_ARRAY-1]);
-
-
   // ===================================================
   // VMUL.VV
   // ===================================================
@@ -4158,6 +4082,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
 
   do {
@@ -4205,6 +4130,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
@@ -4253,6 +4179,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -4303,6 +4230,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
@@ -4351,6 +4279,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
@@ -4492,6 +4421,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   opd.binary_value = get_test_vector();
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -4540,6 +4470,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -4590,6 +4521,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   opd.binary_value = xorshift32();
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -4638,6 +4570,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   opd.binary_value = xorshift32();
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -4858,6 +4791,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -5001,6 +4935,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -5051,6 +4986,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr2_load = (uint32_t)&fvec_mem2_load[0];
@@ -5255,6 +5191,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
@@ -5302,6 +5239,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
@@ -5349,6 +5287,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
@@ -5396,6 +5335,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
@@ -5465,6 +5405,7 @@ int main() {
   cellrv32_uart0_printf("\n---------------------------------");
 
   round = 0;
+  err_cnt = 0;
   opa.binary_value = NUM_ELEM_ARRAY;
   ptr1_load = (uint32_t)&fvec_mem1_load[0];
   ptr1_store = (uint32_t)&fvec_mem1_store[0];
