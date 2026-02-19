@@ -105,8 +105,22 @@ module vmu_st_eng #(
     assign start_new_loop = ~expansion_finished & ~pending_elem[current_pointer_wb_r] & ~pending_elem[nxt_elem];
 
     // Create the memory request control signals
-    assign req_en_o   = request_ready;
-    assign req_addr_o = current_addr;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            req_en_o <= 1'b0;
+        end else begin
+            req_en_o <= request_ready;
+        end
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            req_addr_o <= '0;
+        end else begin
+            req_addr_o <= current_addr;
+        end
+    end
+
     assign req_data_o = data_selected_el;
 
     assign new_transaction_en = request_ready & grant_i;
@@ -120,7 +134,13 @@ module vmu_st_eng #(
     //=======================================================
     // Address Generation
     //=======================================================
-    assign element_index = current_pointer_wb_r << 5; //*32
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            element_index <= '0;
+        end else begin
+            element_index <= current_pointer_wb_r << 5; // pointer * 32
+        end
+    end
     // Generate next non-multi consecutive address
     always_comb begin
         case (memory_op_r)
@@ -135,8 +155,10 @@ module vmu_st_eng #(
     assign nxt_unit_strided_addr = current_addr_r + 4;
 
     // Hold current address
-    always_ff @(posedge clk) begin
-        if (start_new_instruction) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            current_addr_r <= '0;
+        end else if (start_new_instruction) begin
             current_addr_r <= nxt_base_addr;
         end else if (new_transaction_en && memory_op_r == OP_STRIDED) begin
             current_addr_r <= nxt_strided_addr;
@@ -146,14 +168,17 @@ module vmu_st_eng #(
     end
     // Hold stride
     assign nxt_stride = instr_in.data2;
-    always_ff @(posedge clk) begin
-        if (start_new_instruction) stride_r <= nxt_stride;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stride_r <= '0;
+        end else if (start_new_instruction) begin
+            stride_r <= nxt_stride;
+        end
     end
 
     //=======================================================
     // Data Generation
     //=======================================================
-    // single-element data to be stored
     assign data_selected_el = rd_data_1_i[element_index +: DATA_WIDTH];
 
     //=======================================================
@@ -167,11 +192,7 @@ module vmu_st_eng #(
         if(!rst_n) begin
             current_pointer_wb_r <= 0;
         end else begin
-            if (start_new_instruction) begin
-                current_pointer_wb_r <= 0;
-            end else if (start_new_loop) begin
-                current_pointer_wb_r <= 0;
-            end else if (current_finished) begin
+            if (start_new_instruction || start_new_loop || current_finished) begin
                 current_pointer_wb_r <= 0;
             end else if (new_transaction_en) begin
                 current_pointer_wb_r <= nxt_elem;
@@ -215,6 +236,7 @@ module vmu_st_eng #(
     always_ff @(posedge clk or negedge rst_n) begin : loop_tracking
         if (!rst_n) begin
             current_exp_loop_r <= 0;
+            src1_r             <= 0;
         end else begin
             if (start_new_instruction) begin
                 current_exp_loop_r <= 0;

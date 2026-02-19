@@ -382,7 +382,7 @@ module vex_pipe #(
     //------------------------------------------------------
     // Writeback Signals
     //------------------------------------------------------
-    assign wr_en_o    = valid_result_wr;
+    assign wr_en_o    = is_rdc_i ? use_temp_rdc_result : valid_result_wr;
     assign rdc_done_o = use_temp_rdc_result;
     
     generate

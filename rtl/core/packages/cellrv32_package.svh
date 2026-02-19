@@ -957,7 +957,7 @@ package cellrv32_package;
   //--------------------------------------
   //Vector memory response
   typedef struct packed {
-      logic [03:0] ticket;
+      logic [02:0] ticket;
       logic [31:0] data  ;
   } vector_mem_resp;
 

@@ -78,7 +78,6 @@ module vmu_ld_eng #(
     logic [                         ADDR_WIDTH-1:0]                   stride_r                    ;
     logic [                       VECTOR_LANES-1:0]                   resp_elem_th                ;
     logic        [VECTOR_LANES-1:0][DATA_WIDTH-1:0]                   scratchpad                  ;
-    logic [                    VREG_ADDR_WIDTH-1:0]                   row_rdst                    ;
     logic                                                             start_new_loop              ;
     logic [$clog2(VECTOR_REGISTERS*VECTOR_LANES):0]                   nxt_total_remaining_elements;
     logic [                 ELEMENT_ADDR_WIDTH-1:0]                   nxt_elem                    ;
@@ -125,7 +124,7 @@ module vmu_ld_eng #(
 
     // Unlock register signals
     assign unlock_en_o     = row_ready;
-    assign unlock_reg_a_o  = row_rdst;
+    assign unlock_reg_a_o  = rdst_r;
 
     // Create the writeback signals for the RF
     assign row_ready = ~|(active_elem ^ served_elem) & |active_elem;
@@ -133,7 +132,7 @@ module vmu_ld_eng #(
     // Output aliasing
     assign wrtbck_en_o     = {VECTOR_LANES{row_ready}} & served_elem;
     assign wrtbck_data_o   = scratchpad;
-    assign wrtbck_reg_o    = row_rdst;
+    assign wrtbck_reg_o    = rdst_r;
 
     //=======================================================
     // Address Generation
@@ -181,28 +180,11 @@ module vmu_ld_eng #(
         if (!rstn_i) begin
             scratchpad <= '0;
         end else begin
-            // ========================
-            // row 0 maintenance
-            // ========================
             if (resp_valid_i) begin
                 scratchpad[resp_elem_th] <= resp_data_i;
             end
         end
     end : scratchpad_maint
-
-    // keep track of the rdst for each row
-    always_ff @(posedge clk_i or negedge rstn_i) begin : keep_track_dst
-        if(!rstn_i) begin
-            row_rdst <= 0;
-        end else begin
-            // row 0 maintenance
-            if (start_new_instruction) begin
-                row_rdst <= instr_in.dst;
-            end else if (start_new_loop) begin
-                row_rdst <= rdst_r + 1;
-            end
-        end
-    end : keep_track_dst
     
     //=======================================================
     // Scoreboard maintenance
@@ -215,11 +197,7 @@ module vmu_ld_eng #(
         if(!rstn_i) begin
             current_pointer_wb_r <= 0;
         end else begin
-            if (start_new_instruction) begin
-                current_pointer_wb_r <= 0;
-            end else if (start_new_loop) begin
-                current_pointer_wb_r <= 0;
-            end else if (current_finished) begin
+            if (start_new_instruction || start_new_loop || current_finished) begin
                 current_pointer_wb_r <= 0;
             end else if (new_transaction_en) begin
                 current_pointer_wb_r <= nxt_elem;
@@ -248,9 +226,6 @@ module vmu_ld_eng #(
         if (!rstn_i) begin
             pending_elem <= '0;
         end else begin
-            // ========================
-            // row 0 maintenance
-            // ========================
             if (start_new_instruction) begin
                 pending_elem <= nxt_pending_elem;
             end else if (start_new_loop) begin

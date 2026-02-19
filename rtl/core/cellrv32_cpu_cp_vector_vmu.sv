@@ -45,7 +45,6 @@ module vmu #(
     //=======================================================
     logic                                load_unlock_en    ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] load_unlock_reg_a ;
-    logic [$clog2(VECTOR_REGISTERS)-1:0] load_unlock_reg_b ;
     logic [              ADDR_WIDTH-1:0] load_req_addr     ;
     logic [    $clog2(VECTOR_LANES)-1:0] load_req_ticket   ;
     logic [            VECTOR_LANES-1:0] ld_wb_en          ;
@@ -54,7 +53,6 @@ module vmu #(
 
     logic                                store_unlock_en    ;
     logic [$clog2(VECTOR_REGISTERS)-1:0] store_unlock_reg_a ;
-    logic [$clog2(VECTOR_REGISTERS)-1:0] store_unlock_reg_b ;
     logic [              ADDR_WIDTH-1:0] store_req_addr     ;
     logic [          REQ_DATA_WIDTH-1:0] store_req_data     ;
 
@@ -66,10 +64,6 @@ module vmu #(
     logic       push_store  ;
     logic       load_ready  ;
     logic       store_ready ;
-    logic       load_starts ;
-    logic       store_starts;
-    logic       load_ends   ;
-    logic       store_ends  ;
 
     logic       ld_request;
     logic       st_request;

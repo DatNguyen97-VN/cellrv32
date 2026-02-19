@@ -11,9 +11,9 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     parameter int VECTOR_LANES     = 8 ,
     parameter int VECTOR_LANE_NUM  = 1 
 ) (
-    input  logic             clk            ,
-    input  logic             rst_n          ,
-    input  logic             valid_i        ,
+    input  logic             clk           ,
+    input  logic             rst_n         ,
+    input  logic             valid_i       ,
     input  logic [XLEN-1:0] data_a_ex1_i   ,
     input  logic [XLEN-1:0] data_b_ex1_i   ,
     input  logic [     5:0] funct6_i       ,
@@ -214,7 +214,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
                              {valid_div_ex4, valid_div_ex3, valid_div_ex2, valid_div_ex1};
 
     // ===============================================
-    // MUL: EX1 BOOTH ALGRITHM
+    // MUL, DIV: EX1 BOOTH AND RESTORING ALGRITHM
     // ===============================================
     ctrl_t ctrl_ex1;
     mul_t  mul_ex1;
@@ -397,7 +397,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     assign div_ex1.sub = {1'b0, div_ex1.remainder[30:0], div_ex1.quotient[31]} - {1'b0, div_ex1.rs2_abs};
 
     // ===============================================
-    // MUL: EX2 BOOTH ALGRITHM
+    // MUL, DIV: EX2 BOOTH AND RESTORING ALGRITHM
     // ===============================================
     
     ctrl_t ctrl_ex2;
@@ -511,7 +511,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     assign div_ex2.sub = {1'b0, div_ex2.remainder[30:0], div_ex2.quotient[31]} - {1'b0, div_ex2.rs2_abs};
 
     // ===============================================
-    // MUL: EX3 BOOTH ALGRITHM
+    // MUL, DIV: EX3 BOOTH AND RESTORING ALGRITHM
     // ===============================================
     ctrl_t ctrl_ex3;
     mul_t  mul_ex3;
@@ -624,7 +624,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     assign div_ex3.sub = {1'b0, div_ex3.remainder[30:0], div_ex3.quotient[31]} - {1'b0, div_ex3.rs2_abs};
 
     // ===============================================
-    // MUL: EX4 BOOTH ALGRITHM
+    // MUL, DIV: EX4 BOOTH AND RESTORING ALGRITHM
     // ===============================================
     ctrl_t ctrl_ex4;
     mul_t  mul_ex4;
@@ -889,35 +889,35 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             case (funct6_i)
                 funct6_vredsum_c : begin
                     // VRADD
-                    tree_result_ex2 = data_ex2_i[0 +: XLEN] + rdc_data_ex2_i;
+                    tree_result_ex2 = data_ex2_i + rdc_data_ex2_i;
                 end
                 funct6_vredand_c : begin
                     // VRAND
-                    tree_result_ex2 = data_ex2_i[0 +: XLEN] & rdc_data_ex2_i;
+                    tree_result_ex2 = data_ex2_i & rdc_data_ex2_i;
                 end
                 funct6_vredor_c : begin
                     // VROR
-                    tree_result_ex2 = data_ex2_i[0 +: XLEN] | rdc_data_ex2_i;
+                    tree_result_ex2 = data_ex2_i | rdc_data_ex2_i;
                 end
                 funct6_vredxor_c : begin
                     // VRXOR
-                    tree_result_ex2 = data_ex2_i[0 +: XLEN] ^ rdc_data_ex2_i;
+                    tree_result_ex2 = data_ex2_i ^ rdc_data_ex2_i;
                 end
                 funct6_vredminu_c : begin
                     // VRMINU
-                    tree_result_ex2 = (data_ex2_i[0 +: XLEN] < rdc_data_ex2_i) ? data_ex2_i[0 +: XLEN] : rdc_data_ex2_i;
+                    tree_result_ex2 = (data_ex2_i < rdc_data_ex2_i) ? data_ex2_i : rdc_data_ex2_i;
                 end
                 funct6_vredmin_c : begin
                     // VRMIN
-                    tree_result_ex2 = ($signed(data_ex2_i[0 +: XLEN]) < $signed(rdc_data_ex2_i)) ? data_ex2_i[0 +: XLEN] : rdc_data_ex2_i;
+                    tree_result_ex2 = ($signed(data_ex2_i) < $signed(rdc_data_ex2_i)) ? data_ex2_i : rdc_data_ex2_i;
                 end
                 funct6_vredmaxu_c : begin
                     // VRMAXU
-                    tree_result_ex2 = (data_ex2_i[0 +: XLEN] > rdc_data_ex2_i) ? data_ex2_i[0 +: XLEN] : rdc_data_ex2_i;
+                    tree_result_ex2 = (data_ex2_i > rdc_data_ex2_i) ? data_ex2_i : rdc_data_ex2_i;
                 end
                 funct6_vredmax_c : begin
                     // VRMAX
-                    tree_result_ex2 = ($signed(data_ex2_i[0 +: XLEN]) > $signed(rdc_data_ex2_i)) ? data_ex2_i[0 +: XLEN] : rdc_data_ex2_i;
+                    tree_result_ex2 = ($signed(data_ex2_i) > $signed(rdc_data_ex2_i)) ? data_ex2_i : rdc_data_ex2_i;
                 end
                 default : begin
                     tree_result_ex2 = 'x;
@@ -934,7 +934,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
         end
 
     end else begin: g_rdc_ex2_stubs
-        assign result_rdc_ex2 = data_ex2_i[0 +: XLEN];
+        assign result_rdc_ex2 = data_ex2_i;
         assign active_rdc_ex2 = active_rdc_ex1;
         assign valid_rdc_ex2  = valid_rdc_ex1;
     end endgenerate
@@ -957,35 +957,35 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             case (funct6_i)
                 funct6_vredsum_c : begin
                     // VRADD
-                    tree_result_ex3 = data_ex3_i[0 +: XLEN] + rdc_data_ex3_i;
+                    tree_result_ex3 = data_ex3_i + rdc_data_ex3_i;
                 end
                 funct6_vredand_c: begin
                     // VRAND
-                    tree_result_ex3 = data_ex3_i[0 +: XLEN] & rdc_data_ex3_i;
+                    tree_result_ex3 = data_ex3_i & rdc_data_ex3_i;
                 end
                 funct6_vredor_c: begin
                     // VROR
-                    tree_result_ex3 = data_ex3_i[0 +: XLEN] | rdc_data_ex3_i;
+                    tree_result_ex3 = data_ex3_i | rdc_data_ex3_i;
                 end
                 funct6_vredxor_c: begin
                     // VRXOR
-                    tree_result_ex3 = data_ex3_i[0 +: XLEN] ^ rdc_data_ex3_i;
+                    tree_result_ex3 = data_ex3_i ^ rdc_data_ex3_i;
                 end
                 funct6_vredminu_c : begin
                     // VRMINU
-                    tree_result_ex3 = (data_ex3_i[0 +: XLEN] < rdc_data_ex3_i) ? data_ex3_i[0 +: XLEN] : rdc_data_ex3_i;
+                    tree_result_ex3 = (data_ex3_i < rdc_data_ex3_i) ? data_ex3_i : rdc_data_ex3_i;
                 end
                 funct6_vredmin_c : begin
                     // VRMIN
-                    tree_result_ex3 = ($signed(data_ex3_i[0 +: XLEN]) < $signed(rdc_data_ex3_i)) ? data_ex3_i[0 +: XLEN] : rdc_data_ex3_i;
+                    tree_result_ex3 = ($signed(data_ex3_i) < $signed(rdc_data_ex3_i)) ? data_ex3_i : rdc_data_ex3_i;
                 end
                 funct6_vredmaxu_c : begin
                     // VRMAXU
-                    tree_result_ex3 = (data_ex3_i[0 +: XLEN] > rdc_data_ex3_i) ? data_ex3_i[0 +: XLEN] : rdc_data_ex3_i;
+                    tree_result_ex3 = (data_ex3_i > rdc_data_ex3_i) ? data_ex3_i : rdc_data_ex3_i;
                 end
                 funct6_vredmax_c : begin
                     // VRMAX
-                    tree_result_ex3 = ($signed(data_ex3_i[0 +: XLEN]) > $signed(rdc_data_ex3_i)) ? data_ex3_i[0 +: XLEN] : rdc_data_ex3_i;
+                    tree_result_ex3 = ($signed(data_ex3_i) > $signed(rdc_data_ex3_i)) ? data_ex3_i : rdc_data_ex3_i;
                 end
                 default : begin
                     tree_result_ex3 = 'x;
@@ -1002,7 +1002,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
         end
 
     end else begin: g_rdc_ex3_stubs
-        assign result_rdc_ex3 = data_ex3_i[0 +: XLEN];
+        assign result_rdc_ex3 = data_ex3_i;
         assign active_rdc_ex3 = active_rdc_ex2;
         assign valid_rdc_ex3  = valid_rdc_ex2;
     end endgenerate
@@ -1027,35 +1027,35 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             case (funct6_i)
                 funct6_vredsum_c  : begin
                     // VRADD
-                    tree_result_ex4 = data_ex4_i[0 +: XLEN] + rdc_data_ex4_i;
+                    tree_result_ex4 = data_ex4_i + rdc_data_ex4_i;
                 end
                 funct6_vredand_c : begin
                     // VRAND
-                    tree_result_ex4 = data_ex4_i[0 +: XLEN] & rdc_data_ex4_i;
+                    tree_result_ex4 = data_ex4_i & rdc_data_ex4_i;
                 end
                 funct6_vredor_c : begin
                     // VROR
-                    tree_result_ex4 = data_ex4_i[0 +: XLEN] | rdc_data_ex4_i;
+                    tree_result_ex4 = data_ex4_i | rdc_data_ex4_i;
                 end
                 funct6_vredxor_c : begin
                     // VRXOR
-                    tree_result_ex4 = data_ex4_i[0 +: XLEN] ^ rdc_data_ex4_i;
+                    tree_result_ex4 = data_ex4_i ^ rdc_data_ex4_i;
                 end
                 funct6_vredminu_c : begin
                     // VRMINU
-                    tree_result_ex4 = (data_ex4_i[0 +: XLEN] < rdc_data_ex4_i) ? data_ex4_i[0 +: XLEN] : rdc_data_ex4_i;
+                    tree_result_ex4 = (data_ex4_i < rdc_data_ex4_i) ? data_ex4_i : rdc_data_ex4_i;
                 end
                 funct6_vredmin_c : begin
                     // VRMIN
-                    tree_result_ex4 = ($signed(data_ex4_i[0 +: XLEN]) < $signed(rdc_data_ex4_i)) ? data_ex4_i[0 +: XLEN] : rdc_data_ex4_i;
+                    tree_result_ex4 = ($signed(data_ex4_i) < $signed(rdc_data_ex4_i)) ? data_ex4_i : rdc_data_ex4_i;
                 end
                 funct6_vredmaxu_c : begin
                     // VRMAXU
-                    tree_result_ex4 = (data_ex4_i[0 +: XLEN] > rdc_data_ex4_i) ? data_ex4_i[0 +: XLEN] : rdc_data_ex4_i;
+                    tree_result_ex4 = (data_ex4_i > rdc_data_ex4_i) ? data_ex4_i : rdc_data_ex4_i;
                 end
                 funct6_vredmax_c : begin
                     // VRMAX
-                    tree_result_ex4 = ($signed(data_ex4_i[0 +: XLEN]) > $signed(rdc_data_ex4_i)) ? data_ex4_i[0 +: XLEN] : rdc_data_ex4_i;
+                    tree_result_ex4 = ($signed(data_ex4_i) > $signed(rdc_data_ex4_i)) ? data_ex4_i : rdc_data_ex4_i;
                 end
                 default : begin
                     tree_result_ex4 = 'x;
@@ -1066,8 +1066,9 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
         assign result_rdc_ex4 = tree_result_ex4;
 
     end else begin: g_rdc_ex4_stubs
-        assign result_rdc_ex4 = data_ex4_i[0 +: XLEN];
+        assign result_rdc_ex4 = data_ex4_i;
         assign active_rdc_ex4 = active_rdc_ex3;
+        assign valid_rdc_ex4  = valid_rdc_ex3;
     end endgenerate
 
 

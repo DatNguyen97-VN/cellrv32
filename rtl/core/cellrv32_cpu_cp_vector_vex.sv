@@ -216,8 +216,12 @@ module vex #(
     //-----------------------------------------------
     // EX1/EX2 Flops
     //-----------------------------------------------
-    always_ff @(posedge clk) begin
-        if (valid_i) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dst_ex2  <= '0;
+            head_ex2 <= '0;
+            end_ex2  <= '0;
+        end else if (valid_i) begin
             dst_ex2  <= exec_info_i.dst;
             head_ex2 <= exec_info_i.head_uop;
             end_ex2  <= exec_info_i.end_uop;
@@ -233,8 +237,12 @@ module vex #(
     //-----------------------------------------------
     // EX2/EX3 Flops
     //-----------------------------------------------
-    always_ff @(posedge clk) begin
-        if (valid_ex2) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dst_ex3  <= '0;
+            head_ex3 <= '0;
+            end_ex3  <= '0;
+        end else if (valid_ex2) begin
             dst_ex3  <= dst_ex2;
             head_ex3 <= head_ex2;
             end_ex3  <= end_ex2;
@@ -250,8 +258,12 @@ module vex #(
     //-----------------------------------------------
     // EX3/EX4 Flops
     //-----------------------------------------------
-    always_ff @(posedge clk) begin
-        if (valid_ex3) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dst_ex4  <= '0;
+            head_ex4 <= '0;
+            end_ex4  <= '0;
+        end else if (valid_ex3) begin
             dst_ex4  <= dst_ex3;
             head_ex4 <= head_ex3;
             end_ex4  <= end_ex3;
@@ -267,8 +279,10 @@ module vex #(
     //-----------------------------------------------
     // EX4/WR Flops
     //-----------------------------------------------
-    always_ff @(posedge clk) begin
-        if (valid_ex4) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dst_wr <= '0;
+        end else if (valid_ex4) begin
             dst_wr <= dst_ex4;
         end
     end

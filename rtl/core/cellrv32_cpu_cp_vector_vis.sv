@@ -48,15 +48,19 @@ module vis #(
     logic [VECTOR_REGISTERS-1:0][VECTOR_LANES-1:0] pending;
     logic [    VECTOR_LANES-1:0] vl_therm;
     logic [ VREG_ADDR_WIDTH-1:0] current_exp_loop  ; // Count the number of µops issued
+    logic [ VREG_ADDR_WIDTH-1:0] nxt_exp_loop      ; // Count the number of µops issued
     logic                        do_issue, output_ready;
-    logic                        memory_instr;
-    logic                        expansion_finished, maxvl_reached, vl_reached;
+    logic                        memory_instr      ;
+    logic                        vl_reached        ;
+    logic                        maxvl_reached     ;
+    logic                        expansion_finished;
     logic                        do_reconfigure    ;
     logic                        pop               ;
     logic                        start_new_instr   ;
     logic                        instr_is_rdc      ;
     logic                        is_operand_imm    ;
     logic                        is_operand_scalar ;
+    logic                        inc               ;
 
     logic [6:0] total_remaining_elements;
     logic [VECTOR_LANES-1:0][DATA_WIDTH-1:0] data_1, data_2;
@@ -84,30 +88,49 @@ module vis #(
     assign vl_therm     = ~('1 << total_remaining_elements); // a vector with 1 bits corresponding to the lane to be processed in the current µop
 
     // memory inst: Inst is valid and no hazard
-    // non-memory inst: Instr is valid, EX is available, and no hazard.
+    // non-memory inst: Instr is valid, EX is available.
     assign do_issue     = memory_instr ? (valid_in) : (valid_in & output_ready);
-    assign pop          = valid_in & ready_o; // instrcution is completed
-    assign valid_output = (do_issue & ~memory_instr & ~instr_in.reconfigure) ? vl_therm : '0; // mask lane, disable output if memory/reconfiguration instruction 
 
+    always_ff @(posedge clk_i or negedge rstn_i) begin
+        if (!rstn_i) begin
+            pop <= 1'b0;
+        end else begin
+            pop <= valid_in & ready_o; // instrcution is completed
+        end
+    end 
+    
+    always_ff @(posedge clk_i or negedge rstn_i) begin
+        if (!rstn_i) begin
+            valid_output <= '0;
+        end else begin
+            valid_output <= (do_issue & ~memory_instr & ~instr_in.reconfigure) ? vl_therm : '0;
+        end
+    end
 
     assign ready_o = instr_in.reconfigure ?  exec_finished_o                    : // all pending clear
-                     memory_instr         ? (expansion_finished)                : // run out of µops memory
+                     memory_instr         ? (valid_in & expansion_finished)     : // run out of µops memory
                      valid_in             ? (expansion_finished & output_ready) : 1'b0; // run out of µops compute and EX ready
 
     // Track Instruction Expansion
     always_ff @(posedge clk_i or negedge rstn_i) begin : ExpansionTracker
         if (!rstn_i) begin
            current_exp_loop <= '0;
+           nxt_exp_loop     <= '0;
+           inc              <= 1'b1;
         end else begin
             // new instruction or reconfiguration
-            if (do_reconfigure | pop) begin
+            if (do_reconfigure || pop) begin
                 current_exp_loop <= '0;
+                nxt_exp_loop     <= '0;
+                inc              <= 1'b1;
             end else if (do_issue) begin
                 // count the number of µops for the current instruction
-                current_exp_loop <= current_exp_loop + 1;
+                inc              <= ~inc;
+                nxt_exp_loop     <= nxt_exp_loop + inc;
+                current_exp_loop <= nxt_exp_loop;
             end
         end
-    end
+    end : ExpansionTracker
 
     // Store the max expansion per instruction
     // The maximum number of µops that need to be issued to process all maxvl elements
@@ -117,31 +140,38 @@ module vis #(
         end else begin
             max_expansion <= instr_in.maxvl >> $clog2(VECTOR_LANES);
         end
-    end
+    end : maxExp
 
     // Struct containing control flow signals
-    assign valid_o                = |valid_output;
-    assign info_to_exec.ir_funct6 = instr_in.ir_funct12[11:06];
-    assign info_to_exec.ir_funct3 = instr_in.ir_funct3;
-    assign info_to_exec.frm       = instr_in.frm;
-    assign info_to_exec.vfunary   = instr_in.vfunary;
-    assign info_to_exec.dst       = dst;
-    assign info_to_exec.head_uop  = start_new_instr;
-    assign info_to_exec.end_uop   = expansion_finished;
-    assign info_to_exec.is_rdc    = instr_is_rdc;
-    // We indicate the remaining VL here, so that the info can be used in EX
-    assign info_to_exec.vl        = start_new_instr ? instr_in.vl : total_remaining_elements;
+    always @(posedge clk_i or negedge rstn_i) begin
+        if (!rstn_i) begin
+            info_to_exec <= '0;
+        end else begin
+            info_to_exec.ir_funct6 <= instr_in.ir_funct12[11:06];
+            info_to_exec.ir_funct3 <= instr_in.ir_funct3;
+            info_to_exec.frm       <= instr_in.frm;
+            info_to_exec.vfunary   <= instr_in.vfunary;
+            info_to_exec.dst       <= dst;
+            info_to_exec.head_uop  <= start_new_instr;
+            info_to_exec.end_uop   <= expansion_finished;
+            info_to_exec.is_rdc    <= instr_is_rdc;
+            // We indicate the remaining VL here, so that the info can be used in EX
+            info_to_exec.vl        <= start_new_instr ? instr_in.vl : total_remaining_elements;
+        end
+    end
+
+    assign valid_o = |valid_output & ready_i; // valid output is registered to be stable during the entire EX stage, and ANDed with ready_i to avoid sending data when EX is not ready
 
     // Create the src/dst identifiers
     always_comb begin
         if (instr_is_rdc) begin
             dst   = instr_in.dst;
             src_1 = instr_in.src1;
-            src_2 = instr_in.src2 + current_exp_loop;
+            src_2 = instr_in.src2 + nxt_exp_loop;
         end else begin
             dst   = instr_in.dst  + current_exp_loop;
-            src_1 = instr_in.src1 + current_exp_loop;
-            src_2 = instr_in.src2 + current_exp_loop;
+            src_1 = instr_in.src1 + nxt_exp_loop;
+            src_2 = instr_in.src2 + nxt_exp_loop;
         end
     end
 
@@ -196,6 +226,7 @@ module vis #(
         end : g_oh_pntrs
     endgenerate
 
+    // Track the pending status
     always_ff @(posedge clk_i or negedge rstn_i) begin : StatusPending
         if (!rstn_i) begin
             pending <= '0;
@@ -224,7 +255,7 @@ module vis #(
     logic [VECTOR_LANES-1:0] wr_en_masked;
     always_comb begin : WBmask
         for (int i = 0; i < VECTOR_LANES; i++) begin
-            wr_en_masked[i] = instr_is_rdc ? (rdc_done[i] & wr_en[i]) : wr_en[i];
+            wr_en_masked[i] = instr_is_rdc ? rdc_done[i] : wr_en[i];
         end
     end : WBmask
 
@@ -235,13 +266,13 @@ module vis #(
 
     always_comb begin : sel_elem_data
         if (memory_instr) begin
-            v_wr_en   <= mem_wr_en;
-            v_wr_addr <= mem_wr_addr;
-            v_wr_data <= mem_wr_data;
+            v_wr_en   = mem_wr_en;
+            v_wr_addr = mem_wr_addr;
+            v_wr_data = mem_wr_data;
         end else begin
-            v_wr_en   <= wr_en_masked;
-            v_wr_addr <= wr_addr;
-            v_wr_data <= wr_data;
+            v_wr_en   = wr_en;
+            v_wr_addr = wr_addr;
+            v_wr_data = wr_data;
         end
     end : sel_elem_data
 
