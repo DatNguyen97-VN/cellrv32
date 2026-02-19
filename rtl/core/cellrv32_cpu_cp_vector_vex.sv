@@ -28,23 +28,20 @@ module vex #(
     output logic          [            VECTOR_LANES-1:0] wr_en      ,
     output logic          [$clog2(VECTOR_REGISTERS)-1:0] wr_addr    ,
     output logic          [       VECTOR_LANES*XLEN-1:0] wr_data    ,
-    output logic          [            VECTOR_LANES-1:0] rdc_done_o ,
     output logic          [                         4:0] fflags_o    
 ); 
 
 
-    logic [$clog2(VECTOR_REGISTERS)-1:0] dst_ex2, dst_ex3, dst_ex4, dst_wr;
-    logic                                valid_ex2, valid_ex3, valid_ex4;
-    logic                                head_ex2, head_ex3, head_ex4;
-    logic                                end_ex2, end_ex3, end_ex4;
+    logic [$clog2(VECTOR_REGISTERS)-1:0] dst_ex2, dst_ex3, dst_wr;
+    logic                                valid_ex2, valid_ex3;
+    logic                                head_ex2, head_ex3;
+    logic                                end_ex2, end_ex3;
     logic [XLEN-1:0] rdc_data_ex1_i [VECTOR_LANES-1:0];
     logic [XLEN-1:0] rdc_data_ex1_o [VECTOR_LANES-1:0];
     logic [XLEN-1:0] rdc_data_ex2_i [VECTOR_LANES-1:0];
     logic [XLEN-1:0] rdc_data_ex2_o [VECTOR_LANES-1:0];
     logic [XLEN-1:0] rdc_data_ex3_i [VECTOR_LANES-1:0];
     logic [XLEN-1:0] rdc_data_ex3_o [VECTOR_LANES-1:0];
-    logic [XLEN-1:0] rdc_data_ex4_i [VECTOR_LANES-1:0];
-    logic [XLEN-1:0] rdc_data_ex4_o [VECTOR_LANES-1:0];
     logic [$clog2(VECTOR_REGISTERS)-1:0] mul_div_dst_ex1;
     logic [$clog2(VECTOR_REGISTERS)-1:0] mul_div_dst_ex2;
     logic [$clog2(VECTOR_REGISTERS)-1:0] mul_div_dst_ex3;
@@ -84,42 +81,39 @@ module vex #(
                 .VECTOR_FP_ALU   (VECTOR_FP_ALU ),
                 .VECTOR_FXP_ALU  (VECTOR_FXP_ALU)
             ) vex_pipe (
-                .clk            (clk                  ),
-                .rst_n          (rst_n                ),
+                .clk            (clk                    ),
+                .rst_n          (rst_n                  ),
                 //Input
-                .valid_i        (vex_pipe_valid[k]    ),
-                .fp_valid_o     (vex_fp_valid[k]      ),
-                .ready_o        (ready[k]             ),
-                .done_i         (all_thread_done      ),
-                .mask_i         (exec_data_i[k].mask  ),
-                .data_a_i       (exec_data_i[k].data1 ),
-                .data_b_i       (exec_data_i[k].data2 ),
-                .funct6_i       (exec_info_i.ir_funct6),
-                .funct3_i       (exec_info_i.ir_funct3),
-                .frm_i          (exec_info_i.frm      ),
-                .vfunary_i      (exec_info_i.vfunary  ),
-                .vl_i           (exec_info_i.vl       ),
-                .is_rdc_i       (exec_info_i.is_rdc   ),
-                .valid_mul_div_o(valid_mul_div[k]     ),
+                .valid_i        (vex_pipe_valid[k]      ),
+                .fp_valid_o     (vex_fp_valid[k]        ),
+                .ready_o        (ready[k]               ),
+                .done_i         (all_thread_done        ),
+                .mask_i         (exec_data_i[k].mask    ),
+                .data_a_i       (exec_data_i[k].data1   ),
+                .data_b_i       (exec_data_i[k].data2   ),
+                .funct6_i       (exec_info_i.ir_funct6  ),
+                .funct3_i       (exec_info_i.ir_funct3  ),
+                .frm_i          (exec_info_i.frm        ),
+                .vfunary_i      (exec_info_i.vfunary    ),
+                .vl_i           (exec_info_i.vl         ),
+                .is_rdc_i       (exec_info_i.is_rdc     ),
+                .valid_mul_div_o(valid_mul_div[k]       ),
                 //Writeback (EX*)
-                .head_uop_ex4_i (head_ex4             ),
-                .end_uop_ex4_i  (end_ex4              ),
-                .wr_en_o        (wr_en[k]             ),
+                .head_uop_ex3_i (head_ex3               ),
+                .end_uop_ex3_i  (end_ex3                ),
+                .wr_en_o        (wr_en[k]               ),
                 .wr_data_o      (wr_data[k*XLEN +: XLEN]),
-                .rdc_done_o     (rdc_done_o[k]        ),
                 //EX1 Reduction Tree Intf
-                .rdc_data_ex1_i (rdc_data_ex1_i[k]    ),
-                .rdc_data_ex1_o (rdc_data_ex1_o[k]    ),
+                .rdc_data_ex1_i (rdc_data_ex1_i[k]      ),
+                .rdc_data_ex1_o (rdc_data_ex1_o[k]      ),
                 //EX2 Reduction Tree Intf
-                .rdc_data_ex2_i (rdc_data_ex2_i[k]    ),
-                .rdc_data_ex2_o (rdc_data_ex2_o[k]    ),
+                .rdc_data_ex2_i (rdc_data_ex2_i[k]      ),
+                .rdc_data_ex2_o (rdc_data_ex2_o[k]      ),
                 //EX3 Reduction Tree Intf
-                .rdc_data_ex3_i (rdc_data_ex3_i[k]    ),
-                .rdc_data_ex3_o (rdc_data_ex3_o[k]    ),
+                .rdc_data_ex3_i (rdc_data_ex3_i[k]      ),
+                .rdc_data_ex3_o (rdc_data_ex3_o[k]      ),
                 //EX2 Reduction Tree Intf
-                .rdc_data_ex4_i (rdc_data_ex4_i[k]    ),
-                .rdc_data_ex4_o (rdc_data_ex4_o[k]    ),
-                .pipe_fflags_o  (vex_pipe_fflag[k]    )
+                .pipe_fflags_o  (vex_pipe_fflag[k]      )
             );
         end
     endgenerate
@@ -152,16 +146,6 @@ module vex #(
                 assign rdc_data_ex3_i[i] = rdc_data_ex3_o[i+4];
             end : g_input_rdc_ex3
         end : g_rdc_ex3
-    endgenerate
-    //-----------------------------------------------
-    // EX4
-    //-----------------------------------------------
-    generate
-        if (VECTOR_LANES > 8) begin : g_rdc_ex4
-            for (i = 0; i <= VECTOR_LANES/8; i = i+16) begin : g_input_rdc_ex4
-                assign rdc_data_ex4_i[i] = rdc_data_ex4_o[i+8];
-            end : g_input_rdc_ex4
-        end : g_rdc_ex4
     endgenerate
     //-----------------------------------------------
     // EX1 Mul/Div Flop
@@ -256,34 +240,13 @@ module vex #(
         end
     end
     //-----------------------------------------------
-    // EX3/EX4 Flops
-    //-----------------------------------------------
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            dst_ex4  <= '0;
-            head_ex4 <= '0;
-            end_ex4  <= '0;
-        end else if (valid_ex3) begin
-            dst_ex4  <= dst_ex3;
-            head_ex4 <= head_ex3;
-            end_ex4  <= end_ex3;
-        end
-    end
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            valid_ex4 <= 1'b0;
-        end else begin
-            valid_ex4 <= valid_ex3;
-        end
-    end
-    //-----------------------------------------------
     // EX4/WR Flops
     //-----------------------------------------------
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             dst_wr <= '0;
-        end else if (valid_ex4) begin
-            dst_wr <= dst_ex4;
+        end else if (valid_ex3) begin
+            dst_wr <= dst_ex3;
         end
     end
     //
@@ -319,6 +282,6 @@ module vex #(
     assign wr_addr    = is_fp32    ? fp_dst      : 
                         is_mul_div ? mul_div_dst : 
                         is_int_one ? dst_ex2     : dst_wr;
-    assign vex_idle_o = ~valid_i & ~valid_ex2 & ~valid_ex3 & ~valid_ex4;
+    assign vex_idle_o = ~valid_i & ~valid_ex2 & ~valid_ex3;
 
 endmodule

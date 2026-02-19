@@ -34,11 +34,10 @@ module vex_pipe #(
     input  logic            is_rdc_i      ,
     output logic [     3:0] valid_mul_div_o,
     //Writeback
-    input  logic            head_uop_ex4_i,
-    input  logic            end_uop_ex4_i ,
+    input  logic            head_uop_ex3_i,
+    input  logic            end_uop_ex3_i ,
     output logic            wr_en_o       ,
     output logic [XLEN-1:0] wr_data_o     ,
-    output logic            rdc_done_o    ,
     //EX1 Reduction Tree Intf
     input  logic [XLEN-1:0] rdc_data_ex1_i,
     output logic [XLEN-1:0] rdc_data_ex1_o,
@@ -49,29 +48,25 @@ module vex_pipe #(
     input  logic [XLEN-1:0] rdc_data_ex3_i,
     output logic [XLEN-1:0] rdc_data_ex3_o,
     //EX4 Reduction Tree Intf
-    input  logic [XLEN-1:0] rdc_data_ex4_i,
-    output logic [XLEN-1:0] rdc_data_ex4_o,
     output logic [     4:0] pipe_fflags_o
 );
     //Reg Declaration
+    logic            valid_int_ex1  ;
     logic            valid_int_ex2  ;
     logic            valid_int_ex3  ;
-    logic            valid_int_ex4  ;
     logic [XLEN-1:0] data_ex1       ;
     logic [XLEN-1:0] data_ex2       ;
     logic [XLEN-1:0] data_ex3       ;
     logic [XLEN-1:0] data_ex4       ;
-    logic [XLEN-1:0] temp_rdc_result_ex4;
+    logic [XLEN-1:0] temp_rdc_result_ex3;
     logic            use_temp_rdc_result;
     logic            ready_res_ex2  ;
     logic            ready_res_ex3  ;
-    logic            ready_res_ex4  ;
     logic            valid_result_wr;
 
     //Wire Declaration
     logic            valid_int          ;
     logic            valid_int_done     ;
-    logic            valid_int_ex1      ;
     logic            valid_fp_ex1       ;
     logic            ready_res_int_ex1  ;
     logic            ready_res_int_ex2  ;
@@ -83,15 +78,10 @@ module vex_pipe #(
     logic [XLEN-1:0] res_int_ex4        ;
     logic            ready_res_fp_ex4   ;
     logic [XLEN-1:0] res_fp_ex4         ;
-    logic            mask_ex2           ;
-    logic            mask_ex3           ;
-    logic            mask_ex4           ;
     logic            mask_wr            ;
     logic            use_reduce_tree_ex1;
     logic            use_reduce_tree_ex2;
     logic            use_reduce_tree_ex3;
-    logic            use_reduce_tree_ex4;
-    logic [     5:0] rdc_op_ex4;
 
     // FP32 ALU ready / valid
     logic             vfp32_ready;
@@ -129,27 +119,22 @@ module vex_pipe #(
         .rdc_data_ex1_i (rdc_data_ex1_i   ),
         .rdc_data_ex2_i (rdc_data_ex2_i   ),
         .rdc_data_ex3_i (rdc_data_ex3_i   ),
-        .rdc_data_ex4_i (rdc_data_ex4_i   ),
         //Result Ex1 Out
         .ready_res_ex1_o(ready_res_int_ex1),
         .result_ex1_o   (res_int_ex1      ),
         //EX2 In
         .data_ex2_i     (data_ex1         ),
-        .mask_ex2_i     (mask_ex2         ),
         //Result Ex2 Out
         .ready_res_ex2_o(ready_res_int_ex2),
         .result_ex2_o   (res_int_ex2      ),
         //EX3 In
         .data_ex3_i     (data_ex2         ),
-        .mask_ex3_i     (mask_ex3         ),
         //Result Ex3 Out
         .ready_res_ex3_o(ready_res_int_ex3),
         .result_ex3_o   (res_int_ex3      ),
         //EX4 In
         .data_ex4_i     (data_ex3         ),
-        .mask_ex4_i     (mask_ex4         ),
         //Result Ex4 Out
-        .rdc_op_ex4_o   (rdc_op_ex4       ),
         .ready_res_ex4_o(ready_res_int_ex4),
         .result_ex4_o   (res_int_ex4      )
     );
@@ -180,7 +165,6 @@ module vex_pipe #(
             .rdc_data_ex1_i (rdc_data_ex1_i  ),
             .rdc_data_ex2_i (rdc_data_ex2_i  ),
             .rdc_data_ex3_i (rdc_data_ex3_i  ),
-            .rdc_data_ex4_i (rdc_data_ex4_i  ),
             //Result Ex4 Out
             .ready_res_ex4_o(ready_res_fp_ex4),
             .result_ex4_o   (res_fp_ex4      ),
@@ -200,11 +184,11 @@ module vex_pipe #(
     // EX1/EX2 Data Flops
     //-----------------------------------------------
     // Data storage
-    always_ff @(posedge clk) begin
-        if (mask_i || use_reduce_tree_ex1) begin
-            if (valid_int_ex1) begin
-                data_ex1 <= res_int_ex1;
-            end
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+           data_ex1 <= '0;
+        end else if (use_reduce_tree_ex1) begin
+           data_ex1 <= res_int_ex1;
         end
     end
     // Control Info storage
@@ -212,12 +196,10 @@ module vex_pipe #(
         if (!rst_n) begin
             valid_int_ex2       <= 1'b0;
             ready_res_ex2       <= 1'b0;
-            mask_ex2            <= 1'b1;
             use_reduce_tree_ex2 <= 1'b0;
         end else begin
             valid_int_ex2       <= valid_int_ex1;
             ready_res_ex2       <= ready_res_int_ex1;
-            mask_ex2            <= mask_i & valid_i;
             use_reduce_tree_ex2 <= use_reduce_tree_ex1;
         end
     end
@@ -225,8 +207,10 @@ module vex_pipe #(
     // EX2/EX3 Data Flops
     //-----------------------------------------------
     // Data storage
-    always_ff @(posedge clk) begin
-        if (mask_ex2 || use_reduce_tree_ex2) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            data_ex2 <= '0;
+        end else if (use_reduce_tree_ex2) begin
             if (ready_res_ex2) begin
                 data_ex2 <= data_ex1;
             end else if (valid_int_ex2) begin
@@ -239,12 +223,10 @@ module vex_pipe #(
         if (!rst_n) begin
             valid_int_ex3       <= 1'b0;
             ready_res_ex3       <= 1'b0;
-            mask_ex3            <= 1'b1;
             use_reduce_tree_ex3 <= 1'b0;
         end else begin
             valid_int_ex3       <= valid_int_ex2;
             ready_res_ex3       <= ready_res_ex2 | ready_res_int_ex2;
-            mask_ex3            <= mask_ex2;
             use_reduce_tree_ex3 <= use_reduce_tree_ex2;
         end
     end
@@ -252,27 +234,11 @@ module vex_pipe #(
     // EX3/EX4 Data Flops
     //-----------------------------------------------
     // Data storage
-    always_ff @(posedge clk) begin
-        if (mask_ex3 || use_reduce_tree_ex3) begin
-            if (ready_res_ex3) begin
-                data_ex3 <= data_ex2;
-            end else if (valid_int_ex3) begin
-                data_ex3 <= res_int_ex3;
-            end
-        end
-    end
-    // Control Info storage
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            valid_int_ex4       <= 1'b0;
-            ready_res_ex4       <= 1'b0;
-            mask_ex4            <= 1'b1;
-            use_reduce_tree_ex4 <= 1'b0;
-        end else begin
-            valid_int_ex4       <= valid_int_ex3;
-            ready_res_ex4       <= ready_res_ex3 | ready_res_int_ex3;
-            mask_ex4            <= mask_ex3;
-            use_reduce_tree_ex4 <= use_reduce_tree_ex3;
+            data_ex3 <= '0;
+        end else if (use_reduce_tree_ex3) begin
+            data_ex3 <= temp_rdc_result_ex3;
         end
     end
     //-----------------------------------------------
@@ -283,45 +249,45 @@ module vex_pipe #(
     generate if (VECTOR_LANE_NUM == 0) begin: g_rdc_tmp_rslt
         logic temp_rdc_result_en;
         logic [XLEN-1:0] selected_second_operand;
-        logic [XLEN-1:0] nxt_temp_rdc_result_ex4;
+        logic [XLEN-1:0] nxt_temp_rdc_result_ex3;
         logic [XLEN-1:0] nxt_tmp_rslt;
 
         // select second operand
-        assign selected_second_operand = ready_res_ex4 ? data_ex3 : res_int_ex4;
+        assign selected_second_operand = res_int_ex3;
         // calculate new intermediate result
         always_comb begin
-            case (rdc_op_ex4)
+            case (funct6_i)
                 funct6_vredsum_c : begin
                     // VRADD
-                    nxt_tmp_rslt = temp_rdc_result_ex4 + selected_second_operand;
+                    nxt_tmp_rslt = temp_rdc_result_ex3 + selected_second_operand;
                 end
                 funct6_vredand_c : begin
                     // VRAND
-                    nxt_tmp_rslt = temp_rdc_result_ex4 & selected_second_operand;
+                    nxt_tmp_rslt = temp_rdc_result_ex3 & selected_second_operand;
                 end
                 funct6_vredor_c : begin
                     // VROR
-                    nxt_tmp_rslt = temp_rdc_result_ex4 | selected_second_operand;
+                    nxt_tmp_rslt = temp_rdc_result_ex3 | selected_second_operand;
                 end
                 funct6_vredxor_c : begin
                     // VRXOR
-                    nxt_tmp_rslt = temp_rdc_result_ex4 ^ selected_second_operand;
+                    nxt_tmp_rslt = temp_rdc_result_ex3 ^ selected_second_operand;
                 end
                 funct6_vredminu_c : begin
                     // VRMINU
-                    nxt_tmp_rslt = (temp_rdc_result_ex4 < selected_second_operand) ? temp_rdc_result_ex4 : selected_second_operand;
+                    nxt_tmp_rslt = (temp_rdc_result_ex3 < selected_second_operand) ? temp_rdc_result_ex3 : selected_second_operand;
                 end
                 funct6_vredmin_c : begin
                     // VRMIN
-                    nxt_tmp_rslt = ($signed(temp_rdc_result_ex4) < $signed(selected_second_operand)) ? temp_rdc_result_ex4 : selected_second_operand;
+                    nxt_tmp_rslt = ($signed(temp_rdc_result_ex3) < $signed(selected_second_operand)) ? temp_rdc_result_ex3 : selected_second_operand;
                 end
                 funct6_vredmaxu_c : begin
                     // VRMAXU
-                    nxt_tmp_rslt = (temp_rdc_result_ex4 > selected_second_operand) ? temp_rdc_result_ex4 : selected_second_operand;
+                    nxt_tmp_rslt = (temp_rdc_result_ex3 > selected_second_operand) ? temp_rdc_result_ex3 : selected_second_operand;
                 end
                 funct6_vredmax_c : begin
                     // VRMAX
-                    nxt_tmp_rslt = ($signed(temp_rdc_result_ex4) > $signed(selected_second_operand)) ? temp_rdc_result_ex4 : selected_second_operand;
+                    nxt_tmp_rslt = ($signed(temp_rdc_result_ex3) > $signed(selected_second_operand)) ? temp_rdc_result_ex3 : selected_second_operand;
                 end
                 default : begin
                     nxt_tmp_rslt = '0;
@@ -329,14 +295,16 @@ module vex_pipe #(
             endcase
         end
         // mux data
-        assign nxt_temp_rdc_result_ex4 = (head_uop_ex4_i & ready_res_ex4      ) ? data_ex3    :
-                                         (head_uop_ex4_i & use_reduce_tree_ex4) ? res_int_ex4 : nxt_tmp_rslt;
+        assign nxt_temp_rdc_result_ex3 = (head_uop_ex3_i & ready_res_ex3      ) ? data_ex3    :
+                                         (head_uop_ex3_i & use_reduce_tree_ex3) ? res_int_ex3 : nxt_tmp_rslt;
 
-        assign temp_rdc_result_en = valid_int_ex4 & use_reduce_tree_ex4;
+        assign temp_rdc_result_en = valid_int_ex3 & use_reduce_tree_ex3;
         // store intermediate reduction result
-        always_ff @(posedge clk) begin
-            if (temp_rdc_result_en) begin
-                temp_rdc_result_ex4 <= nxt_temp_rdc_result_ex4;
+        always_ff @(posedge clk or negedge rst_n) begin
+            if (!rst_n) begin
+                temp_rdc_result_ex3 <= '0;
+            end else if (temp_rdc_result_en) begin
+                temp_rdc_result_ex3 <= nxt_temp_rdc_result_ex3;
             end
         end
 
@@ -344,7 +312,7 @@ module vex_pipe #(
             if (!rst_n)
                 use_temp_rdc_result <= 1'b0;
             else
-                use_temp_rdc_result <= use_reduce_tree_ex4 & end_uop_ex4_i;
+                use_temp_rdc_result <= use_reduce_tree_ex3 & end_uop_ex3_i;
         end
     end else begin: g_rdc_tmp_rslt_stubs
         assign use_temp_rdc_result = 1'b0;
@@ -353,19 +321,17 @@ module vex_pipe #(
     // EX4/WR Data Flops
     //-----------------------------------------------
     // Data storage
-    always_ff @(posedge clk) begin
-        if (valid_int_done) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            data_ex4 <= '0;
+        end else if (valid_int_done) begin
             data_ex4 <= res_int_ex1;
         end else if (ready_res_fp_ex4) begin
             data_ex4 <= res_fp_ex4;
         end else if (ready_res_int_ex4) begin
             data_ex4 <= res_int_ex4;
-        end else if (mask_ex4 || use_reduce_tree_ex4) begin
-            if (ready_res_ex4) begin
-                data_ex4 <= data_ex3;
-            end else if (valid_int_ex4) begin
-                data_ex4 <= res_int_ex4;
-            end
+        end else if (use_reduce_tree_ex3) begin
+            data_ex4 <= data_ex3;
         end
     end
     // Control Info storage
@@ -375,60 +341,59 @@ module vex_pipe #(
             mask_wr         <= 1'b1;
         end else begin
             // force writeback to happen on all elements
-            valid_result_wr <= valid_int_ex4 | ready_res_int_ex4 | ready_res_fp_ex4 | valid_int_done;
-            mask_wr         <= mask_ex4 | ready_res_int_ex4 | ready_res_fp_ex4 | valid_int_done;
+            valid_result_wr <= use_temp_rdc_result | ready_res_int_ex4 | ready_res_fp_ex4 | valid_int_done;
+            mask_wr         <= use_temp_rdc_result | ready_res_int_ex4 | ready_res_fp_ex4 | valid_int_done;
         end
     end
     //------------------------------------------------------
     // Writeback Signals
     //------------------------------------------------------
-    assign wr_en_o    = is_rdc_i ? use_temp_rdc_result : valid_result_wr;
-    assign rdc_done_o = use_temp_rdc_result;
+    assign wr_en_o = valid_result_wr;
     
     generate
         if (VECTOR_LANE_NUM == 0) begin : wrb_rdc_nor_output
             always_comb begin
-                if (use_temp_rdc_result) begin
+                if (is_rdc_i) begin
                     // vd[0] = vs1[0] + Σ vs2[i] with each i ∈ active elements, final result
-                    case (rdc_op_ex4)
+                    case (funct6_i)
                         funct6_vredsum_c : begin
                             // VRADD
-                            wr_data_o = temp_rdc_result_ex4 + data_a_i;
+                            wr_data_o = temp_rdc_result_ex3 + data_a_i;
                         end
                         funct6_vredand_c : begin
                             // VRAND
-                            wr_data_o = temp_rdc_result_ex4 & data_a_i;
+                            wr_data_o = temp_rdc_result_ex3 & data_a_i;
                         end
                         funct6_vredor_c : begin
                             // VROR
-                            wr_data_o = temp_rdc_result_ex4 | data_a_i;
+                            wr_data_o = temp_rdc_result_ex3 | data_a_i;
                         end
                         funct6_vredxor_c : begin
                             // VRXOR
-                            wr_data_o = temp_rdc_result_ex4 ^ data_a_i;
+                            wr_data_o = temp_rdc_result_ex3 ^ data_a_i;
                         end
                         funct6_vredminu_c : begin
                             // VRMINU
-                            wr_data_o = ( $unsigned(temp_rdc_result_ex4) < $unsigned(data_a_i) ) ?
-                                         temp_rdc_result_ex4 : data_a_i;
+                            wr_data_o = ( $unsigned(temp_rdc_result_ex3) < $unsigned(data_a_i) ) ?
+                                         temp_rdc_result_ex3 : data_a_i;
                         end
                         funct6_vredmin_c : begin
                             // VRMIN
-                            wr_data_o = ( $signed(temp_rdc_result_ex4) < $signed(data_a_i) ) ?
-                                         temp_rdc_result_ex4 : data_a_i;
+                            wr_data_o = ( $signed(temp_rdc_result_ex3) < $signed(data_a_i) ) ?
+                                         temp_rdc_result_ex3 : data_a_i;
                         end
                         funct6_vredmaxu_c : begin
                             // VRMAXU
-                            wr_data_o = ( $unsigned(temp_rdc_result_ex4) > $unsigned(data_a_i) ) ?
-                                         temp_rdc_result_ex4 : data_a_i;
+                            wr_data_o = ( $unsigned(temp_rdc_result_ex3) > $unsigned(data_a_i) ) ?
+                                         temp_rdc_result_ex3 : data_a_i;
                         end
                         funct6_vredmax_c : begin
                             // VRMAX
-                            wr_data_o = ( $signed(temp_rdc_result_ex4) > $signed(data_a_i) ) ?
-                                         temp_rdc_result_ex4 : data_a_i;
+                            wr_data_o = ( $signed(temp_rdc_result_ex3) > $signed(data_a_i) ) ?
+                                         temp_rdc_result_ex3 : data_a_i;
                         end
                         default : begin
-                            wr_data_o = 'x;
+                            wr_data_o = '0;
                         end
                     endcase
                 end else begin
@@ -448,6 +413,5 @@ module vex_pipe #(
     assign rdc_data_ex1_o = data_b_i & {XLEN{use_reduce_tree_ex1}};
     assign rdc_data_ex2_o = data_ex1 & {XLEN{use_reduce_tree_ex2}};
     assign rdc_data_ex3_o = data_ex2 & {XLEN{use_reduce_tree_ex3}};
-    assign rdc_data_ex4_o = data_ex3 & {XLEN{use_reduce_tree_ex4}};
 
 endmodule

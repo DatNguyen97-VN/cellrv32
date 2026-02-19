@@ -139,7 +139,6 @@ module cellrv32_cpu_cp_vector #(
 	logic exec_valid, exec_ready;
 
 	logic               [            VECTOR_LANES-1:0] wrtbck_en       ;
-	logic               [            VECTOR_LANES-1:0] rdc_done        ;
 	logic               [$clog2(VECTOR_REGISTERS)-1:0] wrtbck_addr     ;
 	logic               [ VECTOR_LANES*DATA_WIDTH-1:0] wrtbck_data     ;
 	logic                                              iss_valid       ;
@@ -290,8 +289,7 @@ module cellrv32_cpu_cp_vector #(
 		//Writeback (from EX)
 		.wr_en           (wrtbck_en       ),
 		.wr_addr         (wrtbck_addr     ),
-		.wr_data         (wrtbck_data     ),
-		.rdc_done        (rdc_done        )
+		.wr_data         (wrtbck_data     )
 	);
 
 	// ================================================
@@ -361,7 +359,6 @@ module cellrv32_cpu_cp_vector #(
 		.wr_en       (wrtbck_en  ),
 		.wr_addr     (wrtbck_addr),
 		.wr_data     (wrtbck_data),
-		.rdc_done_o  (rdc_done   ),
 		//exception flags
 		.fflags_o    (fflags_o   )
 	);

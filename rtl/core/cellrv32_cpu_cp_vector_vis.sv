@@ -37,8 +37,7 @@ module vis #(
     //Writeback
     input  logic          [            VECTOR_LANES-1:0] wr_en          ,
     input  logic          [$clog2(VECTOR_REGISTERS)-1:0] wr_addr        ,
-    input  logic          [ VECTOR_LANES*DATA_WIDTH-1:0] wr_data        ,
-    input  logic          [            VECTOR_LANES-1:0] rdc_done        
+    input  logic          [ VECTOR_LANES*DATA_WIDTH-1:0] wr_data        
 );
 
     localparam int VREG_ADDR_WIDTH = $clog2(VECTOR_REGISTERS);
@@ -75,7 +74,7 @@ module vis #(
 
     // Do reconfiguration
     assign do_reconfigure  = instr_in.reconfigure & exec_finished_o;
-    assign exec_finished_o = instr_is_rdc ? rdc_done[0] : ~|pending;
+    assign exec_finished_o = ~|pending;
 
     //Check if instr expansion finished
     assign total_remaining_elements = instr_in.vl - (current_exp_loop*VECTOR_LANES); // number of unprocessed vector elements
@@ -238,7 +237,7 @@ module vis #(
                     for (int i = 0; i < VECTOR_REGISTERS; i++) begin
                         // active lane for the current µop
                         if (dst_oh[i] && vl_therm[k] && do_issue) begin
-                            pending[i][k] <= 1'b1;
+                            pending[i][k] <= instr_is_rdc ? ~|k[2:0] : 1'b1;
                         end else if ((dst_oh[i] && ~vl_therm[k] && do_issue) || // inactive lane for the current µop
                                      (wr_en[k] && wr_addr_oh[k][i])          || // from execution unit
                                      (mem_wr_en[k] && mem_wr_addr_oh[k][i])  || // from load unit
@@ -250,14 +249,6 @@ module vis #(
             end
         end
     end : StatusPending
-
-    // Mask the writebacks
-    logic [VECTOR_LANES-1:0] wr_en_masked;
-    always_comb begin : WBmask
-        for (int i = 0; i < VECTOR_LANES; i++) begin
-            wr_en_masked[i] = instr_is_rdc ? rdc_done[i] : wr_en[i];
-        end
-    end : WBmask
 
     // Vector Register File
     logic [VECTOR_LANES-1:0]             v_wr_en;
