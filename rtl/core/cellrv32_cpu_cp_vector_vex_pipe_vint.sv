@@ -33,15 +33,12 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     // EX2 Data In
     input  logic [XLEN-1:0] data_ex2_i     ,
     // Result EX2 Out
-    output logic            ready_res_ex2_o,
     output logic [XLEN-1:0] result_ex2_o   ,
     // EX3 Data In
     input  logic [XLEN-1:0] data_ex3_i     ,
     // Result EX3 Ou
     output logic            ready_res_ex3_o,
     output logic [XLEN-1:0] result_ex3_o   ,
-    // EX4 Data In
-    input  logic [XLEN-1:0] data_ex4_i     ,
     // Result EX4 Out
     output logic            ready_res_ex4_o,
     output logic [XLEN-1:0] result_ex4_o
@@ -371,8 +368,11 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     // Divider Core (unsigned) - Iterative -------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* restoring division algorithm */
-    always_ff @( posedge clk ) begin : divider_core_ex1
-        if (valid && mul_div_ready && ctrl_ex1.valid_div) begin // start new division
+    always_ff @( posedge clk or negedge rst_n ) begin : divider_core_ex1
+        if (!rst_n) begin
+            div_ex1.quotient  <= '0;
+            div_ex1.remainder <= '0;
+        end else if (valid && mul_div_ready && ctrl_ex1.valid_div) begin // start new division
             if (data_b_ex1_i[$bits(data_b_ex1_i)-1] & ctrl_ex1.rs1_is_signed) // signed division ?
                div_ex1.quotient <= ~data_b_ex1_i + 1; // make positive
             else
@@ -405,6 +405,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
             ctrl_ex2.state   <= S_IDLE;
             div_ex2.sign_mod <= 1'b0;
             ctrl_ex2.cnt     <= '0;
+            div_ex2.rs2_abs  <= '0;
         end else begin
             /* FSM */
             unique case (ctrl_ex2.state)
@@ -488,8 +489,11 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     // Divider Core (unsigned) - Iterative -------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* restoring division algorithm */
-    always_ff @( posedge clk ) begin : divider_core_ex2
-        if (valid_div_ex1 && ctrl_ex2.valid_div) begin // start new division
+    always_ff @( posedge clk or negedge rst_n ) begin : divider_core_ex2
+        if (!rst_n) begin
+            div_ex2.quotient  <= '0;
+            div_ex2.remainder <= '0;
+        end else if (valid_div_ex1 && ctrl_ex2.valid_div) begin // start new division
             div_ex2.quotient <= div_ex1.quotient;
             div_ex2.remainder <= div_ex1.remainder;
         end else if ((ctrl_ex2.state == S_BUSY) || (ctrl_ex2.state == S_DONE)) begin // running ?
@@ -517,6 +521,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
         if (!rst_n) begin
             ctrl_ex3.state   <= S_IDLE;
             div_ex3.sign_mod <= 1'b0;
+            div_ex3.rs2_abs  <= '0;
             ctrl_ex3.cnt     <= '0;
         end else begin
             /* FSM */
@@ -601,8 +606,11 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     // Divider Core (unsigned) - Iterative -------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* restoring division algorithm */
-    always_ff @( posedge clk ) begin : divider_core_ex3
-        if (valid_div_ex2 && ctrl_ex3.valid_div) begin // start new division
+    always_ff @( posedge clk or negedge rst_n ) begin : divider_core_ex3
+        if (!rst_n) begin
+            div_ex3.quotient  <= '0;
+            div_ex3.remainder <= '0;
+        end else if (valid_div_ex2 && ctrl_ex3.valid_div) begin // start new division
             div_ex3.quotient <= div_ex2.quotient;
             div_ex3.remainder <= div_ex2.remainder;
         end else if ((ctrl_ex3.state == S_BUSY) || (ctrl_ex3.state == S_DONE)) begin // running ?
@@ -631,6 +639,7 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
         if (!rst_n) begin
             ctrl_ex4.state    <= S_IDLE;
             div_ex4.sign_mod  <= 1'b0;
+            div_ex4.rs2_abs   <= '0;
             ctrl_ex4.cnt      <= '0;
             valid_mul_div_ex4 <= 1'b0;
         end else begin
@@ -718,8 +727,11 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     // Divider Core (unsigned) - Iterative -------------------------------------------------------
     // -------------------------------------------------------------------------------------------
     /* restoring division algorithm */
-    always_ff @( posedge clk ) begin : divider_core_ex4
-        if (valid_div_ex3 && ctrl_ex4.valid_div) begin // start new division
+    always_ff @( posedge clk or negedge rst_n ) begin : divider_core_ex4
+        if (!rst_n) begin
+            div_ex4.quotient <= '0;
+            div_ex4.remainder <= '0;
+        end else if (valid_div_ex3 && ctrl_ex4.valid_div) begin // start new division
             div_ex4.quotient <= div_ex3.quotient;
             div_ex4.remainder <= div_ex3.remainder;
         end else if ((ctrl_ex4.state == S_BUSY) || (ctrl_ex4.state == S_DONE)) begin // running ?
@@ -768,9 +780,9 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
     // ===============================================
     // RDC:EX1
     // ===============================================
-    logic [      6:0] vl_ex2, vl_ex3, vl_ex4;
+    logic [      6:0] vl_ex2, vl_ex3;
     logic [ XLEN-1:0] tree_result_ex1, tree_result_ex2;
-    logic [ XLEN-1:0] tree_result_ex3, tree_result_ex4;
+    logic [ XLEN-1:0] tree_result_ex3;
 
     logic active_rdc_ex1, active_rdc_ex2, active_rdc_ex3;
     logic valid_rdc_ex1, valid_rdc_ex2, valid_rdc_ex3;
@@ -983,7 +995,6 @@ module cellrv32_cpu_cp_vector_vex_pipe_vint #(
                              ~mask_i        ? '0             :
                              valid_int_ex1  ? result_int_ex1 : '0;
     // EX2 Out
-    assign ready_res_ex2_o = valid_rdc_ex2;                   //indicate ready result
     assign result_ex2_o    = active_rdc_ex2 ? result_rdc_ex2 : '0;
     // EX3 Out
     assign ready_res_ex3_o = valid_rdc_ex3;   //indicate ready result
