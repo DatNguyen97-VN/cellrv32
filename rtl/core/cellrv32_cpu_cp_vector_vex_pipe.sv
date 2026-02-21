@@ -56,12 +56,10 @@ module vex_pipe #(
     logic            valid_int_ex3  ;
     logic [XLEN-1:0] data_ex1       ;
     logic [XLEN-1:0] data_ex2       ;
-    logic [XLEN-1:0] data_ex3       ;
     logic [XLEN-1:0] data_ex4       ;
     logic [XLEN-1:0] temp_rdc_result_ex3;
     logic            use_temp_rdc_result;
     logic            ready_res_ex2  ;
-    logic            ready_res_ex3  ;
     logic            valid_result_wr;
 
     //Wire Declaration
@@ -69,8 +67,6 @@ module vex_pipe #(
     logic            valid_int_done     ;
     logic            valid_fp_ex1       ;
     logic            ready_res_int_ex1  ;
-    logic            ready_res_int_ex2  ;
-    logic            ready_res_int_ex3  ;
     logic            ready_res_int_ex4  ;
     logic [XLEN-1:0] res_int_ex1        ;
     logic [XLEN-1:0] res_int_ex2        ;
@@ -125,15 +121,12 @@ module vex_pipe #(
         //EX2 In
         .data_ex2_i     (data_ex1         ),
         //Result Ex2 Out
-        .ready_res_ex2_o(ready_res_int_ex2),
         .result_ex2_o   (res_int_ex2      ),
         //EX3 In
         .data_ex3_i     (data_ex2         ),
         //Result Ex3 Out
-        .ready_res_ex3_o(ready_res_int_ex3),
+        .ready_res_ex3_o(                 ),
         .result_ex3_o   (res_int_ex3      ),
-        //EX4 In
-        .data_ex4_i     (data_ex3         ),
         //Result Ex4 Out
         .ready_res_ex4_o(ready_res_int_ex4),
         .result_ex4_o   (res_int_ex4      )
@@ -161,10 +154,6 @@ module vex_pipe #(
             .is_rdc_i       (is_rdc_i        ),
             .ready_o        (vfp32_ready     ),
             .fp32_valid_o   (fp_valid_o      ),
-            //Reduction Tree Inputs
-            .rdc_data_ex1_i (rdc_data_ex1_i  ),
-            .rdc_data_ex2_i (rdc_data_ex2_i  ),
-            .rdc_data_ex3_i (rdc_data_ex3_i  ),
             //Result Ex4 Out
             .ready_res_ex4_o(ready_res_fp_ex4),
             .result_ex4_o   (res_fp_ex4      ),
@@ -177,9 +166,6 @@ module vex_pipe #(
         assign pipe_fflags_o    = '0;
     end endgenerate
    
-    // The Data Flops are shared between the execution
-    // units. The biggest data to be saved dictates
-    // the size of the flop used
     //-----------------------------------------------
     // EX1/EX2 Data Flops
     //-----------------------------------------------
@@ -222,23 +208,10 @@ module vex_pipe #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             valid_int_ex3       <= 1'b0;
-            ready_res_ex3       <= 1'b0;
             use_reduce_tree_ex3 <= 1'b0;
         end else begin
             valid_int_ex3       <= valid_int_ex2;
-            ready_res_ex3       <= ready_res_ex2 | ready_res_int_ex2;
             use_reduce_tree_ex3 <= use_reduce_tree_ex2;
-        end
-    end
-    //-----------------------------------------------
-    // EX3/EX4 Data Flops
-    //-----------------------------------------------
-    // Data storage
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            data_ex3 <= '0;
-        end else if (use_reduce_tree_ex3) begin
-            data_ex3 <= temp_rdc_result_ex3;
         end
     end
     //-----------------------------------------------
@@ -249,7 +222,6 @@ module vex_pipe #(
     generate if (VECTOR_LANE_NUM == 0) begin: g_rdc_tmp_rslt
         logic temp_rdc_result_en;
         logic [XLEN-1:0] selected_second_operand;
-        logic [XLEN-1:0] nxt_temp_rdc_result_ex3;
         logic [XLEN-1:0] nxt_tmp_rslt;
 
         // select second operand
@@ -294,9 +266,6 @@ module vex_pipe #(
                 end
             endcase
         end
-        // mux data
-        assign nxt_temp_rdc_result_ex3 = (head_uop_ex3_i & ready_res_ex3      ) ? data_ex3    :
-                                         (head_uop_ex3_i & use_reduce_tree_ex3) ? res_int_ex3 : nxt_tmp_rslt;
 
         assign temp_rdc_result_en = valid_int_ex3 & use_reduce_tree_ex3;
         // store intermediate reduction result
@@ -304,16 +273,14 @@ module vex_pipe #(
             if (!rst_n) begin
                 temp_rdc_result_ex3 <= '0;
             end else if (temp_rdc_result_en) begin
-                temp_rdc_result_ex3 <= nxt_temp_rdc_result_ex3;
+                temp_rdc_result_ex3 <= nxt_tmp_rslt;
+            end else if (end_uop_ex3_i) begin
+                temp_rdc_result_ex3 <= '0;
             end
         end
 
-        always_ff @(posedge clk or negedge rst_n) begin
-            if (!rst_n)
-                use_temp_rdc_result <= 1'b0;
-            else
-                use_temp_rdc_result <= use_reduce_tree_ex3 & end_uop_ex3_i;
-        end
+        assign use_temp_rdc_result = use_reduce_tree_ex3 & end_uop_ex3_i;
+
     end else begin: g_rdc_tmp_rslt_stubs
         assign use_temp_rdc_result = 1'b0;
     end endgenerate
@@ -330,8 +297,6 @@ module vex_pipe #(
             data_ex4 <= res_fp_ex4;
         end else if (ready_res_int_ex4) begin
             data_ex4 <= res_int_ex4;
-        end else if (use_reduce_tree_ex3) begin
-            data_ex4 <= data_ex3;
         end
     end
     // Control Info storage
@@ -353,7 +318,7 @@ module vex_pipe #(
     generate
         if (VECTOR_LANE_NUM == 0) begin : wrb_rdc_nor_output
             always_comb begin
-                if (is_rdc_i) begin
+                if (is_rdc_i && end_uop_ex3_i) begin
                     // vd[0] = vs1[0] + Σ vs2[i] with each i ∈ active elements, final result
                     case (funct6_i)
                         funct6_vredsum_c : begin

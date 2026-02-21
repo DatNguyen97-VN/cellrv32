@@ -24,10 +24,6 @@ module cellrv32_cpu_cp_vector_vex_pipe_vfp32 #(
     input  logic            is_rdc_i       ,
     output logic            ready_o        ,
     output logic            fp32_valid_o   ,
-    // Reduction Tree Inputs
-    input  logic [XLEN-1:0] rdc_data_ex1_i ,
-    input  logic [XLEN-1:0] rdc_data_ex2_i ,
-    input  logic [XLEN-1:0] rdc_data_ex3_i ,
     // Result EX4 Out
     output logic            ready_res_ex4_o,
     output logic [XLEN-1:0] result_ex4_o,
