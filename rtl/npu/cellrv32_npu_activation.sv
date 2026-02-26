@@ -4,10 +4,10 @@
 // # This component calculates the selected activation function for the input array.                    #
 // # The input is rounded, has some checker logic for ReLU and look-up-tables for the sigmoid function. #
 // # ************************************************************************************************** #
-`ifndef  _INCL_ACTIVATION_DEFINITIONS
-  `define _INCL_ACTIVATION_DEFINITIONS
+`ifndef  _INCL_NPU_DEFINITIONS
+  `define _INCL_NPU_DEFINITIONS
   import cellrv32_npu_package::*;
-`endif // _INCL_ACTIVATION_DEFINITIONS
+`endif // _INCL_NPU_DEFINITIONS
 
 module cellrv32_npu_activation #(
     parameter int MATRIX_WIDTH = 14
