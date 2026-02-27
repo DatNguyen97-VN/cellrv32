@@ -59,12 +59,12 @@ module cellrv32_npu_load_counter #(
         end
         
         // Counter register with separate rstn_i condition
-        if (load_cs) begin
+        if (!rstn_i) begin
             counter_cs <= '0;
-        end else begin
-            if (enable_i) begin
-                counter_cs <= counter_ns;
-            end
+        end else if (load_cs) begin
+            counter_cs <= '0;
+        end else if (enable_i) begin
+            counter_cs <= counter_ns;
         end
     end
 

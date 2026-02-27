@@ -42,7 +42,9 @@ module cellrv32_npu_counter #(
         end
         
         // End value register (independent of rstn_i)
-        if (load_i) begin
+        if (!rstn_i) begin
+            end_reg <= '1;
+        end else if (load_i) begin
             end_reg <= end_val_i;
         end
     end
