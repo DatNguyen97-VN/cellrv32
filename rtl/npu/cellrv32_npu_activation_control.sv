@@ -8,7 +8,7 @@
 // # ************************************************************************************************** #
 `ifndef  _INCL_NPU_DEFINITIONS
   `define _INCL_NPU_DEFINITIONS
-  import tpu_pkg::*;
+  import cellrv32_npu_package::*;
 `endif // _INCL_NPU_DEFINITIONS
 
 module cellrv32_npu_activation_control #(
@@ -177,7 +177,7 @@ module cellrv32_npu_activation_control #(
         address_load    = 1'b0;
         buf_write_en_ns = 1'b0;
         length_load     = 1'b0;
-        length_reset    = 1'b0;
+        length_reset    = 1'b1;
         act_load        = 1'b0;
         act_reset       = 1'b0;
         //
@@ -188,17 +188,14 @@ module cellrv32_npu_activation_control #(
                 buf_write_en_ns = 1'b1;
                 length_load     = 1'b1;
                 act_load        = 1'b1;
-            end else begin
-                length_reset    = 1'b1;
+                length_reset    = 1'b0;
             end
         end else begin
             if (length_event) begin
-                length_reset    = 1'b1;
                 act_reset       = 1'b1;
             end else begin
                 running_ns      = 1'b1;
                 buf_write_en_ns = 1'b1;
-                length_reset    = 1'b1;
             end
         end
     end
