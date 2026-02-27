@@ -44,4 +44,13 @@ package cellrv32_npu_package;
     logic [LENGTH_WIDTH-1:0]         calc_len;
     logic [WEIGHT_ADDRESS_WIDTH-1:0] wei_addr;
   } weight_instruction_t;
+
+  function automatic weight_instruction_t to_weight_instruction(instruction_t instr);
+    weight_instruction_t w;
+    w.opcode   = instr.opcode;
+    w.calc_len = instr.calc_len;
+    w.wei_addr = {instr.buff_addr, instr.acc_addr};
+    return w;
+  endfunction
+
 endpackage
