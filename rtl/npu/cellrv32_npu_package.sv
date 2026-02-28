@@ -1,6 +1,8 @@
 package cellrv32_npu_package;
   // TPU parameters
   localparam int BYTE_WIDTH = 8;
+  typedef logic [2*BYTE_WIDTH-1:0] halfword_t;
+  typedef logic [4*BYTE_WIDTH-1:0] word_t;
 
   // Activation function types
   localparam int ACTIVATION_BIT_WIDTH = 4;
@@ -25,6 +27,7 @@ package cellrv32_npu_package;
   localparam int WEIGHT_ADDRESS_WIDTH      = BUFFER_ADDRESS_WIDTH + ACCUMULATOR_ADDRESS_WIDTH;
   localparam int LENGTH_WIDTH              = 32;
   localparam int OP_CODE_WIDTH             = 8;
+  localparam int INSTRUCTION_WIDTH         = WEIGHT_ADDRESS_WIDTH + LENGTH_WIDTH + OP_CODE_WIDTH;
 
   typedef logic [BUFFER_ADDRESS_WIDTH-1:0]      BUFFER_ADDRESS_TYPE;
   typedef logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] ACCUMULATOR_ADDRESS_TYPE;
@@ -47,10 +50,19 @@ package cellrv32_npu_package;
 
   function automatic weight_instruction_t to_weight_instruction(instruction_t instr);
     weight_instruction_t w;
-    w.opcode   = instr.opcode;
+    w.opcode = instr.opcode;
     w.calc_len = instr.calc_len;
     w.wei_addr = {instr.buff_addr, instr.acc_addr};
     return w;
+  endfunction
+
+  function automatic instruction_t bits_to_instruction(logic [INSTRUCTION_WIDTH-1:0] bits);
+    instruction_t i;
+    i.opcode    = bits[OP_CODE_WIDTH-1:0];
+    i.calc_len  = bits[OP_CODE_WIDTH+LENGTH_WIDTH-1:OP_CODE_WIDTH];
+    i.acc_addr  = bits[OP_CODE_WIDTH+LENGTH_WIDTH+ACCUMULATOR_ADDRESS_WIDTH-1:OP_CODE_WIDTH+LENGTH_WIDTH];
+    i.buff_addr = bits[INSTRUCTION_WIDTH-1: OP_CODE_WIDTH+LENGTH_WIDTH+ACCUMULATOR_ADDRESS_WIDTH];
+    return i;
   endfunction
 
 endpackage
