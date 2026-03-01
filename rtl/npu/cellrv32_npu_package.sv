@@ -1,6 +1,7 @@
 package cellrv32_npu_package;
   // TPU parameters
   localparam int BYTE_WIDTH = 8;
+  localparam int EXTENDED_BYTE_WIDTH = BYTE_WIDTH + 1;
   typedef logic [2*BYTE_WIDTH-1:0] halfword_t;
   typedef logic [4*BYTE_WIDTH-1:0] word_t;
 
