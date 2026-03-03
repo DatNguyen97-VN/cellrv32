@@ -12,15 +12,13 @@
 module cellrv32_npu_activation #(
     parameter int MATRIX_WIDTH = 14
 )(
-    input  logic        clk_i                                 ,
-    input  logic        rstn_i                                ,
-    input  logic        enable_i                              ,
-    
-    input  logic [3:0]  activation_function_i                 ,
-    input  logic        signed_not_unsigned_i                 ,
-    
-    input  logic [31:0] activation_input_i  [0:MATRIX_WIDTH-1], // WORD_TYPE equivalent
-    output logic [7:0]  activation_output_o [0:MATRIX_WIDTH-1]  // BYTE_TYPE equivalent
+    input  logic        clk_i                                   ,
+    input  logic        rstn_i                                  ,
+    input  logic        enable_i                                ,
+    input  logic [3:0]  activation_function_i                   ,
+    input  logic        signed_not_unsigned_i                   ,
+    input  logic [31:0] activation_input_i    [MATRIX_WIDTH-1:0], 
+    output logic [7:0]  activation_output_o   [MATRIX_WIDTH-1:0]  
 );
 
     // Constants for sigmoid lookup tables
@@ -37,14 +35,14 @@ module cellrv32_npu_activation #(
     };
 
     // Internal registers
-    logic [31:0] input_reg [0:MATRIX_WIDTH-1];
-    logic [7:0]  input_pipe0 [0:MATRIX_WIDTH-1];
-    logic [23:0] relu_round_reg [0:MATRIX_WIDTH-1];     // 3*BYTE_WIDTH
-    logic [20:0] sigmoid_round_reg [0:MATRIX_WIDTH-1];
+    logic [31:0] input_reg         [MATRIX_WIDTH-1:0];
+    logic [7:0]  input_pipe0       [MATRIX_WIDTH-1:0];
+    logic [23:0] relu_round_reg    [MATRIX_WIDTH-1:0];
+    logic [20:0] sigmoid_round_reg [MATRIX_WIDTH-1:0];
     
-    logic [7:0] relu_output [0:MATRIX_WIDTH-1];
-    logic [7:0] sigmoid_output [0:MATRIX_WIDTH-1];
-    logic [7:0] output_reg [0:MATRIX_WIDTH-1];
+    logic [7:0] relu_output    [MATRIX_WIDTH-1:0];
+    logic [7:0] sigmoid_output [MATRIX_WIDTH-1:0];
+    logic [7:0] output_reg     [MATRIX_WIDTH-1:0];
     
     logic [3:0] activation_function_reg0;
     logic [3:0] activation_function_reg1;
