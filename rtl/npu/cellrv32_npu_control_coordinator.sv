@@ -42,9 +42,9 @@ module cellrv32_npu_control_coordinator (
     logic instruction_running;
 
     // Continuous assignments
-    assign instruction_ns = inst_i;
+    assign instruction_ns    = inst_i;
     assign instruction_en_ns = inst_en_i;
-    assign busy_o = instruction_running;
+    assign busy_o            = instruction_running;
 
     // instruction decode process
     always_comb begin
@@ -78,9 +78,9 @@ module cellrv32_npu_control_coordinator (
                 end
             end else begin
                 // Other instructions
-                if ((wei_busy_i && en_flags_cs[0]) || // Weight load waits for weight control unit to finish
-                    (matrix_busy_i && (en_flags_cs[1] || en_flags_cs[2])) || // Activation waits for matrix multiply to finish
-                    (activation_busy_i && en_flags_cs[2])) begin // Activation waits
+                if ((wei_busy_i        && en_flags_cs[0]) ||                     // Weight load waits for weight control unit to finish
+                    (matrix_busy_i     && (en_flags_cs[1] || en_flags_cs[2])) || // Activation waits for matrix multiply to finish
+                    (activation_busy_i && en_flags_cs[2])) begin                 // Activation waits
                     instruction_running = 1'b1;
                 end else begin
                     wei_inst_en_o        = en_flags_cs[0];
@@ -92,8 +92,8 @@ module cellrv32_npu_control_coordinator (
     end
 
     // instruction output assignments
-    assign wei_inst_o = to_weight_instruction(instruction_cs);
-    assign matrix_inst_o = instruction_cs;
+    assign wei_inst_o        = to_weight_instruction(instruction_cs);
+    assign matrix_inst_o     = instruction_cs;
     assign activation_inst_o = instruction_cs;
 
     // Sequential logic
