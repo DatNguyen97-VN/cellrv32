@@ -4,7 +4,7 @@
 // # This component includes the control unit for weight loading.                                       #
 // # Weights are read from the weight buffer and get stored sequentially in the matrix multiply unit.   #
 // # If the control unit gets to the end of the preweight registers of the matrix multiply unit,        #
-// #  it restarts loading the next batch of values.                                                     #
+// # it restarts loading the next batch of values.                                                     #
 // # ************************************************************************************************** #
 `ifndef  _INCL_NPU_DEFINITIONS
   `define _INCL_NPU_DEFINITIONS
@@ -17,18 +17,13 @@ module cellrv32_npu_weight_control #(
     input  logic                            clk_i           ,
     input  logic                            rstn_i          ,
     input  logic                            enable_i        ,
-    
     input  weight_instruction_t             instruction_i   , // The weight instruction to be executed
     input  logic                            instruction_en_i, // Enable for instruction
-    
     output logic                            wei_read_en_o   , // Read enable flag for weight buffer
     output logic [WEIGHT_ADDRESS_WIDTH-1:0] wei_buff_addr_o , // Address for weight buffer read
-    
     output logic                            load_wei_o      , // Load weight flag for matrix multiply unit
     output logic [7:0]                      wei_addr_o      , // Address of the weight for matrix multiply unit
-    
     output logic                            wei_signed_o    , // Determines if the weights are signed or unsigned
-    
     output logic                            busy_o          , // If the control unit is busy, a new instruction shouldn't be fed
     output logic                            resource_busy_o   // The resources are in use and the instruction is not fully finished yet
 );
@@ -55,6 +50,7 @@ module cellrv32_npu_weight_control #(
     logic read_pipe0_cs, read_pipe0_ns;
     logic read_pipe1_cs, read_pipe1_ns;
     logic read_pipe2_cs, read_pipe2_ns;
+    logic signed_reset;
     
     logic running_cs, running_ns;
     logic [2:0] running_pipe_cs, running_pipe_ns;
@@ -64,28 +60,28 @@ module cellrv32_npu_weight_control #(
     logic address_load;
     
     // LENGTH_COUNTER instance
-    DSP_COUNTER #(
-        .COUNTER_WIDTH(LENGTH_WIDTH)
+    cellrv32_npu_counter #(
+        .COUNTER_WIDTH (LENGTH_WIDTH          )
     ) length_counter_i (
-        .clk_i        (clk_i                 ),
-        .rstn_i       (length_reset        ),
-        .enable_i     (enable_i              ),
-        .end_val_i    (instruction_i.calc_len),
-        .load_i       (length_load         ),
-        .count_val_o  (                    ),
-        .count_event_o(length_event        )
+        .clk_i         (clk_i                 ),
+        .rstn_i        (length_reset          ),
+        .enable_i      (enable_i              ),
+        .end_val_i     (instruction_i.calc_len),
+        .load_i        (length_load           ),
+        .count_val_o   (                      ),
+        .count_event_o (length_event          )
     );
     
     // ADDRESS_COUNTER instance
-    DSP_LOAD_COUNTER #(
-        .COUNTER_WIDTH(WEIGHT_ADDRESS_WIDTH)
+    cellrv32_npu_load_counter #(
+        .COUNTER_WIDTH  (WEIGHT_ADDRESS_WIDTH  )
     ) address_counter_i (
-        .clk_i      (clk_i                 ),
-        .rstn_i     (rstn_i               ),
-        .enable_i   (enable_i              ),
-        .start_val_i(instruction_i.wei_addr),
-        .load_i     (address_load        ),
-        .count_val_o(buffer_pipe_ns      )
+        .clk_i          (clk_i                 ),
+        .rstn_i         (rstn_i                ),
+        .enable_i       (enable_i              ),
+        .start_val_i    (instruction_i.wei_addr),
+        .load_i         (address_load          ),
+        .count_val_o    (buffer_pipe_ns        )
     );
     
     // Combinational logic
@@ -146,26 +142,28 @@ module cellrv32_npu_weight_control #(
     // Control logic
     always_comb begin
         // Default assignments
-        running_ns = running_cs;
-        address_load = 1'b0;
+        running_ns        = running_cs;
+        address_load      = 1'b0;
         weight_read_en_ns = 1'b0;
-        length_load = 1'b0;
-        length_reset = 1'b0;
+        length_load       = 1'b0;
+        length_reset      = 1'b1;
+        signed_reset      = 1'b0;
         
         if (!running_cs) begin
             if (instruction_en_i) begin
-                running_ns = 1'b1;
-                address_load = 1'b1;
+                running_ns        = 1'b1;
+                address_load      = 1'b1;
                 weight_read_en_ns = 1'b1;
-                length_load = 1'b1;
-                length_reset = 1'b1;
+                length_load       = 1'b1;
+                length_reset      = 1'b0;
             end
         end else begin
             if (length_event) begin
-                running_ns = 1'b0;
+                running_ns        = 1'b0;
                 weight_read_en_ns = 1'b0;
+                signed_reset      = 1'b1;
             end else begin
-                running_ns = 1'b1;
+                running_ns        = 1'b1;
                 weight_read_en_ns = 1'b1;
             end
         end
@@ -175,50 +173,59 @@ module cellrv32_npu_weight_control #(
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
             weight_read_en_cs <= 1'b0;
-            load_weight_cs <= 3'b0;
-            running_cs <= 1'b0;
-            running_pipe_cs <= 3'b0;
-            weight_pipe0_cs <= '0;
-            weight_pipe1_cs <= '0;
-            weight_pipe2_cs <= '0;
-            weight_pipe3_cs <= '0;
-            weight_pipe4_cs <= '0;
-            weight_pipe5_cs <= '0;
-            buffer_pipe_cs <= '0;
-            signed_pipe_cs <= 3'b0;
-            weight_signed_cs <= 1'b0;
-            read_pipe0_cs <= 1'b0;
-            read_pipe1_cs <= 1'b0;
-            read_pipe2_cs <= 1'b0;
+            load_weight_cs    <= 3'b0;
+            running_cs        <= 1'b0;
+            running_pipe_cs   <= 3'b0;
+            weight_pipe0_cs   <= '0;
+            weight_pipe1_cs   <= '0;
+            weight_pipe2_cs   <= '0;
+            weight_pipe3_cs   <= '0;
+            weight_pipe4_cs   <= '0;
+            weight_pipe5_cs   <= '0;
+            buffer_pipe_cs    <= '0;
+            signed_pipe_cs    <= 3'b0;
+            weight_signed_cs  <= 1'b0;
+            read_pipe0_cs     <= 1'b0;
+            read_pipe1_cs     <= 1'b0;
+            read_pipe2_cs     <= 1'b0;
             weight_address_cs <= '0;
         end else begin
             if (enable_i) begin
                 weight_read_en_cs <= weight_read_en_ns;
-                load_weight_cs <= load_weight_ns;
-                running_cs <= running_ns;
-                running_pipe_cs <= running_pipe_ns;
-                weight_pipe0_cs <= weight_pipe0_ns;
-                weight_pipe1_cs <= weight_pipe1_ns;
-                weight_pipe2_cs <= weight_pipe2_ns;
-                weight_pipe3_cs <= weight_pipe3_ns;
-                weight_pipe4_cs <= weight_pipe4_ns;
-                weight_pipe5_cs <= weight_pipe5_ns;
-                buffer_pipe_cs <= buffer_pipe_ns;
-                signed_pipe_cs <= signed_pipe_ns;
+                load_weight_cs    <= load_weight_ns;
+                running_cs        <= running_ns;
+                running_pipe_cs   <= running_pipe_ns;
+                weight_pipe0_cs   <= weight_pipe0_ns;
+                weight_pipe1_cs   <= weight_pipe1_ns;
+                weight_pipe2_cs   <= weight_pipe2_ns;
+                weight_pipe3_cs   <= weight_pipe3_ns;
+                weight_pipe4_cs   <= weight_pipe4_ns;
+                weight_pipe5_cs   <= weight_pipe5_ns;
+                buffer_pipe_cs    <= buffer_pipe_ns;
+                signed_pipe_cs    <= signed_pipe_ns;
+            end
+
+            if (signed_reset) begin
+                read_pipe0_cs <= 1'b0;
+                read_pipe1_cs <= 1'b0;
+                read_pipe2_cs <= 1'b0;
+            end else if (enable_i) begin
                 read_pipe0_cs <= read_pipe0_ns;
                 read_pipe1_cs <= read_pipe1_ns;
                 read_pipe2_cs <= read_pipe2_ns;
             end
             
             // Weight address counter with separate reset condition
-            if (length_reset) begin
+            if (!length_reset) begin
                 weight_address_cs <= '0;
             end else if (enable_i) begin
                 weight_address_cs <= weight_address_ns;
             end
             
             // Weight signed with separate load condition
-            if (length_load && enable_i) begin
+            if (signed_reset) begin
+                weight_signed_cs <= 1'b0;
+            end else if (length_load && enable_i) begin
                 weight_signed_cs <= weight_signed_ns;
             end
         end

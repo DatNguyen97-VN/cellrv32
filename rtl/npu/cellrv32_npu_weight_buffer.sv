@@ -32,10 +32,15 @@ module celrv32_npu_weight_buffer #(
 );
 
     // Pipeline registers for read outputs
-    logic [BYTE_WIDTH-1:0] READ_PORT0_REG0 [MATRIX_WIDTH-1:0];
-    logic [BYTE_WIDTH-1:0] READ_PORT0_REG1 [MATRIX_WIDTH-1:0];
-    logic [BYTE_WIDTH-1:0] READ_PORT1_REG0 [MATRIX_WIDTH-1:0];
-    logic [BYTE_WIDTH-1:0] READ_PORT1_REG1 [MATRIX_WIDTH-1:0];
+    logic [BYTE_WIDTH-1:0] READ_PORT0_REG0_cs [MATRIX_WIDTH-1:0];
+    logic [BYTE_WIDTH-1:0] READ_PORT0_REG0_ns [MATRIX_WIDTH-1:0];
+    logic [BYTE_WIDTH-1:0] READ_PORT0_REG1_cs [MATRIX_WIDTH-1:0];
+    logic [BYTE_WIDTH-1:0] READ_PORT0_REG1_ns [MATRIX_WIDTH-1:0];
+
+    logic [BYTE_WIDTH-1:0] READ_PORT1_REG0_cs [MATRIX_WIDTH-1:0];
+    logic [BYTE_WIDTH-1:0] READ_PORT1_REG0_ns [MATRIX_WIDTH-1:0];
+    logic [BYTE_WIDTH-1:0] READ_PORT1_REG1_cs [MATRIX_WIDTH-1:0];
+    logic [BYTE_WIDTH-1:0] READ_PORT1_REG1_ns [MATRIX_WIDTH-1:0];
 
     // Bit vectors for RAM interface
     logic [MATRIX_WIDTH*BYTE_WIDTH-1:0] WRITE_PORT0_BITS;
@@ -45,7 +50,7 @@ module celrv32_npu_weight_buffer #(
 
     // RAM storage - using block RAM attribute
     (* ram_style = "block" *) 
-    logic [MATRIX_WIDTH*BYTE_WIDTH-1:0] RAM [TILE_WIDTH-1:0];
+    logic [MATRIX_WIDTH*BYTE_WIDTH-1:0] RAM [0:TILE_WIDTH-1];
 
     // Initialize RAM with identity matrix for testing (synthesis will ignore)
     initial begin
@@ -79,9 +84,12 @@ module celrv32_npu_weight_buffer #(
         
         // Unpack read bit vectors into arrays
         for (int i = 0; i < MATRIX_WIDTH; i++) begin
-            READ_PORT0_REG0[i] = READ_PORT0_BITS[i*BYTE_WIDTH +: BYTE_WIDTH];
-            READ_PORT1_REG0[i] = READ_PORT1_BITS[i*BYTE_WIDTH +: BYTE_WIDTH];
+            READ_PORT0_REG0_ns[i] = READ_PORT0_BITS[i*BYTE_WIDTH +: BYTE_WIDTH];
+            READ_PORT1_REG0_ns[i] = READ_PORT1_BITS[i*BYTE_WIDTH +: BYTE_WIDTH];
         end
+        //
+        READ_PORT0_REG1_ns = READ_PORT0_REG0_cs;
+        READ_PORT1_REG1_ns = READ_PORT1_REG0_cs;
     end
 
     // Port 0 - Full word write enable
@@ -114,17 +122,21 @@ module celrv32_npu_weight_buffer #(
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
             for (int i = 0; i < MATRIX_WIDTH; i++) begin
-                READ_PORT0_REG1[i] <= '0;
-                READ_PORT1_REG1[i] <= '0;
+                READ_PORT0_REG0_cs[i] <= '0;
+                READ_PORT1_REG0_cs[i] <= '0;
+                READ_PORT0_REG1_cs[i] <= '0;
+                READ_PORT1_REG1_cs[i] <= '0;
             end
         end else if (enable_i) begin
-            READ_PORT0_REG1 <= READ_PORT0_REG0;
-            READ_PORT1_REG1 <= READ_PORT1_REG0;
+            READ_PORT0_REG0_cs <= READ_PORT0_REG0_ns;
+            READ_PORT0_REG1_cs <= READ_PORT0_REG1_ns;
+            READ_PORT1_REG0_cs <= READ_PORT1_REG0_ns;
+            READ_PORT1_REG1_cs <= READ_PORT1_REG1_ns;
         end
     end
 
     // Output assignments - 2-cycle latency from RAM read
-    assign rd_port0_o = READ_PORT0_REG1;
-    assign rd_port1_o = READ_PORT1_REG1;
+    assign rd_port0_o = READ_PORT0_REG1_cs;
+    assign rd_port1_o = READ_PORT1_REG1_cs;
 
 endmodule
