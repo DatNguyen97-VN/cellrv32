@@ -24,9 +24,6 @@ module cellrv32_npu_acc_counter #(
     logic [COUNTER_WIDTH-1:0] counter_cs, counter_ns;
     logic                     load_reg;
 
-    // Hint for synthesis tool to use DSP block
-    (* use_dsp = "yes" *) logic [COUNTER_WIDTH-1:0] counter_ns_dsp;
-
     // Combinational logic
     assign input_pipe_ns = load_i ? start_val_i : {{(COUNTER_WIDTH-1){1'b0}}, 1'b1};
 
