@@ -18,13 +18,13 @@ module cellrv32_npu_activation_control #(
     input  logic                                 rstn_i           ,
     input  logic                                 enable_i         ,
     input  instruction_t                         inst_i           , // The activation instruction to be executed.
-    input  logic                                 inst_en_i        , // enable_i for instruction.
+    input  logic                                 inst_en_i        , // enable for instruction.
     output logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] acc_act_addr_o   , // Address for the accumulators
     output logic [ACTIVATION_BIT_WIDTH-1:0]      activation_func_o, // The type of activation function to be calculated.
     output logic                                 signed_unsigned_o, // Determines if the input and output is signed or unsigned.
     output logic [BUFFER_ADDRESS_WIDTH-1:0]      act_buff_addr_o  , // Address for the unified buffer.
-    output logic                                 buff_wr_en_o     , // Write enable_i flag for the unified buffer.
-    output logic                                 busy_o           , // If the control unit is busy_o, a new instruction shouldn't be fed.
+    output logic                                 buff_wr_en_o     , // Write enable flag for the unified buffer.
+    output logic                                 busy_o           , // If the control unit is busy, a new instruction shouldn't be fed.
     output logic                                 resource_busy_o    // The resources are in use and the instruction is not fully finished yet.
 );
 
@@ -82,7 +82,7 @@ module cellrv32_npu_activation_control #(
         .COUNTER_WIDTH (LENGTH_WIDTH)
     ) LENGTH_COUNTER_i (
         .clk_i         (clk_i          ),
-        .rstn_i        (rstn_i         ),
+        .rstn_i        (length_reset   ),
         .enable_i      (enable_i       ),
         .end_val_i     (inst_i.calc_len),
         .load_i        (length_load    ),
@@ -138,7 +138,7 @@ module cellrv32_npu_activation_control #(
         running_pipe_ns[0] = running_cs;
         running_pipe_ns[TOTAL_DELAY-1:1] = running_pipe_cs[TOTAL_DELAY-2:0];
         
-        // Buffer write enable_i delay
+        // Buffer write enable delay
         buf_write_en_delay_ns[0]   = buf_write_en_cs;
         buf_write_en_delay_ns[2:1] = buf_write_en_delay_cs[1:0];
         
@@ -219,32 +219,37 @@ module cellrv32_npu_activation_control #(
             s_not_u_delay_cs      <= '0;
             act_to_buf_delay_cs   <= '{default: '0};
             write_en_delay_cs     <= '0;
-        end else if (enable_i) begin
-            buf_write_en_cs       <= buf_write_en_ns;
-            running_cs            <= running_ns;
-            running_pipe_cs       <= running_pipe_ns;
-            acc_to_act_addr_cs    <= acc_to_act_addr_ns;
-            act_to_buf_addr_cs    <= act_to_buf_addr_ns;
-            buf_write_en_delay_cs <= buf_write_en_delay_ns;
-            signed_delay_cs       <= signed_delay_ns;
-            activation_pipe0_cs   <= activation_pipe0_ns;
-            activation_pipe1_cs   <= activation_pipe1_ns;
-            activation_pipe2_cs   <= activation_pipe2_ns;
-            // Delay registers
-            acc_address_delay_cs  <= acc_address_delay_ns;
-            activation_delay_cs   <= activation_delay_ns;
-            s_not_u_delay_cs      <= s_not_u_delay_ns;
-            act_to_buf_delay_cs   <= act_to_buf_delay_ns;
-            write_en_delay_cs     <= write_en_delay_ns;
-        end
-        
-        // Activation function and signed registers with separate rstn_i
-        if (act_reset) begin
+
             activation_function_cs <= '0;
             signed_not_unsigned_cs <= 1'b0;
-        end else if (act_load) begin
-            activation_function_cs <= activation_function_ns;
-            signed_not_unsigned_cs <= signed_not_unsigned_ns;
+        end else begin
+            if (enable_i) begin
+                buf_write_en_cs       <= buf_write_en_ns;
+                running_cs            <= running_ns;
+                running_pipe_cs       <= running_pipe_ns;
+                acc_to_act_addr_cs    <= acc_to_act_addr_ns;
+                act_to_buf_addr_cs    <= act_to_buf_addr_ns;
+                buf_write_en_delay_cs <= buf_write_en_delay_ns;
+                signed_delay_cs       <= signed_delay_ns;
+                activation_pipe0_cs   <= activation_pipe0_ns;
+                activation_pipe1_cs   <= activation_pipe1_ns;
+                activation_pipe2_cs   <= activation_pipe2_ns;
+                // Delay registers
+                acc_address_delay_cs  <= acc_address_delay_ns;
+                activation_delay_cs   <= activation_delay_ns;
+                s_not_u_delay_cs      <= s_not_u_delay_ns;
+                act_to_buf_delay_cs   <= act_to_buf_delay_ns;
+                write_en_delay_cs     <= write_en_delay_ns;
+            end
+        
+            // Activation function and signed registers with separate rstn_i
+            if (act_reset) begin
+                activation_function_cs <= '0;
+                signed_not_unsigned_cs <= 1'b0;
+            end else if (act_load) begin
+                activation_function_cs <= activation_function_ns;
+                signed_not_unsigned_cs <= signed_not_unsigned_ns;
+            end
         end
     end
 
