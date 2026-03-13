@@ -31,7 +31,7 @@ package cellrv32_npu_package;
   localparam int INSTRUCTION_WIDTH         = WEIGHT_ADDRESS_WIDTH + LENGTH_WIDTH + OP_CODE_WIDTH;
 
   typedef logic [BUFFER_ADDRESS_WIDTH-1:0]      BUFFER_ADDRESS_TYPE;
-  typedef logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] ACCUMULATOR_ADDRESS_TYPE;
+  typedef logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] accumulator_address_t;
   typedef logic [WEIGHT_ADDRESS_WIDTH-1:0]      WEIGHT_ADDRESS_TYPE;
   typedef logic [LENGTH_WIDTH-1:0]              LENGTH_TYPE;
   typedef logic [OP_CODE_WIDTH-1:0]             OP_CODE_TYPE;
