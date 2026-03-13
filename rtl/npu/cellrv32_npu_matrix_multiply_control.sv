@@ -10,7 +10,7 @@
 // # **************************************************************************************************************** #
 `ifndef  _INCL_NPU_DEFINITIONS
   `define _INCL_NPU_DEFINITIONS
-  import tpu_pkg::*;
+  import cellrv32_npu_package::*;
 `endif // _INCL_NPU_DEFINITIONS
 
 module cellrv32_npu_matrix_multiply_control #(
@@ -19,20 +19,16 @@ module cellrv32_npu_matrix_multiply_control #(
     input  logic                                 clk_i          ,
     input  logic                                 rstn_i         ,
     input  logic                                 enable_i       ,
-    
     input  instruction_t                         inst_i         , // The matrix multiply instruction to be executed
     input  logic                                 inst_en_i      , // Enable for instruction
-    
     output logic [BUFFER_ADDRESS_WIDTH-1:0]      buff_sds_addr_o, // Address for unified buffer read
     output logic                                 buff_read_en_o , // Read enable flag for unified buffer
     output logic                                 mmu_sds_en_o   , // Enable flag for matrix multiply unit and systolic data setup
     output logic                                 mmu_signed_o   , // Determines if the data is signed or unsigned
     output logic                                 act_wei_o      , // Activate flag for the preweights in the matrix multiply unit
-    
     output logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] acc_addr_o     , // Address of the accumulators
     output logic                                 acc_o          , // Determines if data should be accumulated or overwritten
     output logic                                 acc_en_o       , // Enable flag for accumulators
-    
     output logic                                 busy_o         , // If the control unit is busy, a new instruction shouldn't be fed
     output logic                                 resource_busy_o  // The resources are in use and the instruction is not fully finished yet
 );
@@ -239,6 +235,15 @@ module cellrv32_npu_matrix_multiply_control #(
             signed_pipe_cs           <= '0;
             weight_pipe_cs           <= '0;
             activate_weight_delay_cs <= '0;
+
+            accumulate_cs            <= 1'b0;
+            buf_read_pipe_cs         <= '0;
+            mmu_sds_en_pipe_cs       <= '0;
+            acc_en_pipe_cs           <= '0;
+            accumulate_pipe_cs       <= '0;
+            mmu_signed_cs            <= 1'b0;
+
+            weight_counter_cs        <= '0;
         end else if (enable_i) begin
             buf_read_en_cs           <= buf_read_en_ns;
             mmu_sds_en_cs            <= mmu_sds_en_ns;
@@ -254,33 +259,31 @@ module cellrv32_npu_matrix_multiply_control #(
             signed_pipe_cs           <= signed_pipe_ns;
             weight_pipe_cs           <= weight_pipe_ns;
             activate_weight_delay_cs <= activate_weight_delay_ns;
-        end
-        
-        if (acc_reset) begin
-            accumulate_cs      <= 1'b0;
-            buf_read_pipe_cs   <= '0;
-            mmu_sds_en_pipe_cs <= '0;
-            acc_en_pipe_cs     <= '0;
-            accumulate_pipe_cs <= '0;
-            mmu_signed_cs      <= 1'b0;
-        end else begin
-            if (acc_load) begin
-                accumulate_cs <= accumulate_ns;
-                mmu_signed_cs <= mmu_signed_ns;
-            end
-            
-            if (enable_i) begin
+
+            if (acc_reset) begin
+                accumulate_cs      <= 1'b0;
+                buf_read_pipe_cs   <= '0;
+                mmu_sds_en_pipe_cs <= '0;
+                acc_en_pipe_cs     <= '0;
+                accumulate_pipe_cs <= '0;
+                mmu_signed_cs      <= 1'b0;
+            end else begin
+                if (acc_load) begin
+                    accumulate_cs <= accumulate_ns;
+                    mmu_signed_cs <= mmu_signed_ns;
+                end
+                // Shift the pipeline registers
                 buf_read_pipe_cs   <= buf_read_pipe_ns;
                 mmu_sds_en_pipe_cs <= mmu_sds_en_pipe_ns;
                 acc_en_pipe_cs     <= acc_en_pipe_ns;
                 accumulate_pipe_cs <= accumulate_pipe_ns;
             end
-        end
-        
-        if (weight_reset) begin
-            weight_counter_cs <= '0;
-        end else if (enable_i) begin
-            weight_counter_cs <= weight_counter_ns;
+            
+            if (weight_reset) begin
+                weight_counter_cs <= '0;
+            end else begin
+                weight_counter_cs <= weight_counter_ns;
+            end
         end
     end
 
