@@ -6,16 +6,14 @@
 // # ************************************************************************************************** #
 
 module cellrv32_npu_load_counter #(
-    parameter COUNTER_WIDTH = 32,
-    parameter MATRIX_WIDTH = 14
+    parameter int COUNTER_WIDTH = 32,
+    parameter int MATRIX_WIDTH  = 14
 ) (
     input  logic                     clk_i      ,
     input  logic                     rstn_i     ,
     input  logic                     enable_i   ,
-    
     input  logic [COUNTER_WIDTH-1:0] start_val_i, // The given start value of the counter.
     input  logic                     load_i     , // load_i flag for the start value.
-    
     output logic [COUNTER_WIDTH-1:0] count_val_o  // The current value of the counter.
 );
 
@@ -50,15 +48,13 @@ module cellrv32_npu_load_counter #(
             counter_input_cs <= '0;
             input_pipe_cs    <= '0;
             load_cs          <= '0;
-        end else begin
-            if (enable_i) begin
-                counter_input_cs <= counter_input_ns;
-                input_pipe_cs    <= input_pipe_ns;
-                load_cs          <= load_ns;
-            end
+        end else if (enable_i) begin
+            counter_input_cs <= counter_input_ns;
+            input_pipe_cs    <= input_pipe_ns;
+            load_cs          <= load_ns;
         end
         
-        // Counter register with separate rstn_i condition
+        // Counter register with separate load condition
         if (!rstn_i) begin
             counter_cs <= '0;
         end else if (load_cs) begin
