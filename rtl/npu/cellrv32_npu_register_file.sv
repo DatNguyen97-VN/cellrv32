@@ -17,11 +17,11 @@ module cellrv32_npu_register_file #(
     input  logic                                 rstn_i                      ,
     input  logic                                 enable_i                    ,
     input  logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] wr_addr_i                   ,
-    input  logic [31:0]                          wr_port_i [0:MATRIX_WIDTH-1], // WORD_ARRAY_TYPE
+    input  logic [31:0]                          wr_port_i [MATRIX_WIDTH-1:0],
     input  logic                                 wr_en_i                     ,
     input  logic                                 acc_i                       ,
     input  logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] rd_addr_i                   ,
-    output logic [31:0]                          rd_port_o [0:MATRIX_WIDTH-1]   // WORD_ARRAY_TYPE
+    output logic [31:0]                          rd_port_o [MATRIX_WIDTH-1:0] 
 );
 
     // Memory arrays
@@ -36,40 +36,40 @@ module cellrv32_npu_register_file #(
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] ACC_WRITE_ADDRESS;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] ACC_READ_ADDRESS;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] ACC_ACCU_ADDRESS;
-    logic [31:0]                          ACC_WRITE_PORT [0:MATRIX_WIDTH-1];
-    logic [31:0]                          ACC_READ_PORT [0:MATRIX_WIDTH-1];
-    logic [31:0]                          ACC_ACCUMULATE_PORT [0:MATRIX_WIDTH-1];
+    logic [31:0]                          ACC_WRITE_PORT [MATRIX_WIDTH-1:0];
+    logic [31:0]                          ACC_READ_PORT [MATRIX_WIDTH-1:0];
+    logic [31:0]                          ACC_ACCUMULATE_PORT [MATRIX_WIDTH-1:0];
     
     // DSP signals
-    logic [31:0] DSP_ADD_PORT0_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] DSP_ADD_PORT0_ns [0:MATRIX_WIDTH-1];
-    logic [31:0] DSP_ADD_PORT1_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] DSP_ADD_PORT1_ns [0:MATRIX_WIDTH-1];
+    logic [31:0] DSP_ADD_PORT0_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] DSP_ADD_PORT0_ns [MATRIX_WIDTH-1:0];
+    logic [31:0] DSP_ADD_PORT1_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] DSP_ADD_PORT1_ns [MATRIX_WIDTH-1:0];
     
     (* use_dsp = "yes" *)
-    logic [31:0] DSP_RESULT_PORT_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] DSP_RESULT_PORT_ns [0:MATRIX_WIDTH-1];
+    logic [31:0] DSP_RESULT_PORT_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] DSP_RESULT_PORT_ns [MATRIX_WIDTH-1:0];
     
-    logic [31:0] DSP_PIPE0_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] DSP_PIPE0_ns [0:MATRIX_WIDTH-1];
-    logic [31:0] DSP_PIPE1_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] DSP_PIPE1_ns [0:MATRIX_WIDTH-1];
+    logic [31:0] DSP_PIPE0_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] DSP_PIPE0_ns [MATRIX_WIDTH-1:0];
+    logic [31:0] DSP_PIPE1_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] DSP_PIPE1_ns [MATRIX_WIDTH-1:0];
     
     // Pipeline registers
-    logic [31:0] ACCUMULATE_PORT_PIPE0_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] ACCUMULATE_PORT_PIPE0_ns [0:MATRIX_WIDTH-1];
-    logic [31:0] ACCUMULATE_PORT_PIPE1_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] ACCUMULATE_PORT_PIPE1_ns [0:MATRIX_WIDTH-1];
+    logic [31:0] ACCUMULATE_PORT_PIPE0_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] ACCUMULATE_PORT_PIPE0_ns [MATRIX_WIDTH-1:0];
+    logic [31:0] ACCUMULATE_PORT_PIPE1_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] ACCUMULATE_PORT_PIPE1_ns [MATRIX_WIDTH-1:0];
     
     logic [2:0]  ACCUMULATE_PIPE_cs;
     logic [2:0]  ACCUMULATE_PIPE_ns;
     
-    logic [31:0] WRITE_PORT_PIPE0_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] WRITE_PORT_PIPE0_ns [0:MATRIX_WIDTH-1];
-    logic [31:0] WRITE_PORT_PIPE1_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] WRITE_PORT_PIPE1_ns [0:MATRIX_WIDTH-1];
-    logic [31:0] WRITE_PORT_PIPE2_cs [0:MATRIX_WIDTH-1];
-    logic [31:0] WRITE_PORT_PIPE2_ns [0:MATRIX_WIDTH-1];
+    logic [31:0] WRITE_PORT_PIPE0_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] WRITE_PORT_PIPE0_ns [MATRIX_WIDTH-1:0];
+    logic [31:0] WRITE_PORT_PIPE1_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] WRITE_PORT_PIPE1_ns [MATRIX_WIDTH-1:0];
+    logic [31:0] WRITE_PORT_PIPE2_cs [MATRIX_WIDTH-1:0];
+    logic [31:0] WRITE_PORT_PIPE2_ns [MATRIX_WIDTH-1:0];
     
     logic [5:0]  WRITE_ENABLE_PIPE_cs;
     logic [5:0]  WRITE_ENABLE_PIPE_ns;
@@ -101,7 +101,7 @@ module cellrv32_npu_register_file #(
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE5_ns;
 
     // Helper functions for array conversion (equivalent to VHDL package functions)
-    function automatic logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] word_array_to_bits(input logic [31:0] word_array [0:MATRIX_WIDTH-1]);
+    function automatic logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] word_array_to_bits(input logic [31:0] word_array [MATRIX_WIDTH-1:0]);
         logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] result;
         for (int i = 0; i < MATRIX_WIDTH; i++) begin
             result[i*32 +: 32] = word_array[i];
@@ -109,7 +109,7 @@ module cellrv32_npu_register_file #(
         return result;
     endfunction
     
-    function automatic void bits_to_word_array(input logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] bitvector, output logic [31:0] word_array [0:MATRIX_WIDTH-1]);
+    function automatic void bits_to_word_array(input logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] bitvector, output logic [31:0] word_array [MATRIX_WIDTH-1:0]);
         for (int i = 0; i < MATRIX_WIDTH; i++) begin
             word_array[i] = bitvector[i*32 +: 32];
         end
