@@ -43,6 +43,7 @@ foreach element $signals_string {
         # Add wave with modified_string settings of element signal
         #puts "Executing eval command: add wave $modified_string $new_instance_string"
         eval add wave $modified_string $new_instance_string/*
+        eval add wave $modified_string -divider <NULL>
 
         # Add this instance string to the list of added signals
         lappend added_signals_list $new_instance_string
