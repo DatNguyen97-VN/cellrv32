@@ -88,9 +88,9 @@ module cellrv32_npu_matrix_multiply_unit #(
         for (genvar i = 0; i < MATRIX_WIDTH; i++) begin : MACC_ROW
             for (genvar j = 0; j < MATRIX_WIDTH; j++) begin : MACC_COL
                 // ====================================================== 
-                // Upper left element (i=0, j=0)
+                // First column
                 // ====================================================== 
-                if (i == 0 && j == 0) begin : UPPER_LEFT_ELEMENT
+                if (i == 0) begin : FIRST_ELEMENTS
                     cellrv32_npu_macc #(
                         .LAST_SUM_WIDTH   (1), // Just to avoid zero width, will not be used
                         .PARTIAL_SUM_WIDTH(2*EXTENDED_BYTE_WIDTH)
@@ -107,85 +107,28 @@ module cellrv32_npu_matrix_multiply_unit #(
                     );
                 end
                 // ====================================================== 
-                // First column (i=0, j>0)
+                // Full columns
                 // ====================================================== 
-                else if (i == 0 && j > 0) begin : FIRST_COLUMN
-                    cellrv32_npu_macc #(
-                        .LAST_SUM_WIDTH   (1), // Just to avoid zero width, will not be used
-                        .PARTIAL_SUM_WIDTH(2*EXTENDED_BYTE_WIDTH)
-                    ) macc_inst (
-                        .clk_i     (clk_i                                          ),
-                        .rstn_i    (rstn_i                                         ),
-                        .enable_i  (enable_i                                       ),
-                        .wei_i     (extended_weight_data[j]                        ),
-                        .pre_wei_i (load_weight_map[i]                             ),
-                        .load_wei_i(activate_map[i]                                ),
-                        .in_i      (extended_systolic_data[i]                      ),
-                        .last_sum_i(1'b0                                           ),
-                        .part_sum_o(interim_result[i][j][2*EXTENDED_BYTE_WIDTH-1:0])
-                    );
-                end
-                // ====================================================== 
-                // Left full elements (i>0 && i<=2*(BYTE_WIDTH-1) && j=0)
-                // ====================================================== 
-                else if (i > 0 && i <= 2*(BYTE_WIDTH-1) && j == 0) begin : LEFT_FULL_ELEMENTS
+                else if (i > 0 && i <= 2*(BYTE_WIDTH-1)) begin : FULL_COLUMNS
                     cellrv32_npu_macc #(
                         .LAST_SUM_WIDTH   (2*EXTENDED_BYTE_WIDTH + i - 1),
                         .PARTIAL_SUM_WIDTH(2*EXTENDED_BYTE_WIDTH + i    )
                     ) macc_inst (
-                        .clk_i     (clk_i                                                  ),
-                        .rstn_i    (rstn_i                                                 ),
-                        .enable_i  (enable_i                                               ),
-                        .wei_i     (extended_weight_data[j]                                ),
-                        .pre_wei_i (load_weight_map[i]                                     ),
+                        .clk_i    (clk_i                                                   ),
+                        .rstn_i   (rstn_i                                                  ),
+                        .enable_i (enable_i                                                ),
+                        .wei_i    (extended_weight_data[j]                                 ),
+                        .pre_wei_i(load_weight_map[i]                                      ),
                         .load_wei_i(activate_map[i]                                        ),
                         .in_i      (extended_systolic_data[i]                              ),
                         .last_sum_i(interim_result[i-1][j][2*EXTENDED_BYTE_WIDTH + i - 2:0]),
                         .part_sum_o(interim_result[i][j][2*EXTENDED_BYTE_WIDTH + i - 1:0]  )
-                    );
-                end
-                // ====================================================== 
-                // Full columns (i>0 && i<=2*(BYTE_WIDTH-1) && j>0)
-                // ====================================================== 
-                else if (i > 0 && i <= 2*(BYTE_WIDTH-1) && j > 0) begin : FULL_COLUMNS
-                    cellrv32_npu_macc #(
-                        .LAST_SUM_WIDTH   (2*EXTENDED_BYTE_WIDTH + i - 1),
-                        .PARTIAL_SUM_WIDTH(2*EXTENDED_BYTE_WIDTH + i    )
-                    ) macc_inst (
-                        .clk_i     (clk_i                                                  ),
-                        .rstn_i    (rstn_i                                                 ),
-                        .enable_i  (enable_i                                               ),
-                        .wei_i     (extended_weight_data[j]                                ),
-                        .pre_wei_i (load_weight_map[i]                                     ),
-                        .load_wei_i(activate_map[i]                                        ),
-                        .in_i      (extended_systolic_data[i]                              ),
-                        .last_sum_i(interim_result[i-1][j][2*EXTENDED_BYTE_WIDTH + i - 2:0]),
-                        .part_sum_o(interim_result[i][j][2*EXTENDED_BYTE_WIDTH + i - 1:0]  )
-                    );
-                end
-                // ====================================================== 
-                // Left cut elements (i>2*BYTE_WIDTH && j=0)
-                // ====================================================== 
-                else if (i > 2*BYTE_WIDTH && j == 0) begin : LEFT_CUTTED_ELEMENT
-                    cellrv32_npu_macc #(
-                        .LAST_SUM_WIDTH   (4*BYTE_WIDTH),
-                        .PARTIAL_SUM_WIDTH(4*BYTE_WIDTH)
-                    ) macc_inst (
-                        .clk_i     (clk_i                    ),
-                        .rstn_i    (rstn_i                   ),
-                        .enable_i  (enable_i                 ),
-                        .wei_i     (extended_weight_data[j]  ),
-                        .pre_wei_i (load_weight_map[i]       ),
-                        .load_wei_i(activate_map[i]          ),
-                        .in_i      (extended_systolic_data[i]),
-                        .last_sum_i(interim_result[i-1][j]   ),
-                        .part_sum_o(interim_result[i][j]     )
                     );
                 end
                 // ====================================================== 
                 // Cut columns (i>2*BYTE_WIDTH && j>0)
                 // ====================================================== 
-                else if (i > 2*BYTE_WIDTH && j > 0) begin : CUTTED_COLUMNS
+                else if (i > 2*BYTE_WIDTH) begin : CUTTED_COLUMNS
                     cellrv32_npu_macc #(
                         .LAST_SUM_WIDTH   (4*BYTE_WIDTH),
                         .PARTIAL_SUM_WIDTH(4*BYTE_WIDTH)
