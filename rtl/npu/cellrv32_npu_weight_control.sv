@@ -4,7 +4,7 @@
 // # This component includes the control unit for weight loading.                                       #
 // # Weights are read from the weight buffer and get stored sequentially in the matrix multiply unit.   #
 // # If the control unit gets to the end of the preweight registers of the matrix multiply unit,        #
-// # it restarts loading the next batch of values.                                                     #
+// # it restarts loading the next batch of values.                                                      #
 // # ************************************************************************************************** #
 `ifndef  _INCL_NPU_DEFINITIONS
   `define _INCL_NPU_DEFINITIONS
@@ -88,17 +88,17 @@ module cellrv32_npu_weight_control #(
     assign read_pipe0_ns = weight_read_en_cs;
     assign read_pipe1_ns = read_pipe0_cs;
     assign read_pipe2_ns = read_pipe1_cs;
-    assign wei_read_en_o = (weight_read_en_cs == 1'b0) ? 1'b0 : read_pipe2_cs;
+    assign wei_read_en_o = weight_read_en_cs & read_pipe2_cs;
     
     // Weight buffer read takes 3 clock cycles
-    assign load_weight_ns[0] = (weight_read_en_cs == 1'b0) ? 1'b0 : read_pipe2_cs;
+    assign load_weight_ns[0] = weight_read_en_cs & read_pipe2_cs;
     assign load_weight_ns[2:1] = load_weight_cs[1:0];
     assign load_wei_o = load_weight_cs[2];
     
     assign weight_signed_ns = instruction_i.opcode[0];
     assign signed_pipe_ns[0] = weight_signed_cs;
     assign signed_pipe_ns[2:1] = signed_pipe_cs[1:0];
-    assign wei_signed_o = (load_weight_cs[2] == 1'b0) ? 1'b0 : signed_pipe_cs[2];
+    assign wei_signed_o = load_weight_cs[2] & signed_pipe_cs[2];
     
     assign weight_pipe0_ns = weight_address_cs;
     assign weight_pipe1_ns = weight_pipe0_cs;
