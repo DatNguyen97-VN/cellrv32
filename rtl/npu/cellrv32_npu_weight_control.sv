@@ -33,27 +33,20 @@ module cellrv32_npu_weight_control #(
     
     // Internal signals
     logic weight_read_en_cs, weight_read_en_ns;
-    logic [2:0] load_weight_cs, load_weight_ns;
+    logic [2:0] load_weight;
     logic weight_signed_cs, weight_signed_ns;
-    logic [2:0] signed_pipe_cs, signed_pipe_ns;
+    logic [2:0] signed_pipe;
     
     logic [WEIGHT_COUNTER_WIDTH-1:0] weight_address_cs, weight_address_ns;
-    logic [WEIGHT_COUNTER_WIDTH-1:0] weight_pipe0_cs, weight_pipe0_ns;
-    logic [WEIGHT_COUNTER_WIDTH-1:0] weight_pipe1_cs, weight_pipe1_ns;
-    logic [WEIGHT_COUNTER_WIDTH-1:0] weight_pipe2_cs, weight_pipe2_ns;
-    logic [WEIGHT_COUNTER_WIDTH-1:0] weight_pipe3_cs, weight_pipe3_ns;
-    logic [WEIGHT_COUNTER_WIDTH-1:0] weight_pipe4_cs, weight_pipe4_ns;
-    logic [WEIGHT_COUNTER_WIDTH-1:0] weight_pipe5_cs, weight_pipe5_ns;
+    logic [WEIGHT_COUNTER_WIDTH-1:0] weight_address_pipe [5:0];
     
     logic [WEIGHT_ADDRESS_WIDTH-1:0] buffer_pipe_cs, buffer_pipe_ns;
     
-    logic read_pipe0_cs, read_pipe0_ns;
-    logic read_pipe1_cs, read_pipe1_ns;
-    logic read_pipe2_cs, read_pipe2_ns;
+    logic [2:0] read_pipe;
     logic signed_reset;
     
     logic running_cs, running_ns;
-    logic [2:0] running_pipe_cs, running_pipe_ns;
+    logic [2:0] running_pipe;
     
     // Counter signals
     logic length_reset, length_load, length_event;
@@ -85,30 +78,16 @@ module cellrv32_npu_weight_control #(
     );
     
     // Combinational logic
-    assign read_pipe0_ns = weight_read_en_cs;
-    assign read_pipe1_ns = read_pipe0_cs;
-    assign read_pipe2_ns = read_pipe1_cs;
-    assign wei_read_en_o = weight_read_en_cs & read_pipe2_cs;
+    assign wei_read_en_o = weight_read_en_cs & read_pipe[$bits(read_pipe)-1];
     
     // Weight buffer read takes 3 clock cycles
-    assign load_weight_ns[0] = weight_read_en_cs & read_pipe2_cs;
-    assign load_weight_ns[2:1] = load_weight_cs[1:0];
-    assign load_wei_o = load_weight_cs[2];
+    assign load_wei_o = load_weight[$bits(load_weight)-1];
     
     assign weight_signed_ns = instruction_i.opcode[0];
-    assign signed_pipe_ns[0] = weight_signed_cs;
-    assign signed_pipe_ns[2:1] = signed_pipe_cs[1:0];
-    assign wei_signed_o = load_weight_cs[2] & signed_pipe_cs[2];
-    
-    assign weight_pipe0_ns = weight_address_cs;
-    assign weight_pipe1_ns = weight_pipe0_cs;
-    assign weight_pipe2_ns = weight_pipe1_cs;
-    assign weight_pipe3_ns = weight_pipe2_cs;
-    assign weight_pipe4_ns = weight_pipe3_cs;
-    assign weight_pipe5_ns = weight_pipe4_cs;
+    assign wei_signed_o = load_weight[$bits(load_weight)-1] & signed_pipe[$bits(signed_pipe)-1];
     
     // Weight address output assignment
-    assign wei_addr_o[WEIGHT_COUNTER_WIDTH-1:0] = weight_pipe5_cs;
+    assign wei_addr_o[WEIGHT_COUNTER_WIDTH-1:0] = weight_address_pipe[5];
     generate
         if (BYTE_WIDTH > WEIGHT_COUNTER_WIDTH) begin
             assign wei_addr_o[BYTE_WIDTH-1:WEIGHT_COUNTER_WIDTH] = '0;
@@ -117,18 +96,9 @@ module cellrv32_npu_weight_control #(
     
     assign wei_buff_addr_o = buffer_pipe_cs;
     assign busy_o = running_cs;
-    assign running_pipe_ns[0] = running_cs;
-    assign running_pipe_ns[2:1] = running_pipe_cs[1:0];
     
     // Resource busy logic
-    always_comb begin
-        logic resource_busy_v;
-        resource_busy_v = running_cs;
-        for (int i = 0; i < 3; i++) begin
-            resource_busy_v = resource_busy_v | running_pipe_cs[i];
-        end
-        resource_busy_o = resource_busy_v;
-    end
+    assign resource_busy_o = running_cs | (|running_pipe);
     
     // Weight address counter logic
     always_comb begin
@@ -172,47 +142,41 @@ module cellrv32_npu_weight_control #(
     // Sequential logic
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
-            weight_read_en_cs <= 1'b0;
-            load_weight_cs    <= 3'b0;
-            running_cs        <= 1'b0;
-            running_pipe_cs   <= 3'b0;
-            weight_pipe0_cs   <= '0;
-            weight_pipe1_cs   <= '0;
-            weight_pipe2_cs   <= '0;
-            weight_pipe3_cs   <= '0;
-            weight_pipe4_cs   <= '0;
-            weight_pipe5_cs   <= '0;
-            buffer_pipe_cs    <= '0;
-            signed_pipe_cs    <= 3'b0;
-            weight_signed_cs  <= 1'b0;
-            read_pipe0_cs     <= 1'b0;
-            read_pipe1_cs     <= 1'b0;
-            read_pipe2_cs     <= 1'b0;
-            weight_address_cs <= '0;
+            weight_read_en_cs      <= 1'b0;
+            load_weight            <= '0;
+            running_cs             <= 1'b0;
+            running_pipe           <= '0;
+            weight_address_pipe[0] <= '0;
+            weight_address_pipe[1] <= '0;
+            weight_address_pipe[2] <= '0;
+            weight_address_pipe[3] <= '0;
+            weight_address_pipe[4] <= '0;
+            weight_address_pipe[5] <= '0;
+            buffer_pipe_cs         <= '0;
+            signed_pipe            <= '0;
+            weight_signed_cs       <= '0;
+            read_pipe              <= '0;
+            weight_address_cs      <= '0;
         end else begin
             if (enable_i) begin
-                weight_read_en_cs <= weight_read_en_ns;
-                load_weight_cs    <= load_weight_ns;
-                running_cs        <= running_ns;
-                running_pipe_cs   <= running_pipe_ns;
-                weight_pipe0_cs   <= weight_pipe0_ns;
-                weight_pipe1_cs   <= weight_pipe1_ns;
-                weight_pipe2_cs   <= weight_pipe2_ns;
-                weight_pipe3_cs   <= weight_pipe3_ns;
-                weight_pipe4_cs   <= weight_pipe4_ns;
-                weight_pipe5_cs   <= weight_pipe5_ns;
-                buffer_pipe_cs    <= buffer_pipe_ns;
-                signed_pipe_cs    <= signed_pipe_ns;
+                weight_read_en_cs      <= weight_read_en_ns;
+                load_weight            <= {load_weight[$bits(load_weight)-2:0], wei_read_en_o};
+                running_cs             <= running_ns;
+                running_pipe           <= {running_pipe[$bits(running_pipe)-2:0], running_cs};
+                weight_address_pipe[0] <= weight_address_cs;
+                weight_address_pipe[1] <= weight_address_pipe[0];
+                weight_address_pipe[2] <= weight_address_pipe[1];
+                weight_address_pipe[3] <= weight_address_pipe[2];
+                weight_address_pipe[4] <= weight_address_pipe[3];
+                weight_address_pipe[5] <= weight_address_pipe[4];
+                buffer_pipe_cs         <= buffer_pipe_ns;
+                signed_pipe            <= {signed_pipe[$bits(signed_pipe)-2:0], weight_signed_cs};
             end
 
             if (signed_reset) begin
-                read_pipe0_cs <= 1'b0;
-                read_pipe1_cs <= 1'b0;
-                read_pipe2_cs <= 1'b0;
+                read_pipe <= '0;
             end else if (enable_i) begin
-                read_pipe0_cs <= read_pipe0_ns;
-                read_pipe1_cs <= read_pipe1_ns;
-                read_pipe2_cs <= read_pipe2_ns;
+                read_pipe <= {read_pipe[$bits(read_pipe)-2:0], weight_read_en_cs};
             end
             
             // Weight address counter with separate reset condition
