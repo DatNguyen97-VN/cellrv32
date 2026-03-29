@@ -35,12 +35,10 @@ module celrv32_npu_weight_buffer #(
     logic [BYTE_WIDTH-1:0] READ_PORT0_REG0_cs [MATRIX_WIDTH-1:0];
     logic [BYTE_WIDTH-1:0] READ_PORT0_REG0_ns [MATRIX_WIDTH-1:0];
     logic [BYTE_WIDTH-1:0] READ_PORT0_REG1_cs [MATRIX_WIDTH-1:0];
-    logic [BYTE_WIDTH-1:0] READ_PORT0_REG1_ns [MATRIX_WIDTH-1:0];
 
     logic [BYTE_WIDTH-1:0] READ_PORT1_REG0_cs [MATRIX_WIDTH-1:0];
     logic [BYTE_WIDTH-1:0] READ_PORT1_REG0_ns [MATRIX_WIDTH-1:0];
     logic [BYTE_WIDTH-1:0] READ_PORT1_REG1_cs [MATRIX_WIDTH-1:0];
-    logic [BYTE_WIDTH-1:0] READ_PORT1_REG1_ns [MATRIX_WIDTH-1:0];
 
     // Bit vectors for RAM interface
     logic [MATRIX_WIDTH*BYTE_WIDTH-1:0] WRITE_PORT0_BITS;
@@ -52,6 +50,7 @@ module celrv32_npu_weight_buffer #(
     (* ram_style = "block" *) 
     logic [MATRIX_WIDTH*BYTE_WIDTH-1:0] RAM [0:TILE_WIDTH-1];
 
+`ifndef _QUARTUS_IGNORE_INCLUDES
     // Initialize RAM with identity matrix for testing (synthesis will ignore)
     initial begin
         for (int i = 0; i < TILE_WIDTH; i++) begin
@@ -73,6 +72,7 @@ module celrv32_npu_weight_buffer #(
         RAM[12] = {8'h00, 8'h80, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00};
         RAM[13] = {8'h80, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00};
     end
+`endif // _QUARTUS_IGNORE_INCLUDES
 
     // Convert between array and bit vector formats
     always_comb begin
@@ -87,9 +87,6 @@ module celrv32_npu_weight_buffer #(
             READ_PORT0_REG0_ns[i] = READ_PORT0_BITS[i*BYTE_WIDTH +: BYTE_WIDTH];
             READ_PORT1_REG0_ns[i] = READ_PORT1_BITS[i*BYTE_WIDTH +: BYTE_WIDTH];
         end
-        //
-        READ_PORT0_REG1_ns = READ_PORT0_REG0_cs;
-        READ_PORT1_REG1_ns = READ_PORT1_REG0_cs;
     end
 
     // Port 0 - Full word write enable
@@ -129,9 +126,9 @@ module celrv32_npu_weight_buffer #(
             end
         end else if (enable_i) begin
             READ_PORT0_REG0_cs <= READ_PORT0_REG0_ns;
-            READ_PORT0_REG1_cs <= READ_PORT0_REG1_ns;
+            READ_PORT0_REG1_cs <= READ_PORT0_REG0_cs;
             READ_PORT1_REG0_cs <= READ_PORT1_REG0_ns;
-            READ_PORT1_REG1_cs <= READ_PORT1_REG1_ns;
+            READ_PORT1_REG1_cs <= READ_PORT1_REG0_cs;
         end
     end
 
