@@ -115,6 +115,49 @@ module cellrv32_npu_register_file #(
         end
     endfunction
 
+`ifndef _QUARTUS_IGNORE_INCLUDES
+    // -----------------------------------------
+    // Only For Simulation initialisation
+    // -----------------------------------------
+    initial begin : ACCUMULATORS_INIT
+        // Each row is written byte-by-byte: byte[0] at bits[7:0], etc.
+        // Row 0
+        ACCUMULATORS[00] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[01] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[02] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[03] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[04] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[05] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[06] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[07] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[08] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[09] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[10] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[11] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[12] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS[13] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+    end
+    //
+    initial begin : ACCUMULATORS_COPY_INIT
+        // Each row is written byte-by-byte: byte[0] at bits[7:0], etc.
+        // Row 0
+        ACCUMULATORS_COPY[00] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[01] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[02] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[03] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[04] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[05] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[06] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[07] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[08] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[09] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[10] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[11] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[12] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+        ACCUMULATORS_COPY[13] = {32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1, 32'd1};
+    end
+`endif // _QUARTUS_IGNORE_INCLUDES
+
     // Continuous assignments for pipeline stages
     always_comb begin
         WRITE_PORT_PIPE0_ns = wr_port_i;
@@ -165,7 +208,7 @@ module cellrv32_npu_register_file #(
     
     // Accumulator multiplexer
     always_comb begin
-        if (ACCUMULATE_PIPE_cs[0]) begin
+        if (ACCUMULATE_PIPE_cs[2]) begin
             DSP_ADD_PORT1_ns = ACCUMULATE_PORT_PIPE1_cs;
         end else begin
             for (int i = 0; i < MATRIX_WIDTH; i++) begin
@@ -177,10 +220,12 @@ module cellrv32_npu_register_file #(
     // Memory write port
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
+`ifdef _QUARTUS_IGNORE_INCLUDES
             for (int i = 0; i < REGISTER_DEPTH; i++) begin
                 ACCUMULATORS[i] <= '0;
                 ACCUMULATORS_COPY[i] <= '0;
             end
+`endif // _QUARTUS_IGNORE_INCLUDES
         end else if (enable_i) begin
             if (ACC_WRITE_ADDRESS < REGISTER_DEPTH) begin
                 if (ACC_WRITE_EN) begin

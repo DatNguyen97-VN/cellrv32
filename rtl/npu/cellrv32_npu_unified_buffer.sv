@@ -61,7 +61,7 @@ module cellrv32_npu_unified_buffer #(
     end
 
     // -----------------------------------------------------------------------
-    // Output pipeline registers (two-stage, matching VHDL REG0/REG1)
+    // Output pipeline registers
     // -----------------------------------------------------------------------
     logic [7:0] READ_PORT0_REG0       [MATRIX_WIDTH-1:0];
     logic [7:0] READ_PORT0_REG1       [MATRIX_WIDTH-1:0];
@@ -73,7 +73,7 @@ module cellrv32_npu_unified_buffer #(
 
     always_comb begin
         for (int i = 0; i < MATRIX_WIDTH; i++) begin
-            rd_port0_o      [i] = READ_PORT0_REG1      [i];
+            rd_port0_o[i]   = READ_PORT0_REG1      [i];
             ms_rd_port_o[i] = MASTER_READ_PORT_REG1[i];
         end
     end
@@ -108,17 +108,15 @@ module cellrv32_npu_unified_buffer #(
     // (* ram_style = "block" *) maps to the Xilinx synthesis attribute.
     // -----------------------------------------------------------------------
     (* ram_style = "block" *)
-    logic [DATA_WIDTH-1:0] RAM [TILE_WIDTH-1:0];
+    logic [DATA_WIDTH-1:0] RAM [0:TILE_WIDTH-1];
 
-    // synthesis translate_off
-    // ---- Simulation initialisation (mirrors VHDL --synthesis translate_off block) ----
+`ifndef _QUARTUS_IGNORE_INCLUDES
+    // Only For Simulation initialisation
     initial begin : RAM_INIT
         // Zero-initialise all entries first
-        for (int idx = 0; idx < TILE_WIDTH; idx++)
+        for (int idx = 0; idx < TILE_WIDTH; idx++) begin
             RAM[idx] = '0;
-
-        // Pre-load the first 14 rows with the same descending test pattern
-        // as the VHDL (MATRIX_WIDTH=14 assumed for the init values).
+        end
         // Each row is written byte-by-byte: byte[0] at bits[7:0], etc.
         // Row 0
         RAM[ 0] = {8'h72,8'h73,8'h74,8'h75,8'h76,8'h77,8'h78,8'h79,8'h7A,8'h7B,8'h7C,8'h7D,8'h7E,8'h7F};
@@ -136,10 +134,10 @@ module cellrv32_npu_unified_buffer #(
         RAM[12] = {8'hCA,8'hCB,8'hCC,8'hCD,8'hCE,8'hCF,8'hD0,8'hD1,8'hD2,8'hD3,8'hD4,8'hD5,8'hD6,8'hD7};
         RAM[13] = {8'hBC,8'hBD,8'hBE,8'hBF,8'hC0,8'hC1,8'hC2,8'hC3,8'hC4,8'hC5,8'hC6,8'hC7,8'hC8,8'hC9};
     end
-    // synthesis translate_on
+`endif // _QUARTUS_IGNORE_INCLUDES
 
     // -----------------------------------------------------------------------
-    // PORT 0: master byte-write + read  (maps to VHDL PORT0 process)
+    // PORT 0: master byte-write + read
     // -----------------------------------------------------------------------
     always_ff @(posedge clk_i) begin
         if (EN0_OVERRIDE) begin
@@ -150,10 +148,10 @@ module cellrv32_npu_unified_buffer #(
                 // Per-byte master write
                 for (int i = 0; i < MATRIX_WIDTH; i++) begin
                     if (ms_wr_en_i[i])
-                        RAM[ADDRESS0_OVERRIDE][i*8 +: 8] <= MASTER_WRITE_PORT_BITS[i*8 +: 8];
+                        RAM[ADDRESS0_OVERRIDE][i*8 +: 8] = MASTER_WRITE_PORT_BITS[i*8 +: 8];
                 end
 
-                // Read (captures the (possibly just-written) row)
+                // Read, only for simulation
                 READ_PORT0_BITS <= RAM[ADDRESS0_OVERRIDE];
 
             // synthesis translate_off
@@ -163,7 +161,7 @@ module cellrv32_npu_unified_buffer #(
     end
 
     // -----------------------------------------------------------------------
-    // PORT 1: full-row write + read  (maps to VHDL PORT1 process)
+    // PORT 1: full-row write + read
     // -----------------------------------------------------------------------
     always_ff @(posedge clk_i) begin
         if (EN1_OVERRIDE) begin
@@ -172,8 +170,9 @@ module cellrv32_npu_unified_buffer #(
             // synthesis translate_on
 
                 if (wr_en1_i)
-                    RAM[ADDRESS1_OVERRIDE] <= WRITE_PORT1_BITS;
-
+                    RAM[ADDRESS1_OVERRIDE] = WRITE_PORT1_BITS;
+                
+                // Read, only for simulation
                 MASTER_READ_PORT_BITS <= RAM[ADDRESS1_OVERRIDE];
 
             // synthesis translate_off
