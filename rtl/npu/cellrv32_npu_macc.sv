@@ -44,9 +44,9 @@ module cellrv32_npu_macc #(
 
     // Combinational logic
     always_comb begin
-        input_ns = in_i;
+        input_ns     = in_i;
         preweight_ns = wei_i;
-        weight_ns = preweight_cs;
+        weight_ns    = preweight_cs;
         
         // Multiplication
         pipeline_ns = $signed(input_cs) * $signed(weight_cs);
@@ -70,10 +70,10 @@ module cellrv32_npu_macc #(
     // Sequential logic
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
-            preweight_cs <= '0;
-            weight_cs <= '0;
-            input_cs <= '0;
-            pipeline_cs <= '0;
+            preweight_cs   <= '0;
+            weight_cs      <= '0;
+            input_cs       <= '0;
+            pipeline_cs    <= '0;
             partial_sum_cs <= '0;
         end else begin
             if (pre_wei_i) begin
@@ -85,8 +85,8 @@ module cellrv32_npu_macc #(
             end
             
             if (enable_i) begin
-                input_cs <= input_ns;
-                pipeline_cs <= pipeline_ns;
+                input_cs       <= input_ns;
+                pipeline_cs    <= pipeline_ns;
                 partial_sum_cs <= partial_sum_ns;
             end
         end
