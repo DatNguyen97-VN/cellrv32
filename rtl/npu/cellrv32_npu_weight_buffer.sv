@@ -32,9 +32,7 @@ module celrv32_npu_weight_buffer #(
 );
 
     // Pipeline registers for read outputs
-    logic [BYTE_WIDTH-1:0] READ_PORT0_REG0_cs [MATRIX_WIDTH-1:0];
     logic [BYTE_WIDTH-1:0] READ_PORT0_REG0_ns [MATRIX_WIDTH-1:0];
-    logic [BYTE_WIDTH-1:0] READ_PORT0_REG1_cs [MATRIX_WIDTH-1:0];
 
     logic [BYTE_WIDTH-1:0] READ_PORT1_REG0_cs [MATRIX_WIDTH-1:0];
     logic [BYTE_WIDTH-1:0] READ_PORT1_REG0_ns [MATRIX_WIDTH-1:0];
@@ -119,21 +117,17 @@ module celrv32_npu_weight_buffer #(
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
             for (int i = 0; i < MATRIX_WIDTH; i++) begin
-                READ_PORT0_REG0_cs[i] <= '0;
                 READ_PORT1_REG0_cs[i] <= '0;
-                READ_PORT0_REG1_cs[i] <= '0;
                 READ_PORT1_REG1_cs[i] <= '0;
             end
         end else if (enable_i) begin
-            READ_PORT0_REG0_cs <= READ_PORT0_REG0_ns;
-            READ_PORT0_REG1_cs <= READ_PORT0_REG0_cs;
             READ_PORT1_REG0_cs <= READ_PORT1_REG0_ns;
             READ_PORT1_REG1_cs <= READ_PORT1_REG0_cs;
         end
     end
 
     // Output assignments - 2-cycle latency from RAM read
-    assign rd_port0_o = READ_PORT0_REG1_cs;
+    assign rd_port0_o = READ_PORT0_REG0_ns;
     assign rd_port1_o = READ_PORT1_REG1_cs;
 
 endmodule
