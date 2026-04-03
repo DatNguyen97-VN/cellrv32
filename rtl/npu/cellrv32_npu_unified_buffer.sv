@@ -63,8 +63,6 @@ module cellrv32_npu_unified_buffer #(
     // -----------------------------------------------------------------------
     // Output pipeline registers
     // -----------------------------------------------------------------------
-    logic [7:0] READ_PORT0_REG0       [MATRIX_WIDTH-1:0];
-    logic [7:0] READ_PORT0_REG1       [MATRIX_WIDTH-1:0];
     logic [7:0] MASTER_READ_PORT_REG0 [MATRIX_WIDTH-1:0];
     logic [7:0] MASTER_READ_PORT_REG1 [MATRIX_WIDTH-1:0];
 
@@ -73,7 +71,7 @@ module cellrv32_npu_unified_buffer #(
 
     always_comb begin
         for (int i = 0; i < MATRIX_WIDTH; i++) begin
-            rd_port0_o[i]   = READ_PORT0_REG1      [i];
+            rd_port0_o[i]   = READ_PORT0_BITS      [8*i +: 8];
             ms_rd_port_o[i] = MASTER_READ_PORT_REG1[i];
         end
     end
@@ -102,10 +100,6 @@ module cellrv32_npu_unified_buffer #(
 
     // -----------------------------------------------------------------------
     // RAM declaration
-    // The VHDL uses a 'shared variable' accessed from two clocked processes.
-    // In SystemVerilog, a simple 2-D logic array with two always_ff blocks
-    // replicates the same inferred true dual-port block RAM behaviour.
-    // (* ram_style = "block" *) maps to the Xilinx synthesis attribute.
     // -----------------------------------------------------------------------
     (* ram_style = "block" *)
     logic [DATA_WIDTH-1:0] RAM [0:TILE_WIDTH-1];
@@ -187,19 +181,15 @@ module cellrv32_npu_unified_buffer #(
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
             for (int i = 0; i < MATRIX_WIDTH; i++) begin
-                READ_PORT0_REG0      [i] <= 8'h00;
-                READ_PORT0_REG1      [i] <= 8'h00;
                 MASTER_READ_PORT_REG0[i] <= 8'h00;
                 MASTER_READ_PORT_REG1[i] <= 8'h00;
             end
         end else if (enable_i) begin
             // Stage 0: flat bits → byte array (BITS_TO_BYTE_ARRAY equivalent)
             for (int i = 0; i < MATRIX_WIDTH; i++) begin
-                READ_PORT0_REG0      [i] <= READ_PORT0_BITS      [i*8 +: 8];
                 MASTER_READ_PORT_REG0[i] <= MASTER_READ_PORT_BITS[i*8 +: 8];
             end
             // Stage 1
-            READ_PORT0_REG1       <= READ_PORT0_REG0;
             MASTER_READ_PORT_REG1 <= MASTER_READ_PORT_REG0;
         end
     end
