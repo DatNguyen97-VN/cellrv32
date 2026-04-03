@@ -34,8 +34,7 @@ module cellrv32_npu_matrix_multiply_unit #(
     // For address conversion
     logic load_weight_map [MATRIX_WIDTH-1:0];
     
-    logic [MATRIX_WIDTH-2:0] activate_control_cs, activate_control_ns;
-    logic [MATRIX_WIDTH-1:0] activate_map;
+    logic [MATRIX_WIDTH-2:0] activate_map;
     
     // For sign extension
     logic [8:0] extended_weight_data [MATRIX_WIDTH-1:0];
@@ -45,15 +44,7 @@ module cellrv32_npu_matrix_multiply_unit #(
     logic [2+MATRIX_WIDTH-1:0] sign_control_cs, sign_control_ns;
 
     // Linear shift register logic
-    always_comb begin
-        activate_control_ns[MATRIX_WIDTH-2:1] = activate_control_cs[MATRIX_WIDTH-3:0];
-        activate_control_ns[0] = act_wei_i;
-        
-        sign_control_ns[2+MATRIX_WIDTH-1:1] = sign_control_cs[2+MATRIX_WIDTH-2:0];
-        sign_control_ns[0] = systolic_signed_i;
-        
-        activate_map = {activate_control_cs, act_wei_i};
-    end
+    assign sign_control_ns = {sign_control_cs[2+MATRIX_WIDTH-2:0], systolic_signed_i};
 
     // Address conversion
     always_comb begin
@@ -100,7 +91,7 @@ module cellrv32_npu_matrix_multiply_unit #(
                         .enable_i  (enable_i                                       ),
                         .wei_i     (extended_weight_data[j]                        ),
                         .pre_wei_i (load_weight_map[i]                             ),
-                        .load_wei_i(activate_map[i]                                ),
+                        .load_wei_i(act_wei_i                                      ),
                         .in_i      (extended_systolic_data[i]                      ),
                         .last_sum_i(1'b0                                           ),
                         .part_sum_o(interim_result[i][j][2*EXTENDED_BYTE_WIDTH-1:0])
@@ -114,12 +105,12 @@ module cellrv32_npu_matrix_multiply_unit #(
                         .LAST_SUM_WIDTH   (2*EXTENDED_BYTE_WIDTH + i - 1),
                         .PARTIAL_SUM_WIDTH(2*EXTENDED_BYTE_WIDTH + i    )
                     ) macc_inst (
-                        .clk_i    (clk_i                                                   ),
-                        .rstn_i   (rstn_i                                                  ),
-                        .enable_i (enable_i                                                ),
-                        .wei_i    (extended_weight_data[j]                                 ),
-                        .pre_wei_i(load_weight_map[i]                                      ),
-                        .load_wei_i(activate_map[i]                                        ),
+                        .clk_i     (clk_i                                                  ),
+                        .rstn_i    (rstn_i                                                 ),
+                        .enable_i  (enable_i                                               ),
+                        .wei_i     (extended_weight_data[j]                                ),
+                        .pre_wei_i (load_weight_map[i]                                     ),
+                        .load_wei_i(activate_map[i-1]                                      ),
                         .in_i      (extended_systolic_data[i]                              ),
                         .last_sum_i(interim_result[i-1][j][2*EXTENDED_BYTE_WIDTH + i - 2:0]),
                         .part_sum_o(interim_result[i][j][2*EXTENDED_BYTE_WIDTH + i - 1:0]  )
@@ -138,7 +129,7 @@ module cellrv32_npu_matrix_multiply_unit #(
                         .enable_i  (enable_i                 ),
                         .wei_i     (extended_weight_data[j]  ),
                         .pre_wei_i (load_weight_map[i]       ),
-                        .load_wei_i(activate_map[i]          ),
+                        .load_wei_i(activate_map[i-1]        ),
                         .in_i      (extended_systolic_data[i]),
                         .last_sum_i(interim_result[i-1][j]   ),
                         .part_sum_o(interim_result[i][j]     )
@@ -170,10 +161,10 @@ module cellrv32_npu_matrix_multiply_unit #(
     // Sequential logic
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
-            activate_control_cs <= '0;
+            activate_map    <= '0;
             sign_control_cs <= '0;
         end else begin
-            activate_control_cs <= activate_control_ns;
+            activate_map    <= {activate_map[$bits(activate_map)-2:0], act_wei_i};
             sign_control_cs <= sign_control_ns;
         end
     end
