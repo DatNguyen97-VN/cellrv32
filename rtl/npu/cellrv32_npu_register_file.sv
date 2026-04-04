@@ -41,51 +41,25 @@ module cellrv32_npu_register_file #(
     logic [31:0]                          ACC_ACCUMULATE_PORT [MATRIX_WIDTH-1:0];
     
     // DSP signals
-    logic [31:0] DSP_ADD_PORT0_cs [MATRIX_WIDTH-1:0];
-    logic [31:0] DSP_ADD_PORT0_ns [MATRIX_WIDTH-1:0];
-    logic [31:0] DSP_ADD_PORT1_cs [MATRIX_WIDTH-1:0];
     logic [31:0] DSP_ADD_PORT1_ns [MATRIX_WIDTH-1:0];
     
     (* use_dsp = "yes" *)
     logic [31:0] DSP_RESULT_PORT_cs [MATRIX_WIDTH-1:0];
     logic [31:0] DSP_RESULT_PORT_ns [MATRIX_WIDTH-1:0];
     
-    logic [31:0] DSP_PIPE0_cs [MATRIX_WIDTH-1:0];
-    logic [31:0] DSP_PIPE0_ns [MATRIX_WIDTH-1:0];
-    logic [31:0] DSP_PIPE1_cs [MATRIX_WIDTH-1:0];
-    logic [31:0] DSP_PIPE1_ns [MATRIX_WIDTH-1:0];
-    
     // Pipeline registers
-    logic [31:0] ACCUMULATE_PORT_PIPE0_cs [MATRIX_WIDTH-1:0];
-    logic [31:0] ACCUMULATE_PORT_PIPE0_ns [MATRIX_WIDTH-1:0];
-    logic [31:0] ACCUMULATE_PORT_PIPE1_cs [MATRIX_WIDTH-1:0];
-    logic [31:0] ACCUMULATE_PORT_PIPE1_ns [MATRIX_WIDTH-1:0];
-    
-    logic [2:0]  ACCUMULATE_PIPE_cs;
-    logic [2:0]  ACCUMULATE_PIPE_ns;
+    logic ACCUMULATE_en;
     
     logic [31:0] WRITE_PORT_PIPE0_cs [MATRIX_WIDTH-1:0];
     logic [31:0] WRITE_PORT_PIPE0_ns [MATRIX_WIDTH-1:0];
-    logic [31:0] WRITE_PORT_PIPE1_cs [MATRIX_WIDTH-1:0];
-    logic [31:0] WRITE_PORT_PIPE1_ns [MATRIX_WIDTH-1:0];
-    logic [31:0] WRITE_PORT_PIPE2_cs [MATRIX_WIDTH-1:0];
-    logic [31:0] WRITE_PORT_PIPE2_ns [MATRIX_WIDTH-1:0];
     
-    logic [5:0]  WRITE_ENABLE_PIPE_cs;
-    logic [5:0]  WRITE_ENABLE_PIPE_ns;
+    logic [1:0]  WRITE_ENABLE_PIPE_cs;
+    logic [1:0]  WRITE_ENABLE_PIPE_ns;
     
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE0_cs;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE0_ns;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE1_cs;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE1_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE2_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE2_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE3_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE3_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE4_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE4_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE5_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE5_ns;
     
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE0_cs;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE0_ns;
@@ -117,7 +91,7 @@ module cellrv32_npu_register_file #(
 
 `ifndef _QUARTUS_IGNORE_INCLUDES
     // -----------------------------------------
-    // Only For Simulation initialisation
+    // Only Simulation initialisation
     // -----------------------------------------
     initial begin : ACCUMULATORS_INIT
         // Each row is written byte-by-byte: byte[0] at bits[7:0], etc.
@@ -161,29 +135,16 @@ module cellrv32_npu_register_file #(
     // Continuous assignments for pipeline stages
     always_comb begin
         WRITE_PORT_PIPE0_ns = wr_port_i;
-        WRITE_PORT_PIPE1_ns = WRITE_PORT_PIPE0_cs;
-        WRITE_PORT_PIPE2_ns = WRITE_PORT_PIPE1_cs;
-        
-        DSP_ADD_PORT0_ns = WRITE_PORT_PIPE2_cs;
         
         ACC_WRITE_PORT = DSP_RESULT_PORT_cs;
-        
-        ACCUMULATE_PORT_PIPE0_ns = ACC_ACCUMULATE_PORT;
-        ACCUMULATE_PORT_PIPE1_ns = ACCUMULATE_PORT_PIPE0_cs;
-        
-        ACCUMULATE_PIPE_ns = {ACCUMULATE_PIPE_cs[1:0], acc_i};
-        
+
         ACC_ACCU_ADDRESS = wr_addr_i;
         WRITE_ADDRESS_PIPE0_ns = wr_addr_i;
         WRITE_ADDRESS_PIPE1_ns = WRITE_ADDRESS_PIPE0_cs;
-        WRITE_ADDRESS_PIPE2_ns = WRITE_ADDRESS_PIPE1_cs;
-        WRITE_ADDRESS_PIPE3_ns = WRITE_ADDRESS_PIPE2_cs;
-        WRITE_ADDRESS_PIPE4_ns = WRITE_ADDRESS_PIPE3_cs;
-        WRITE_ADDRESS_PIPE5_ns = WRITE_ADDRESS_PIPE4_cs;
-        ACC_WRITE_ADDRESS = WRITE_ADDRESS_PIPE5_cs;
+        ACC_WRITE_ADDRESS = WRITE_ADDRESS_PIPE1_cs;
         
-        WRITE_ENABLE_PIPE_ns = {WRITE_ENABLE_PIPE_cs[4:0], wr_en_i};
-        ACC_WRITE_EN = WRITE_ENABLE_PIPE_cs[5];
+        WRITE_ENABLE_PIPE_ns = {WRITE_ENABLE_PIPE_cs[0], wr_en_i};
+        ACC_WRITE_EN = WRITE_ENABLE_PIPE_cs[1];
         
         READ_ADDRESS_PIPE0_ns = rd_addr_i;
         READ_ADDRESS_PIPE1_ns = READ_ADDRESS_PIPE0_cs;
@@ -194,22 +155,19 @@ module cellrv32_npu_register_file #(
         ACC_READ_ADDRESS = READ_ADDRESS_PIPE5_cs;
         
         rd_port_o = ACC_READ_PORT;
-        
-        DSP_PIPE0_ns = DSP_ADD_PORT0_cs;
-        DSP_PIPE1_ns = DSP_ADD_PORT1_cs;
     end
     
     // DSP addition
     always_comb begin
         for (int i = 0; i < MATRIX_WIDTH; i++) begin
-            DSP_RESULT_PORT_ns[i] = DSP_PIPE0_cs[i] + DSP_PIPE1_cs[i];
+            DSP_RESULT_PORT_ns[i] = WRITE_PORT_PIPE0_cs[i] + DSP_ADD_PORT1_ns[i];
         end
     end
     
     // Accumulator multiplexer
     always_comb begin
-        if (ACCUMULATE_PIPE_cs[2]) begin
-            DSP_ADD_PORT1_ns = ACCUMULATE_PORT_PIPE1_cs;
+        if (ACCUMULATE_en) begin
+            DSP_ADD_PORT1_ns = ACC_ACCUMULATE_PORT;
         end else begin
             for (int i = 0; i < MATRIX_WIDTH; i++) begin
                 DSP_ADD_PORT1_ns[i] = 32'h0;
@@ -245,8 +203,11 @@ module cellrv32_npu_register_file #(
             end
         end else if (enable_i) begin
             if (ACC_READ_ADDRESS < REGISTER_DEPTH) begin
+                if (acc_i) begin
+                    bits_to_word_array(ACCUMULATORS_COPY[ACC_ACCU_ADDRESS], ACC_ACCUMULATE_PORT);
+                end
+                //
                 bits_to_word_array(ACCUMULATORS[ACC_READ_ADDRESS], ACC_READ_PORT);
-                bits_to_word_array(ACCUMULATORS_COPY[ACC_ACCU_ADDRESS], ACC_ACCUMULATE_PORT);
             end
         end
     end
@@ -256,29 +217,15 @@ module cellrv32_npu_register_file #(
         if (!rstn_i) begin
             // Reset all pipeline registers
             for (int i = 0; i < MATRIX_WIDTH; i++) begin
-                DSP_ADD_PORT0_cs[i] <= 32'h0;
-                DSP_ADD_PORT1_cs[i] <= 32'h0;
                 DSP_RESULT_PORT_cs[i] <= 32'h0;
-                DSP_PIPE0_cs[i] <= 32'h0;
-                DSP_PIPE1_cs[i] <= 32'h0;
-                
-                ACCUMULATE_PORT_PIPE0_cs[i] <= 32'h0;
-                ACCUMULATE_PORT_PIPE1_cs[i] <= 32'h0;
-                
                 WRITE_PORT_PIPE0_cs[i] <= 32'h0;
-                WRITE_PORT_PIPE1_cs[i] <= 32'h0;
-                WRITE_PORT_PIPE2_cs[i] <= 32'h0;
             end
             
-            ACCUMULATE_PIPE_cs <= 3'b0;
+            ACCUMULATE_en <= 1'b0;
             WRITE_ENABLE_PIPE_cs <= 6'b0;
             
             WRITE_ADDRESS_PIPE0_cs <= '0;
             WRITE_ADDRESS_PIPE1_cs <= '0;
-            WRITE_ADDRESS_PIPE2_cs <= '0;
-            WRITE_ADDRESS_PIPE3_cs <= '0;
-            WRITE_ADDRESS_PIPE4_cs <= '0;
-            WRITE_ADDRESS_PIPE5_cs <= '0;
             
             READ_ADDRESS_PIPE0_cs <= '0;
             READ_ADDRESS_PIPE1_cs <= '0;
@@ -288,29 +235,16 @@ module cellrv32_npu_register_file #(
             READ_ADDRESS_PIPE5_cs <= '0;
         end else begin
             if (enable_i) begin
-                DSP_ADD_PORT0_cs <= DSP_ADD_PORT0_ns;
-                DSP_ADD_PORT1_cs <= DSP_ADD_PORT1_ns;
                 DSP_RESULT_PORT_cs <= DSP_RESULT_PORT_ns;
-                DSP_PIPE0_cs <= DSP_PIPE0_ns;
-                DSP_PIPE1_cs <= DSP_PIPE1_ns;
                 
-                ACCUMULATE_PORT_PIPE0_cs <= ACCUMULATE_PORT_PIPE0_ns;
-                ACCUMULATE_PORT_PIPE1_cs <= ACCUMULATE_PORT_PIPE1_ns;
-                
-                ACCUMULATE_PIPE_cs <= ACCUMULATE_PIPE_ns;
+                ACCUMULATE_en <= acc_i;
                 
                 WRITE_PORT_PIPE0_cs <= WRITE_PORT_PIPE0_ns;
-                WRITE_PORT_PIPE1_cs <= WRITE_PORT_PIPE1_ns;
-                WRITE_PORT_PIPE2_cs <= WRITE_PORT_PIPE2_ns;
                 
                 WRITE_ENABLE_PIPE_cs <= WRITE_ENABLE_PIPE_ns;
                 
                 WRITE_ADDRESS_PIPE0_cs <= WRITE_ADDRESS_PIPE0_ns;
                 WRITE_ADDRESS_PIPE1_cs <= WRITE_ADDRESS_PIPE1_ns;
-                WRITE_ADDRESS_PIPE2_cs <= WRITE_ADDRESS_PIPE2_ns;
-                WRITE_ADDRESS_PIPE3_cs <= WRITE_ADDRESS_PIPE3_ns;
-                WRITE_ADDRESS_PIPE4_cs <= WRITE_ADDRESS_PIPE4_ns;
-                WRITE_ADDRESS_PIPE5_cs <= WRITE_ADDRESS_PIPE5_ns;
                 
                 READ_ADDRESS_PIPE0_cs <= READ_ADDRESS_PIPE0_ns;
                 READ_ADDRESS_PIPE1_cs <= READ_ADDRESS_PIPE1_ns;
