@@ -79,7 +79,7 @@ module cellrv32_npu_control_coordinator (
             end else begin
                 // Other instructions
                 if ((wei_busy_i        && en_flags_cs[0]) ||                     // Weight load waits for weight control unit to finish
-                    (matrix_busy_i     && (en_flags_cs[1] || en_flags_cs[2])) || // Activation waits for matrix multiply to finish
+                    (matrix_resource_busy_i && (en_flags_cs[1] || en_flags_cs[2])) || // Activation waits for matrix multiply to finish
                     (activation_busy_i && en_flags_cs[2])) begin                 // Activation waits
                     instruction_running = 1'b1;
                 end else begin
