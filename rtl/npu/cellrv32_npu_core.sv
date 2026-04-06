@@ -239,7 +239,7 @@ module cellrv32_npu_core
         .buff_sds_addr_o (buffer_address0    ),
         .buff_read_en_o  (buffer_en0         ),
         // mac control signals
-        .mmu_sds_en_o    (                   ),
+        .mmu_sds_en_o    (mmu_sds_en         ),
         .mmu_signed_o    (mmu_systolic_signed),
         .act_wei_o       (mmu_activate_weight),
         // register file control signals
