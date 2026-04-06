@@ -60,34 +60,6 @@ module cellrv32_npu_register_file #(
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE0_ns;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE1_cs;
     logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] WRITE_ADDRESS_PIPE1_ns;
-    
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE0_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE0_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE1_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE1_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE2_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE2_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE3_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE3_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE4_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE4_ns;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE5_cs;
-    logic [ACCUMULATOR_ADDRESS_WIDTH-1:0] READ_ADDRESS_PIPE5_ns;
-
-    // Helper functions for array conversion (equivalent to VHDL package functions)
-    function automatic logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] word_array_to_bits(input logic [31:0] word_array [MATRIX_WIDTH-1:0]);
-        logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] result;
-        for (int i = 0; i < MATRIX_WIDTH; i++) begin
-            result[i*32 +: 32] = word_array[i];
-        end
-        return result;
-    endfunction
-    
-    function automatic void bits_to_word_array(input logic [4*BYTE_WIDTH*MATRIX_WIDTH-1:0] bitvector, output logic [31:0] word_array [MATRIX_WIDTH-1:0]);
-        for (int i = 0; i < MATRIX_WIDTH; i++) begin
-            word_array[i] = bitvector[i*32 +: 32];
-        end
-    endfunction
 
 `ifndef _QUARTUS_IGNORE_INCLUDES
     // -----------------------------------------
@@ -146,13 +118,7 @@ module cellrv32_npu_register_file #(
         WRITE_ENABLE_PIPE_ns = {WRITE_ENABLE_PIPE_cs[0], wr_en_i};
         ACC_WRITE_EN = WRITE_ENABLE_PIPE_cs[1];
         
-        READ_ADDRESS_PIPE0_ns = rd_addr_i;
-        READ_ADDRESS_PIPE1_ns = READ_ADDRESS_PIPE0_cs;
-        READ_ADDRESS_PIPE2_ns = READ_ADDRESS_PIPE1_cs;
-        READ_ADDRESS_PIPE3_ns = READ_ADDRESS_PIPE2_cs;
-        READ_ADDRESS_PIPE4_ns = READ_ADDRESS_PIPE3_cs;
-        READ_ADDRESS_PIPE5_ns = READ_ADDRESS_PIPE4_cs;
-        ACC_READ_ADDRESS = READ_ADDRESS_PIPE5_cs;
+        ACC_READ_ADDRESS = rd_addr_i;
         
         rd_port_o = ACC_READ_PORT;
     end
@@ -187,8 +153,10 @@ module cellrv32_npu_register_file #(
         end else if (enable_i) begin
             if (ACC_WRITE_ADDRESS < REGISTER_DEPTH) begin
                 if (ACC_WRITE_EN) begin
-                    ACCUMULATORS[ACC_WRITE_ADDRESS] <= word_array_to_bits(ACC_WRITE_PORT);
-                    ACCUMULATORS_COPY[ACC_WRITE_ADDRESS] <= word_array_to_bits(ACC_WRITE_PORT);
+                    for (int i = 0; i < MATRIX_WIDTH; i++) begin
+                        ACCUMULATORS     [ACC_WRITE_ADDRESS][i*32 +: 32] <= ACC_WRITE_PORT[i];
+                        ACCUMULATORS_COPY[ACC_WRITE_ADDRESS][i*32 +: 32] <= ACC_WRITE_PORT[i];
+                    end
                 end
             end
         end
@@ -204,10 +172,14 @@ module cellrv32_npu_register_file #(
         end else if (enable_i) begin
             if (ACC_READ_ADDRESS < REGISTER_DEPTH) begin
                 if (acc_i) begin
-                    bits_to_word_array(ACCUMULATORS_COPY[ACC_ACCU_ADDRESS], ACC_ACCUMULATE_PORT);
+                    for (int i = 0; i < MATRIX_WIDTH; i++) begin
+                        ACC_ACCUMULATE_PORT[i] <= ACCUMULATORS_COPY[ACC_ACCU_ADDRESS][i*32 +: 32];
+                    end
                 end
                 //
-                bits_to_word_array(ACCUMULATORS[ACC_READ_ADDRESS], ACC_READ_PORT);
+                for (int i = 0; i < MATRIX_WIDTH; i++) begin
+                    ACC_READ_PORT[i] <= ACCUMULATORS[ACC_READ_ADDRESS][i*32 +: 32];
+                end
             end
         end
     end
@@ -226,13 +198,6 @@ module cellrv32_npu_register_file #(
             
             WRITE_ADDRESS_PIPE0_cs <= '0;
             WRITE_ADDRESS_PIPE1_cs <= '0;
-            
-            READ_ADDRESS_PIPE0_cs <= '0;
-            READ_ADDRESS_PIPE1_cs <= '0;
-            READ_ADDRESS_PIPE2_cs <= '0;
-            READ_ADDRESS_PIPE3_cs <= '0;
-            READ_ADDRESS_PIPE4_cs <= '0;
-            READ_ADDRESS_PIPE5_cs <= '0;
         end else begin
             if (enable_i) begin
                 DSP_RESULT_PORT_cs <= DSP_RESULT_PORT_ns;
@@ -245,13 +210,6 @@ module cellrv32_npu_register_file #(
                 
                 WRITE_ADDRESS_PIPE0_cs <= WRITE_ADDRESS_PIPE0_ns;
                 WRITE_ADDRESS_PIPE1_cs <= WRITE_ADDRESS_PIPE1_ns;
-                
-                READ_ADDRESS_PIPE0_cs <= READ_ADDRESS_PIPE0_ns;
-                READ_ADDRESS_PIPE1_cs <= READ_ADDRESS_PIPE1_ns;
-                READ_ADDRESS_PIPE2_cs <= READ_ADDRESS_PIPE2_ns;
-                READ_ADDRESS_PIPE3_cs <= READ_ADDRESS_PIPE3_ns;
-                READ_ADDRESS_PIPE4_cs <= READ_ADDRESS_PIPE4_ns;
-                READ_ADDRESS_PIPE5_cs <= READ_ADDRESS_PIPE5_ns;
             end
         end
     end
