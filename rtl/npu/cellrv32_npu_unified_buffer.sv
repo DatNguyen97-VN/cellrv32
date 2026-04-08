@@ -60,19 +60,13 @@ module cellrv32_npu_unified_buffer #(
         end
     end
 
-    // -----------------------------------------------------------------------
-    // Output pipeline registers
-    // -----------------------------------------------------------------------
-    logic [7:0] MASTER_READ_PORT_REG0 [MATRIX_WIDTH-1:0];
-    logic [7:0] MASTER_READ_PORT_REG1 [MATRIX_WIDTH-1:0];
-
-    // BITS_TO_BYTE_ARRAY for the combinational _ns wires is folded into the
-    // SEQ_LOG process below (read from RAM → REG0 → REG1 → output).
+    // bits to byte array for the combinational wires is folded into the
+    // process below (read from RAM → output).
 
     always_comb begin
         for (int i = 0; i < MATRIX_WIDTH; i++) begin
-            rd_port0_o[i]   = READ_PORT0_BITS      [8*i +: 8];
-            ms_rd_port_o[i] = MASTER_READ_PORT_REG1[i];
+            rd_port0_o  [i] = READ_PORT0_BITS      [8*i +: 8];
+            ms_rd_port_o[i] = MASTER_READ_PORT_BITS[8*i +: 8];
         end
     end
 
@@ -174,24 +168,4 @@ module cellrv32_npu_unified_buffer #(
             // synthesis translate_on
         end
     end
-
-    // -----------------------------------------------------------------------
-    // SEQ_LOG: pipeline the read data through two register stages
-    // -----------------------------------------------------------------------
-    always_ff @(posedge clk_i or negedge rstn_i) begin
-        if (!rstn_i) begin
-            for (int i = 0; i < MATRIX_WIDTH; i++) begin
-                MASTER_READ_PORT_REG0[i] <= 8'h00;
-                MASTER_READ_PORT_REG1[i] <= 8'h00;
-            end
-        end else if (enable_i) begin
-            // Stage 0: flat bits → byte array (BITS_TO_BYTE_ARRAY equivalent)
-            for (int i = 0; i < MATRIX_WIDTH; i++) begin
-                MASTER_READ_PORT_REG0[i] <= MASTER_READ_PORT_BITS[i*8 +: 8];
-            end
-            // Stage 1
-            MASTER_READ_PORT_REG1 <= MASTER_READ_PORT_REG0;
-        end
-    end
-
 endmodule
