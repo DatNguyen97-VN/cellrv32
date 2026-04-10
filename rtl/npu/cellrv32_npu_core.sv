@@ -8,310 +8,437 @@
 
 module cellrv32_npu_core
 #(
-    parameter int MATRIX_WIDTH         = 14   , // The width of the Matrix Multiply Unit and busses.
-    parameter int WEIGHT_BUFFER_DEPTH  = 32768, // The depth of the weight buffer.
-    parameter int UNIFIED_BUFFER_DEPTH = 4096   // The depth of the unified buffer.
+    parameter int MATRIX_WIDTH         = 14   , // The width (number of rows/columns) of the Matrix Multiply Unit and its data busses; determines parallelism of systolic array.
+    parameter int WEIGHT_BUFFER_DEPTH  = 32768, // Number of addressable rows in the weight buffer (SRAM depth); sets maximum number of storable weight tiles.
+    parameter int UNIFIED_BUFFER_DEPTH = 4096   // Number of addressable rows in the unified buffer (SRAM depth); holds input activations and accumulator output data.
 )(
-    input  logic                            clk_i                           ,
-    input  logic                            rstn_i                          ,
-    input  logic                            enable_i                        ,
-    // Host weight buffer ports
-    input  logic [BYTE_WIDTH-1:0]           wei_wr_port_i [MATRIX_WIDTH-1:0],
-    input  logic [WEIGHT_ADDRESS_WIDTH-1:0] wei_addr_i                      ,
-    input  logic                            wei_en_i                        ,
-    input  logic [MATRIX_WIDTH-1:0]         wei_wr_en_i                     ,
-    // Host unified buffer ports
-    input  logic [BYTE_WIDTH-1:0]           buf_wr_port_i [MATRIX_WIDTH-1:0],
-    output logic [BYTE_WIDTH-1:0]           buf_rd_port_o [MATRIX_WIDTH-1:0],
-    input  logic [BUFFER_ADDRESS_WIDTH-1:0] buf_addr_i                      ,
-    input  logic                            buf_en_i                        ,
-    input  logic [MATRIX_WIDTH-1:0]         buf_wr_en_i                     ,
+    // -------------------------------------------------------------------------
+    // Global signals
+    // -------------------------------------------------------------------------
+    input  logic                            clk_i,                            // System clock, rising-edge triggered.
+    input  logic                            rstn_i,                           // Asynchronous active-low reset; clears all internal state when asserted.
+    input  logic                            enable_i,                         // Global module enable; when de-asserted the core gates its internal operations.
+    // -------------------------------------------------------------------------
+    // Host → Weight Buffer write interface
+    // -------------------------------------------------------------------------
+    input  logic [BYTE_WIDTH-1:0]           wei_wr_port_i [MATRIX_WIDTH-1:0], // Per-column write data bus to the weight buffer; each element is one byte wide.
+    input  logic [WEIGHT_ADDRESS_WIDTH-1:0] wei_addr_i,                       // Row address into the weight buffer for the host-side write access.
+    input  logic                            wei_en_i,                         // Chip-enable for the host weight-buffer port; qualifies addr and write-enable signals.
+    input  logic [MATRIX_WIDTH-1:0]         wei_wr_en_i,                      // Per-column byte write-enable bitmask; allows partial row writes to the weight buffer.
+    // -------------------------------------------------------------------------
+    // Host ↔ Unified Buffer read/write interface
+    // -------------------------------------------------------------------------
+    input  logic [BYTE_WIDTH-1:0]           buf_wr_port_i [MATRIX_WIDTH-1:0], // Per-column write data bus for the host-side unified buffer port.
+    output logic [BYTE_WIDTH-1:0]           buf_rd_port_o [MATRIX_WIDTH-1:0], // Per-column read data bus returning unified-buffer contents to the host.
+    input  logic [BUFFER_ADDRESS_WIDTH-1:0] buf_addr_i,                       // Row address into the unified buffer for the host-side access (read or write).
+    input  logic                            buf_en_i,                         // Chip-enable for the host unified-buffer port; acts as master override over internal ports.
+    input  logic [MATRIX_WIDTH-1:0]         buf_wr_en_i,                      // Per-column byte write-enable bitmask for the host unified-buffer write access.
+    // -------------------------------------------------------------------------
     // Instruction interface
-    input  instruction_t                    inst_port_i                     ,
-    input  logic                            inst_en_i                       ,
-    // Status
-    output logic                            busy_o                          ,
-    output logic                            sync_o
+    // -------------------------------------------------------------------------
+    input  instruction_t                    inst_port_i,                      // Packed instruction word pushed into the instruction FIFO by the host.
+    input  logic                            inst_en_i,                        // Write-enable strobe for the instruction FIFO; one instruction is enqueued per high cycle.
+    // -------------------------------------------------------------------------
+    // Status outputs
+    // -------------------------------------------------------------------------
+    output logic                            busy_o,                           // High while the core has instructions pending or any sub-unit is still executing.
+    output logic                            sync_o                            // Synchronisation pulse generated by the control coordinator when a SYNC instruction retires.
 );
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Internal signals
-    // -------------------------------------------------------------------------
-    // Weight buffer internal port 0
-    logic [WEIGHT_ADDRESS_WIDTH-1:0] weight_address0;
-    logic                            weight_en0;
-    logic [BYTE_WIDTH-1:0]           weight_read_port0 [MATRIX_WIDTH-1:0];
-    // Unified buffer internal port 0 (read by SDS)
-    logic [BUFFER_ADDRESS_WIDTH-1:0] buffer_address0;
-    logic                            buffer_en0;
-    logic [BYTE_WIDTH-1:0]           buffer_read_port0 [MATRIX_WIDTH-1:0];
-    // Unified buffer internal port 1 (write from activation)
-    logic [BUFFER_ADDRESS_WIDTH-1:0] buffer_address1;
-    logic                            buffer_write_en1;
-    logic [BYTE_WIDTH-1:0]           buffer_write_port1 [MATRIX_WIDTH-1:0];
-    // Systolic Data Setup output
-    logic [BYTE_WIDTH-1:0]           sds_systolic_output [MATRIX_WIDTH-1:0];
-    // MMU control signals
-    logic                            mmu_weight_signed;
-    logic                            mmu_systolic_signed;
-    logic                            mmu_activate_weight;
-    logic                            mmu_load_weight;
-    logic [BYTE_WIDTH-1:0]           mmu_weight_address;
-    logic [31:0]                     mmu_result_data [MATRIX_WIDTH-1:0];
-    // Register file signals
-    accumulator_address_t            reg_write_address;
-    logic                            reg_write_en;
-    logic                            reg_accumulate;
-    accumulator_address_t            reg_read_address;
-    logic [31:0]                     reg_read_port [MATRIX_WIDTH-1:0];
-    // Activation signals
-    logic [3:0]                      activation_function;
-    logic                            activation_signed;
-    // Control signals
-    weight_instruction_t             weight_instruction;
-    logic                            weight_instruction_en;
-    logic                            weight_resource_busy;
-    logic                            weight_busy;
-
-    instruction_t                    mmu_instruction;
-    logic                            mmu_instruction_en;
-    logic                            mmu_sds_en;
-    logic                            mmu_resource_busy;
-    logic                            matrix_busy;
-
-    instruction_t                    activation_instruction;
-    logic                            activation_instruction_en;
-    logic                            activation_resource_busy;
-    logic                            activation_busy;
-
-    logic                            instruction_busy;
-    instruction_t                    instruction_output;
-    logic                            instruction_read;
+    // =========================================================================
 
     // -------------------------------------------------------------------------
+    // Weight buffer – internal read port (port 0, driven by weight control)
+    // -------------------------------------------------------------------------
+    logic [WEIGHT_ADDRESS_WIDTH-1:0] weight_address0;                         // Row address issued by the weight control FSM to read a weight tile from the buffer.
+    logic                            weight_en0;                              // Read-enable from the weight control FSM; gates the weight-buffer port-0 access.
+    logic [BYTE_WIDTH-1:0]           weight_read_port0 [MATRIX_WIDTH-1:0];    // Weight tile data read from port 0; one byte per systolic column, fed to the MMU.
+
+    // -------------------------------------------------------------------------
+    // Unified buffer – internal read port (port 0, read by Systolic Data Setup)
+    // -------------------------------------------------------------------------
+    logic [BUFFER_ADDRESS_WIDTH-1:0] buffer_address0;                         // Row address issued by the matrix-multiply control to fetch activation data for the SDS.
+    logic                            buffer_en0;                              // Read-enable from the matrix-multiply control; gates unified-buffer port-0 access.
+    logic [BYTE_WIDTH-1:0]           buffer_read_port0 [MATRIX_WIDTH-1:0];   // Activation row read from unified-buffer port 0; forwarded to the Systolic Data Setup unit.
+
+    // -------------------------------------------------------------------------
+    // Unified buffer – internal write port (port 1, written by activation unit)
+    // -------------------------------------------------------------------------
+    logic [BUFFER_ADDRESS_WIDTH-1:0] buffer_address1;                         // Row address issued by the activation control; selects where post-activation results are stored.
+    logic                            buffer_write_en1;                        // Write-enable from the activation control; strobes unified-buffer port-1 to commit results.
+    logic [BYTE_WIDTH-1:0]           buffer_write_port1 [MATRIX_WIDTH-1:0];  // Post-activation result row to be written into the unified buffer via port 1.
+
+    // -------------------------------------------------------------------------
+    // Systolic Data Setup (SDS) output
+    // -------------------------------------------------------------------------
+    logic [BYTE_WIDTH-1:0]           sds_systolic_output [MATRIX_WIDTH-1:0]; // Skewed activation data produced by the SDS; each column is delayed one extra cycle
+                                                                              // relative to its neighbour to feed the systolic array in diagonal wavefront order.
+
+    // -------------------------------------------------------------------------
+    // Matrix Multiply Unit (MMU) control and result signals
+    // -------------------------------------------------------------------------
+    logic                            mmu_weight_signed;                       // Selects signed (1) or unsigned (0) interpretation of weight values in the MMU.
+    logic                            mmu_systolic_signed;                     // Selects signed (1) or unsigned (0) interpretation of systolic (activation) inputs in the MMU.
+    logic                            mmu_activate_weight;                     // Pulses high to latch the currently presented weight row into the MMU weight registers.
+    logic                            mmu_load_weight;                         // Pulses high to instruct the MMU to begin loading a new weight tile from the weight buffer.
+    logic [BYTE_WIDTH-1:0]           mmu_weight_address;                      // Internal weight-FIFO address within the MMU that identifies which row to load next.
+    logic [31:0]                     mmu_result_data [MATRIX_WIDTH-1:0];     // 32-bit accumulator results output from the MMU after a matrix-multiply operation completes.
+
+    // -------------------------------------------------------------------------
+    // Register file (accumulator) control signals
+    // -------------------------------------------------------------------------
+    accumulator_address_t            reg_write_address;                       // Accumulator row address at which MMU results are written by the matrix-multiply control.
+    logic                            reg_write_en;                            // Write-enable to the register file; commits mmu_result_data at reg_write_address.
+    logic                            reg_accumulate;                          // Accumulate flag; when high the register file adds mmu_result_data to the existing value
+                                                                              // instead of overwriting it, enabling multi-tile accumulation.
+    accumulator_address_t            reg_read_address;                        // Accumulator row address from which the activation unit reads results for post-processing.
+    logic [31:0]                     reg_read_port [MATRIX_WIDTH-1:0];       // 32-bit data read from the register file; fed into the activation unit.
+
+    // -------------------------------------------------------------------------
+    // Activation unit control signals
+    // -------------------------------------------------------------------------
+    logic [3:0]                      activation_function;                     // 4-bit opcode selecting the activation function (e.g. ReLU, sigmoid, linear) applied to accumulators.
+    logic                            activation_signed;                       // Selects signed (1) or unsigned (0) treatment of accumulator data within the activation unit.
+
+    // -------------------------------------------------------------------------
+    // Weight control handshake signals
+    // -------------------------------------------------------------------------
+    weight_instruction_t             weight_instruction;                      // Decoded weight-load instruction forwarded from the control coordinator to the weight control FSM.
+    logic                            weight_instruction_en;                   // Strobe from the coordinator indicating weight_instruction is valid and should be accepted.
+    logic                            weight_resource_busy;                    // Asserted by the weight control FSM while a structural resource (weight buffer, MMU load path)
+                                                                              // is in use; prevents the coordinator from issuing a conflicting instruction.
+    logic                            weight_busy;                             // Asserted by the weight control FSM for the full duration of a weight-load operation;
+                                                                              // used by the coordinator to track weight-pipeline occupancy.
+
+    // -------------------------------------------------------------------------
+    // Matrix multiply control handshake signals
+    // -------------------------------------------------------------------------
+    instruction_t                    mmu_instruction;                         // Full instruction record forwarded to the matrix-multiply control for execution.
+    logic                            mmu_instruction_en;                      // Strobe asserting mmu_instruction is valid; consumed by the matrix-multiply control FSM.
+    logic                            mmu_sds_en;                              // Enable signal from the matrix-multiply control to the Systolic Data Setup unit,
+                                                                              // gating data flow into the systolic array.
+    logic                            mmu_resource_busy;                       // Asserted by the matrix-multiply control while the unified buffer read path or SDS is
+                                                                              // occupied; blocks overlapping instructions from the coordinator.
+    logic                            matrix_busy;                             // Asserted for the full duration of a matrix-multiply operation; used by the coordinator
+                                                                              // to determine when the MMU pipeline is free.
+
+    // -------------------------------------------------------------------------
+    // Activation control handshake signals
+    // -------------------------------------------------------------------------
+    instruction_t                    activation_instruction;                  // Full instruction record forwarded to the activation control for execution.
+    logic                            activation_instruction_en;               // Strobe asserting activation_instruction is valid; consumed by the activation control FSM.
+    logic                            activation_resource_busy;                // Asserted by the activation control while the accumulator read path or unified-buffer
+                                                                              // write path is occupied; blocks conflicting instructions from the coordinator.
+    logic                            activation_busy;                         // Asserted for the full duration of an activation operation; used by the coordinator
+                                                                              // to track activation-pipeline occupancy.
+
+    // -------------------------------------------------------------------------
+    // Instruction FIFO / coordinator interface signals
+    // -------------------------------------------------------------------------
+    logic                            instruction_busy;                        // Asserted by the control coordinator while it is processing the current instruction;
+                                                                              // prevents the FIFO read-enable from advancing prematurely.
+    instruction_t                    instruction_output;                      // Instruction word read from the head of the instruction FIFO.
+    logic                            instruction_read;                        // Read-enable driven into the instruction FIFO; advances the FIFO when the core is free.
+    logic                            instruction_valid;                       // Asserted by the instruction FIFO when at least one entry is available to be read.
+
+    // =========================================================================
     // Weight Buffer
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Dual-port SRAM storing pre-loaded weight tiles.
+    // Port 0 is read-only, driven internally by the weight control FSM.
+    // Port 1 is write-only, driven by the host to preload weights before inference.
     celrv32_npu_weight_buffer #(
-        .MATRIX_WIDTH (MATRIX_WIDTH       ),
-        .TILE_WIDTH   (WEIGHT_BUFFER_DEPTH)
-    ) weight_buffer_inst (
-        .clk_i        (clk_i              ),
-        .rstn_i       (rstn_i             ),
-        .enable_i     (enable_i           ),
-        // Port 0 (internal read)
-        .addr0_i      (weight_address0    ),
-        .en0_i        (weight_en0         ),
-        .wr_en0_i     (1'b0               ),
-        .wr_port0_i   ('0                 ),
-        .rd_port0_o   (weight_read_port0  ),
-        // Port 1 (host write)
-        .addr1_i      (wei_addr_i         ),
-        .en1_i        (wei_en_i           ),
-        .wr_en1_i     (wei_wr_en_i        ),
-        .wr_port1_i   (wei_wr_port_i      ),
-        .rd_port1_o   (                   )
+        .MATRIX_WIDTH (MATRIX_WIDTH       ), // Number of byte-wide columns (= systolic array width).
+        .TILE_WIDTH   (WEIGHT_BUFFER_DEPTH)  // SRAM depth in rows.
+    ) celrv32_npu_weight_buffer_inst (
+        .clk_i        (clk_i              ), // System clock.
+        .rstn_i       (rstn_i             ), // Async active-low reset.
+        .enable_i     (enable_i           ), // Global enable gate.
+        // Port 0 – internal read path (weight control FSM → MMU)
+        .addr0_i      (weight_address0    ), // Row address for weight tile read.
+        .en0_i        (weight_en0         ), // Read-enable from weight control.
+        .wr_en0_i     (1'b0               ), // Port 0 is always read-only; write-enable hardwired low.
+        .wr_port0_i   ('0                 ), // Write data tied to zero (unused on port 0).
+        .rd_port0_o   (weight_read_port0  ), // Weight tile row delivered to the MMU.
+        // Port 1 – host write path
+        .addr1_i      (wei_addr_i         ), // Host-supplied row address.
+        .en1_i        (wei_en_i           ), // Host chip-enable.
+        .wr_en1_i     (wei_wr_en_i        ), // Per-column byte write-enable from host.
+        .wr_port1_i   (wei_wr_port_i      ), // Weight data from host.
+        .rd_port1_o   (                   )  // Read output on port 1 is unused; left unconnected.
     );
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Unified Buffer
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Tri-port SRAM holding input activations (written by host or DMA) and
+    // post-activation results (written by the activation unit).
+    // The master (host) port takes priority over both internal ports when active.
     cellrv32_npu_unified_buffer #(
-        .MATRIX_WIDTH (MATRIX_WIDTH        ),
-        .TILE_WIDTH   (UNIFIED_BUFFER_DEPTH)
-    ) unified_buffer_inst (
-        .clk_i        (clk_i               ),
-        .rstn_i       (rstn_i              ),
-        .enable_i     (enable_i            ),
-        // Master port (host, overrides internal ports)
-        .ms_addr_i    (buf_addr_i          ),
-        .ms_en_i      (buf_en_i            ),
-        .ms_wr_en_i   (buf_wr_en_i         ),
-        .ms_wr_port_i (buf_wr_port_i       ),
-        .ms_rd_port_o (buf_rd_port_o       ),
-        // Port 0 (internal read → SDS)
-        .addr0_i      (buffer_address0     ),
-        .en0_i        (buffer_en0          ),
-        .rd_port0_o   (buffer_read_port0   ),
-        // Port 1 (internal write ← activation)
-        .addr1_i      (buffer_address1     ),
-        .en1_i        (buffer_write_en1    ),
-        .wr_en1_i     (buffer_write_en1    ),
-        .wr_port1_i   (buffer_write_port1  )
+        .MATRIX_WIDTH (MATRIX_WIDTH        ), // Number of byte-wide columns.
+        .TILE_WIDTH   (UNIFIED_BUFFER_DEPTH)  // SRAM depth in rows.
+    ) celrv32_npu_unified_buffer_inst (
+        .clk_i        (clk_i               ), // System clock.
+        .rstn_i       (rstn_i              ), // Async active-low reset.
+        .enable_i     (enable_i            ), // Global enable gate.
+        // Master port – host access (overrides internal ports when asserted)
+        .ms_addr_i    (buf_addr_i          ), // Host row address.
+        .ms_en_i      (buf_en_i            ), // Host chip-enable; suppresses internal port arbitration.
+        .ms_wr_en_i   (buf_wr_en_i         ), // Per-column host write-enable.
+        .ms_wr_port_i (buf_wr_port_i       ), // Host write data.
+        .ms_rd_port_o (buf_rd_port_o       ), // Data read back to the host.
+        // Port 0 – internal read path (matrix-multiply control → Systolic Data Setup)
+        .addr0_i      (buffer_address0     ), // Row address for activation read.
+        .en0_i        (buffer_en0          ), // Read-enable from matrix-multiply control.
+        .rd_port0_o   (buffer_read_port0   ), // Activation row forwarded to the SDS unit.
+        // Port 1 – internal write path (activation unit → unified buffer)
+        .addr1_i      (buffer_address1     ), // Row address for post-activation result write.
+        .en1_i        (buffer_write_en1    ), // Chip-enable for write (doubles as wr_en; see below).
+        .wr_en1_i     (buffer_write_en1    ), // Per-column write-enable; here tied to same signal as en1.
+        .wr_port1_i   (buffer_write_port1  )  // Post-activation data to be stored.
     );
 
-    // -------------------------------------------------------------------------
-    // Systolic Data Setup
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Systolic Data Setup (SDS)
+    // =========================================================================
+    // Inserts per-column pipeline delays (0, 1, 2, … MATRIX_WIDTH-1 cycles)
+    // so that each activation byte arrives at its systolic cell at the correct
+    // diagonal wavefront time, enabling in-order weight–activation multiply.
     cellrv32_npu_systolic_data_setup #(
-        .MATRIX_WIDTH (MATRIX_WIDTH       )
-    ) systolic_data_setup_inst (
-        .clk_i        (clk_i              ),
-        .rstn_i       (rstn_i             ),
-        .enable_i     (enable_i           ),
-        .data_i       (buffer_read_port0  ),
-        .systolic_o   (sds_systolic_output)
+        .MATRIX_WIDTH (MATRIX_WIDTH       )  // Number of columns; defines the skew depth.
+    ) celrv32_npu_systolic_data_setup_inst (
+        .clk_i        (clk_i              ), // System clock driving the delay registers.
+        .rstn_i       (rstn_i             ), // Async active-low reset.
+        .enable_i     (enable_i           ), // Global enable; freezes skew registers when low.
+        .data_i       (buffer_read_port0  ), // Un-skewed activation row from the unified buffer.
+        .systolic_o   (sds_systolic_output)  // Diagonally-skewed output row delivered to MMU inputs.
     );
 
-    // -------------------------------------------------------------------------
-    // Matrix Multiply Unit
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Matrix Multiply Unit (MMU)
+    // =========================================================================
+    // 2-D systolic array of MATRIX_WIDTH × MATRIX_WIDTH multiply-accumulate (MAC)
+    // cells.  Weights are pre-loaded row-by-row via the weight buffer interface.
+    // Activation data streams in from the SDS one diagonal wavefront per cycle.
     cellrv32_npu_matrix_multiply_unit #(
-        .MATRIX_WIDTH      (MATRIX_WIDTH       )
-    ) matrix_multiply_unit_inst (
-        .clk_i             (clk_i              ),
-        .rstn_i            (rstn_i             ),
-        .enable_i          (enable_i           ),
-        .wei_data_i        (weight_read_port0  ),
-        .wei_signed_i      (mmu_weight_signed  ),
-        .systolic_data_i   (sds_systolic_output),
-        .systolic_signed_i (mmu_systolic_signed),
-        .act_wei_i         (mmu_activate_weight),
-        .load_wei_i        (mmu_load_weight    ),
-        .wei_addr_i        (mmu_weight_address ),
-        .result_o          (mmu_result_data    )
+        .MATRIX_WIDTH      (MATRIX_WIDTH       )  // Array dimension (rows = columns = MATRIX_WIDTH).
+    ) celrv32_npu_matrix_multiply_unit_inst (
+        .clk_i             (clk_i              ), // System clock.
+        .rstn_i            (rstn_i             ), // Async active-low reset.
+        .enable_i          (enable_i           ), // Global enable; stalls MAC cells when low.
+        .wei_data_i        (weight_read_port0  ), // Weight tile row from the weight buffer, presented during loading.
+        .wei_signed_i      (mmu_weight_signed  ), // Signed/unsigned selection for weight operands.
+        .systolic_data_i   (sds_systolic_output), // Skewed activation row from the SDS unit.
+        .systolic_signed_i (mmu_systolic_signed), // Signed/unsigned selection for activation operands.
+        .act_wei_i         (mmu_activate_weight), // Strobe to latch a loaded weight row into the active weight registers.
+        .load_wei_i        (mmu_load_weight    ), // Strobe to initiate reading the next weight row from the buffer into the MMU.
+        .wei_addr_i        (mmu_weight_address ), // Internal row counter / address used to sequence weight loading.
+        .result_o          (mmu_result_data    )  // 32-bit accumulated dot-product results, one per column, after computation completes.
     );
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Register File (Accumulator)
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Holds 32-bit intermediate accumulation results between matrix-multiply
+    // and activation stages.  Supports in-place accumulation for tiled/batched
+    // computation (acc_i=1 adds to existing value rather than overwriting).
     cellrv32_npu_register_file #(
-        .MATRIX_WIDTH   (MATRIX_WIDTH     ),
-        .REGISTER_DEPTH (512              )
-    ) register_file_inst (
-        .clk_i          (clk_i            ),
-        .rstn_i         (rstn_i           ),
-        .enable_i       (enable_i         ),
-        .wr_addr_i      (reg_write_address),
-        .wr_port_i      (mmu_result_data  ),
-        .wr_en_i        (reg_write_en     ),
-        .acc_i          (reg_accumulate   ),
-        .rd_addr_i      (reg_read_address ),
-        .rd_port_o      (reg_read_port    )
+        .MATRIX_WIDTH   (MATRIX_WIDTH     ), // Number of 32-bit elements per row (= systolic array width).
+        .REGISTER_DEPTH (512              )  // Number of accumulator rows; sets tile-batching capacity.
+    ) celrv32_npu_register_file_inst (
+        .clk_i          (clk_i            ), // System clock.
+        .rstn_i         (rstn_i           ), // Async active-low reset; clears all accumulator rows.
+        .enable_i       (enable_i         ), // Global enable.
+        .wr_addr_i      (reg_write_address), // Accumulator row address for the MMU write-back.
+        .wr_port_i      (mmu_result_data  ), // 32-bit result row from the MMU to be stored/accumulated.
+        .wr_en_i        (reg_write_en     ), // Write-enable strobe; commits MMU data at wr_addr_i.
+        .acc_i          (reg_accumulate   ), // Accumulate-instead-of-overwrite flag (1 = add, 0 = store).
+        .rd_addr_i      (reg_read_address ), // Accumulator row address for the activation-unit read-out.
+        .rd_port_o      (reg_read_port    )  // 32-bit result row returned to the activation unit.
     );
 
-    // -------------------------------------------------------------------------
-    // Activation
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Activation Unit
+    // =========================================================================
+    // Reads 32-bit accumulator rows and applies a non-linear (or linear) function
+    // element-wise, truncating to byte-width output for storage in the unified buffer.
     cellrv32_npu_activation #(
-        .MATRIX_WIDTH          (MATRIX_WIDTH       )
-    ) activation_inst          (
-        .clk_i                 (clk_i              ),
-        .rstn_i                (rstn_i             ),
-        .enable_i              (enable_i           ),
-        .activation_function_i (activation_function),
-        .signed_not_unsigned_i (activation_signed  ),
-        .activation_input_i    (reg_read_port      ),
-        .activation_output_o   (buffer_write_port1 )
+        .MATRIX_WIDTH          (MATRIX_WIDTH       )  // Number of 32-bit elements processed in parallel.
+    ) celrv32_npu_activation_inst          (
+        .clk_i                 (clk_i              ), // System clock.
+        .rstn_i                (rstn_i             ), // Async active-low reset.
+        .enable_i              (enable_i           ), // Global enable.
+        .activation_function_i (activation_function), // 4-bit opcode selecting the activation function.
+        .signed_not_unsigned_i (activation_signed  ), // 1 = treat accumulator data as signed; 0 = unsigned.
+        .activation_input_i    (reg_read_port      ), // 32-bit accumulator row from the register file.
+        .activation_output_o   (buffer_write_port1 )  // Byte-truncated post-activation row written to the unified buffer.
     );
 
-    // -------------------------------------------------------------------------
-    // Weight Control
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Weight Control FSM
+    // =========================================================================
+    // Orchestrates the two-phase weight-load sequence:
+    //   Phase 1 – read a weight tile from the weight buffer (drives weight_address0 / weight_en0).
+    //   Phase 2 – push the tile row-by-row into the MMU weight registers (drives mmu_load_weight / mmu_weight_address).
     cellrv32_npu_weight_control #(
-        .MATRIX_WIDTH     (MATRIX_WIDTH         )
-    ) weight_control_inst (
-        .clk_i            (clk_i                ),
-        .rstn_i           (rstn_i               ),
-        .enable_i         (enable_i             ),
-        .instruction_i    (weight_instruction   ),
-        .instruction_en_i (weight_instruction_en),
-        .wei_read_en_o    (weight_en0           ),
-        .wei_buff_addr_o  (weight_address0      ),
-        .load_wei_o       (mmu_load_weight      ),
-        .wei_addr_o       (mmu_weight_address   ),
-        .wei_signed_o     (mmu_weight_signed    ),
-        .busy_o           (weight_busy          ),
-        .resource_busy_o  (weight_resource_busy )
+        .MATRIX_WIDTH     (MATRIX_WIDTH         )  // Controls loop-bound for iterating over tile rows.
+    ) celrv32_npu_weight_control_inst (
+        .clk_i            (clk_i                ), // System clock.
+        .rstn_i           (rstn_i               ), // Async active-low reset.
+        .enable_i         (enable_i             ), // Global enable.
+        .instruction_i    (weight_instruction   ), // Decoded weight-load instruction from the coordinator.
+        .instruction_en_i (weight_instruction_en), // Strobe signalling instruction is valid and should start execution.
+        .wei_read_en_o    (weight_en0           ), // Read-enable driven to weight-buffer port 0 each cycle a row is fetched.
+        .wei_buff_addr_o  (weight_address0      ), // Row address driven to weight-buffer port 0 for sequential tile read-out.
+        .load_wei_o       (mmu_load_weight      ), // Strobe to the MMU requesting it latch the current weight row.
+        .wei_addr_o       (mmu_weight_address   ), // Row index within the MMU weight-register file being loaded.
+        .wei_signed_o     (mmu_weight_signed    ), // Propagated signed/unsigned flag to the MMU weight datapath.
+        .busy_o           (weight_busy          ), // High for the entire duration of a weight-load operation.
+        .resource_busy_o  (weight_resource_busy )  // High whenever the weight buffer or MMU load path is structurally occupied.
     );
 
-    // -------------------------------------------------------------------------
-    // Matrix Multiply Control
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Matrix Multiply Control FSM
+    // =========================================================================
+    // Drives the unified-buffer read sequence and the SDS/MMU enable signals
+    // to execute a complete matrix-multiply instruction:
+    //   - issues buffer read addresses to stream activation rows into the SDS;
+    //   - asserts mmu_sds_en to allow diagonal wavefront propagation;
+    //   - controls accumulator write-back (address, write-enable, accumulate flag).
     cellrv32_npu_matrix_multiply_control #(
-        .MATRIX_WIDTH    (MATRIX_WIDTH       )
-    ) matrix_multiply_control_inst (
-        .clk_i           (clk_i              ),
-        .rstn_i          (rstn_i             ),
-        .enable_i        (enable_i           ),
-        .inst_i          (mmu_instruction    ),
-        .inst_en_i       (mmu_instruction_en ),
-        // unified buffer reading signals
-        .buff_sds_addr_o (buffer_address0    ),
-        .buff_read_en_o  (buffer_en0         ),
-        // mac control signals
-        .mmu_sds_en_o    (mmu_sds_en         ),
-        .mmu_signed_o    (mmu_systolic_signed),
-        .act_wei_o       (mmu_activate_weight),
-        // register file control signals
-        .acc_addr_o      (reg_write_address  ),
-        .acc_o           (reg_accumulate     ),
-        .acc_en_o        (reg_write_en       ),
-        .busy_o          (matrix_busy        ),
-        .resource_busy_o (mmu_resource_busy  )
+        .MATRIX_WIDTH    (MATRIX_WIDTH       )  // Controls loop-bound for row streaming.
+    ) celrv32_npu_matrix_multiply_control_inst (
+        .clk_i           (clk_i              ), // System clock.
+        .rstn_i          (rstn_i             ), // Async active-low reset.
+        .enable_i        (enable_i           ), // Global enable.
+        .inst_i          (mmu_instruction    ), // Instruction record specifying operand addresses and flags.
+        .inst_en_i       (mmu_instruction_en ), // Strobe signalling the instruction is valid and execution should begin.
+        // Unified buffer read control
+        .buff_sds_addr_o (buffer_address0    ), // Sequential row address driven to unified-buffer port 0 for activation streaming.
+        .buff_read_en_o  (buffer_en0         ), // Read-enable toggled each cycle an activation row is fetched.
+        // MMU / SDS control
+        .mmu_sds_en_o    (mmu_sds_en         ), // Enables the SDS to propagate skewed data into the systolic array.
+        .mmu_signed_o    (mmu_systolic_signed), // Signed/unsigned flag forwarded to the MMU activation datapath.
+        .act_wei_o       (mmu_activate_weight), // Strobe to latch the current weight into the active MMU weight registers.
+        // Register file (accumulator) write control
+        .acc_addr_o      (reg_write_address  ), // Accumulator row address for MMU result write-back.
+        .acc_o           (reg_accumulate     ), // Accumulate flag (1 = add to existing accumulator value).
+        .acc_en_o        (reg_write_en       ), // Write-enable strobe for the register file.
+        .busy_o          (matrix_busy        ), // High for the entire duration of a matrix-multiply operation.
+        .resource_busy_o (mmu_resource_busy  )  // High whenever the unified buffer read path or SDS is structurally occupied.
     );
 
-    // -------------------------------------------------------------------------
-    // Activation Control
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Activation Control FSM
+    // =========================================================================
+    // Reads accumulator rows from the register file, applies the configured
+    // activation function, then writes the results back to the unified buffer.
+    // Generates all sequencing addresses and enables for both the register file
+    // read and the unified-buffer write.
     cellrv32_npu_activation_control #(
-        .MATRIX_WIDTH      (MATRIX_WIDTH             )
-    ) activation_control_inst  (
-        .clk_i             (clk_i                    ),
-        .rstn_i            (rstn_i                   ),
-        .enable_i          (enable_i                 ),
-        .inst_i            (activation_instruction   ), // activation instruction
-        .inst_en_i         (activation_instruction_en), // valid signal
-        .acc_act_addr_o    (reg_read_address         ), // address for the accumulators
-        .activation_func_o (activation_function      ), // type of activation function
-        .signed_unsigned_o (activation_signed        ), // data is signed or unsigned
-        .act_buff_addr_o   (buffer_address1          ), // address for the unified buffer
-        .buff_wr_en_o      (buffer_write_en1         ), // write enable
-        .busy_o            (activation_busy          ), // busy
-        .resource_busy_o   (activation_resource_busy )  // resource busy
+        .MATRIX_WIDTH      (MATRIX_WIDTH             )  // Controls loop-bound for iterating over accumulator rows.
+    ) celrv32_npu_activation_control_inst  (
+        .clk_i             (clk_i                    ), // System clock.
+        .rstn_i            (rstn_i                   ), // Async active-low reset.
+        .enable_i          (enable_i                 ), // Global enable.
+        .inst_i            (activation_instruction   ), // Instruction record specifying accumulator range, function, and destination address.
+        .inst_en_i         (activation_instruction_en), // Strobe signalling the instruction is valid and execution should begin.
+        .acc_act_addr_o    (reg_read_address         ), // Sequential row address driven to the register file for accumulator read-out.
+        .activation_func_o (activation_function      ), // 4-bit activation-function opcode forwarded to the activation unit.
+        .signed_unsigned_o (activation_signed        ), // Signed/unsigned flag forwarded to the activation unit.
+        .act_buff_addr_o   (buffer_address1          ), // Sequential row address driven to unified-buffer port 1 for result storage.
+        .buff_wr_en_o      (buffer_write_en1         ), // Write-enable strobed each cycle a result row is committed to the unified buffer.
+        .busy_o            (activation_busy          ), // High for the entire duration of an activation operation.
+        .resource_busy_o   (activation_resource_busy )  // High whenever the register file read path or unified-buffer write path is structurally occupied.
     );
 
-    // -------------------------------------------------------------------------
-    // Look-Ahead Buffer
-    // -------------------------------------------------------------------------
-    cellrv32_npu_look_ahead_buffer look_ahead_buffer_inst (
-        .clk_i       (clk_i             ),
-        .rstn_i      (rstn_i            ),
-        .enable_i    (enable_i          ),
-        .inst_busy_i (instruction_busy  ),
-        .inst_i      (inst_port_i       ),
-        .inst_wr_i   (inst_en_i         ),
-        .inst_o      (instruction_output),
-        .inst_rd_o   (instruction_read  )
+    // =========================================================================
+    // Runtime Counter
+    // =========================================================================
+    // Free-running cycle counter that increments whenever an instruction is
+    // dispatched (instruction_read=1) and resets on a SYNC event.  Its output
+    // can be read back by the host for performance profiling.
+    cellrv32_npu_runtime_counter cellrv32_npu_runtime_counter_inst (
+        .clk_i       (clk_i           ), // System clock.
+        .rstn_i      (rstn_i          ), // Async active-low reset.
+        .inst_en_i   (instruction_read), // Increment strobe: pulses high each time an instruction leaves the FIFO.
+        .sync_i      (sync_o          ), // Synchronous clear: resets the counter on a SYNC instruction retirement.
+        .count_val_o (                )  // Counter value output; left unconnected in this integration (routed externally if needed).
     );
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Instruction FIFO
+    // =========================================================================
+    // 4-entry asynchronous-read FIFO that decouples the host instruction-write
+    // rate from the core dispatch rate.  Instructions are read combinatorially
+    // (FIFO_RSYNC=0) so that instruction_output is valid in the same cycle that
+    // avail_o is asserted, allowing zero-latency dispatch when the core is idle.
+    cellrv32_npu_fifo #(
+         .FIFO_DEPTH (4                 ), // Number of FIFO slots; must be a power of two; minimum 1.
+         .FIFO_WIDTH ($bits(inst_port_i)), // Data width matches the packed instruction type width.
+         .FIFO_RSYNC (0                 ), // 0 = asynchronous (combinatorial) read; required for same-cycle dispatch.
+         .FIFO_SAFE  (0                 ), // 0 = no overflow/underflow protection; managed externally by the coordinator.
+         .FIFO_GATE  (0                 )  // 0 = no output gate; data is continuously driven from the read pointer.
+    ) celrv32_npu_instruction_fifo_inst (
+         // Control
+         .clk_i      (clk_i             ), // System clock; only the write side is clocked (async read).
+         .rstn_i     (rstn_i            ), // Async active-low reset; flushes all entries.
+         .clear_i    (1'b0              ), // Synchronous flush; tied low — not used in this design.
+         .half_o     (                  ), // 'At-least-half-full' flag; unused, left unconnected.
+         // Write port (host → FIFO)
+         .wdata_i    (inst_port_i       ), // Instruction word to enqueue.
+         .we_i       (inst_en_i         ), // Write-enable strobe from the host; pushes inst_port_i into the FIFO.
+         .free_o     (                  ), // 'At-least-one-free-slot' flag; unused, left unconnected.
+         // Read port (FIFO → coordinator)
+         .re_i       (instruction_read  ), // Read-enable strobe; advances the FIFO read pointer by one entry.
+         .rdata_o    (instruction_output), // Combinatorial read data; presents the current head-of-FIFO instruction.
+         .avail_o    (instruction_valid )  // Asserted whenever at least one instruction is waiting in the FIFO.
+     );
+
+    // Combinatorial dispatch gate:
+    // An instruction is consumed from the FIFO when the coordinator is free
+    // (instruction_busy=0) AND a valid instruction is available (instruction_valid=1).
+    assign instruction_read = ~instruction_busy & instruction_valid;
+
+    // =========================================================================
     // Control Coordinator
-    // -------------------------------------------------------------------------
-    cellrv32_npu_control_coordinator control_coordinator_inst (
-        .clk_i                      (clk_i                    ),
-        .rstn_i                     (rstn_i                   ),
-        .enable_i                   (enable_i                 ),
-        .inst_i                     (instruction_output       ),
-        .inst_en_i                  (instruction_read         ),
-        .busy_o                     (instruction_busy         ),
-        .wei_busy_i                 (weight_busy              ),
-        .wei_resource_busy_i        (weight_resource_busy     ),
-        .wei_inst_o                 (weight_instruction       ),
-        .wei_inst_en_o              (weight_instruction_en    ),
-        .matrix_busy_i              (matrix_busy              ),
-        .matrix_resource_busy_i     (mmu_resource_busy        ),
-        .matrix_inst_o              (mmu_instruction          ),
-        .matrix_inst_en_o           (mmu_instruction_en       ),
-        .activation_busy_i          (activation_busy          ),
-        .activation_resource_busy_i (activation_resource_busy ),
-        .activation_inst_o          (activation_instruction   ),
-        .activation_inst_en_o       (activation_instruction_en),
-        .syn_o                      (sync_o                   )
+    // =========================================================================
+    // Central sequencer that decodes instructions from the FIFO and issues them
+    // to the appropriate sub-unit (weight, matrix, activation) while respecting
+    // each unit's busy and resource-busy signals to prevent structural hazards.
+    // Also generates the sync_o pulse when a SYNC instruction is retired.
+    cellrv32_npu_control_coordinator celrv32_npu_control_coordinator_inst (
+        .clk_i                      (clk_i                    ), // System clock.
+        .rstn_i                     (rstn_i                   ), // Async active-low reset.
+        .enable_i                   (enable_i                 ), // Global enable.
+        .inst_i                     (instruction_output       ), // Instruction at the FIFO head presented for decoding.
+        .inst_en_i                  (instruction_valid        ), // Asserted when inst_i contains a valid, unretired instruction.
+        .busy_o                     (instruction_busy         ), // Asserted while the coordinator is processing the current instruction.
+        // Weight control interface
+        .wei_busy_i                 (weight_busy              ), // Weight pipeline occupancy; coordinator waits before issuing a new weight instruction.
+        .wei_resource_busy_i        (weight_resource_busy     ), // Weight structural hazard; coordinator defers if shared resources are in use.
+        .wei_inst_o                 (weight_instruction       ), // Decoded weight-load instruction dispatched to the weight control FSM.
+        .wei_inst_en_o              (weight_instruction_en    ), // Dispatch strobe for the weight control FSM.
+        // Matrix multiply control interface
+        .matrix_busy_i              (matrix_busy              ), // Matrix-multiply pipeline occupancy; coordinator waits before issuing a new MMU instruction.
+        .matrix_resource_busy_i     (mmu_resource_busy        ), // MMU structural hazard; coordinator defers if shared resources are in use.
+        .matrix_inst_o              (mmu_instruction          ), // Full instruction dispatched to the matrix-multiply control FSM.
+        .matrix_inst_en_o           (mmu_instruction_en       ), // Dispatch strobe for the matrix-multiply control FSM.
+        // Activation control interface
+        .activation_busy_i          (activation_busy          ), // Activation pipeline occupancy; coordinator waits before issuing a new activation instruction.
+        .activation_resource_busy_i (activation_resource_busy ), // Activation structural hazard; coordinator defers if shared resources are in use.
+        .activation_inst_o          (activation_instruction   ), // Full instruction dispatched to the activation control FSM.
+        .activation_inst_en_o       (activation_instruction_en), // Dispatch strobe for the activation control FSM.
+        .syn_o                      (sync_o                   )  // SYNC pulse output; asserted for one cycle when a SYNC instruction retires.
     );
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Output assignments
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // busy_o reflects the coordinator's busy flag: high while any instruction
+    // is pending dispatch or any sub-unit has not yet completed its operation.
     assign busy_o = instruction_busy;
 
 endmodule : cellrv32_npu_core
