@@ -1,6 +1,8 @@
-//! @file tpu_core.sv
-//! @brief SystemVerilog conversion of TPU_CORE.vhdl
-//! @details The TPU core includes all components necessary for calculation and controlling.
+// ######################################################################################################
+// # << CELLRV32 - NPU Top Module >>                                                                    #
+// # ************************************************************************************************** #
+// # The NPU core includes all components necessary for calculation and controlling.                    #
+// # ************************************************************************************************** #
 `ifndef  _INCL_NPU_DEFINITIONS
   `define _INCL_NPU_DEFINITIONS
   import cellrv32_npu_package::*;

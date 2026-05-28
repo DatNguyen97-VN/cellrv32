@@ -93,10 +93,10 @@ int main() {
       // give every LED a different color
       cellrv32_neoled_write_blocking(hsv2rgb(angle + (360/NUM_LEDS_24BIT) * led_id, MAX_INTENSITY));
     }
-    angle += 1; // rotation increment per frame
+    angle += 30; // rotation increment per frame
 
     cellrv32_neoled_strobe_blocking(); // send strobe ("RESET") command
-    cellrv32_cpu_delay_ms(10); // delay between frames
+    cellrv32_cpu_delay_ms(50); // delay between frames
   }
 
   return 0;

@@ -38,7 +38,7 @@ int main() {
   cellrv32_rte_check_isa(0); // silent = 0 -> show message if isa mismatch
 
   // print project logo via UART
-  cellrv32_rte_print_logo();
+  //cellrv32_rte_print_logo();
 
   // say hello
   cellrv32_uart1_puts("<<<  Demo Blink LED program  >>>\n");

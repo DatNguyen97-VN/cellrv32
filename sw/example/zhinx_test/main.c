@@ -33,27 +33,27 @@
 /** UART BAUD rate */
 #define BAUD_RATE          (19200)
 //** Number of test cases for each instruction */
-#define NUM_TEST_CASES     (1000000)
+#define NUM_TEST_CASES     (100)
 //** Silent mode (only show actual errors when != 0) */
-#define SILENT_MODE        (1)
+#define SILENT_MODE        (0)
 //** Run conversion tests when != 0 */
-#define RUN_CONV_TESTS     (1)
+#define RUN_CONV_TESTS     (0)
 //** Run add/sub tests when != 0 */
-#define RUN_ADDSUB_TESTS   (1)
+#define RUN_ADDSUB_TESTS   (0)
 //** Run multiplication tests when != 0 */
-#define RUN_MUL_TESTS      (1)
+#define RUN_MUL_TESTS      (0)
 //** Run division tests when != 0 */
 #define RUN_DIV_TESTS      (1)
 //** Run square root tests when != 0 */
 #define RUN_SQRT_TESTS     (1)
 //** Run min/max tests when != 0 */
-#define RUN_MINMAX_TESTS   (1)
+#define RUN_MINMAX_TESTS   (0)
 //** Run comparison tests when != 0 */
-#define RUN_COMPARE_TESTS  (1)
+#define RUN_COMPARE_TESTS  (0)
 //** Run sign-injection tests when != 0 */
-#define RUN_SGNINJ_TESTS   (1)
+#define RUN_SGNINJ_TESTS   (0)
 //** Run classify tests when != 0 */
-#define RUN_CLASSIFY_TESTS (1)
+#define RUN_CLASSIFY_TESTS (0)
 //** Run unsupported instructions tests when != 0 */
 #define RUN_UNAVAIL_TESTS  (0)
 

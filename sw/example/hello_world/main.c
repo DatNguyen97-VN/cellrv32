@@ -42,14 +42,13 @@ int main() {
   cellrv32_rte_check_isa(0); // silent = 0 -> show message if isa mismatch
   
   // print project icon via UART
-  cellrv32_rte_print_icon();
+  //cellrv32_rte_print_icon();
 
   // print project logo via UART
-  cellrv32_rte_print_logo();
-
+  //cellrv32_rte_print_logo();
+  
   // say hello
-  cellrv32_uart0_puts("Hello world! hjhj:) by uart1\n");
-
-
+  cellrv32_uart0_puts("Hello world! ahjhj:)\n");
+  
   return 0;
 }

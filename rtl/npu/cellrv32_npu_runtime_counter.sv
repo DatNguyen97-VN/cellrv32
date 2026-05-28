@@ -44,7 +44,7 @@ module cellrv32_npu_runtime_counter (
         end
     end
 
-    // 1-stage pipeline (giữ nguyên chức năng)
+    // 1-stage pipeline
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
             pipeline_q <= 32'd0;

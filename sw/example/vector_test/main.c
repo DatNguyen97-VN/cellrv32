@@ -38,11 +38,11 @@
 //** Number of test cases for each instruction */
 #define NUM_TEST_CASES          (235)
 //** Number of element for each array */
-#define NUM_ELEM_ARRAY          (333)
+#define NUM_ELEM_ARRAY          (1001)
 //** Run Vector CSR tests when != 0 */
 #define RUN_CSR_TESTS           (0)
 //** Run Saxpy tests when != 0 */
-#define RUN_SAXPY_TESTS         (0)
+#define RUN_SAXPY_TESTS         (1)
 //** Run Unit-Stride Load/Store tests when != 0 */
 #define RUN_LOADSTORE_TESTS     (0)
 //** Run Stride Load/Store tests when != 0 */
@@ -62,7 +62,7 @@
 //** Run Multiply tests when != 0 */
 #define RUN_MUL_TESTS           (0)
 //** Run Divide tests when != 0 */
-#define RUN_DIV_TESTS           (0)
+#define RUN_DIV_TESTS           (1)
 //** Run Move tests when != 0 */
 #define RUN_MOV_TESTS           (1)
 //** Run Reduction Compute tests when != 0 */
