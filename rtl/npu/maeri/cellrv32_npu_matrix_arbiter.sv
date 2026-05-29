@@ -1,7 +1,7 @@
-`ifndef  _INCL_DEFINITIONS
-  `define _INCL_DEFINITIONS
+`ifndef  _INCL_NPU_DEFINITIONS
+  `define _INCL_NPU_DEFINITIONS
   import cellrv32_npu_package::*;
-`endif // _INCL_DEFINITIONS
+`endif // _INCL_NPU_DEFINITIONS
 
 // Matrix Arbiter with N requesters
 //
