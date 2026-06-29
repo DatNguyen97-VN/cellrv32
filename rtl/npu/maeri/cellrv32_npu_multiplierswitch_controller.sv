@@ -3,7 +3,7 @@
   import cellrv32_npu_package::*;
 `endif // _INCL_NPU_DEFINITIONS
 
-module MultiplierSwitch_Controller (
+module cellrv32_npu_multiplierswitch_controller (
     input  logic        clk_i                 ,
     input  logic        rstn_i                ,
     // putNewConfig
@@ -179,11 +179,11 @@ endmodule
 // ================================================================
 // Testbench
 // ================================================================
-module tb_MN_MultiplierSwitch_Controller;
+module tb_cellrv32_npu_multiplierswitch_controller;
 
     localparam int CW = 19;  // MS_CONFIG_W
 
-    logic        clk, rst_n;
+    logic   clk, rst_n;
     initial clk = 0;
     always #5 clk = ~clk;
 
@@ -193,7 +193,7 @@ module tb_MN_MultiplierSwitch_Controller;
     logic [1:0]    ipt_val, fwd_val, arg_val;
     logic          doCompute_val;
 
-    MultiplierSwitch_Controller dut (
+    cellrv32_npu_multiplierswitch_controller dut (
         .clk_i                  (clk),
         .rstn_i                 (rst_n),
         .putNewConfig_en_i      (putCfg_en),
@@ -208,16 +208,16 @@ module tb_MN_MultiplierSwitch_Controller;
     );
 
     // Helper: build MS_Config
-    function automatic logic [CW-1:0] make_config(
-        input logic [2:0]  state,
-        input logic [15:0] psum_count
+    function automatic MS_Config make_config(
+        input MS_State     state,
+        input MS_PSumCount psum_count
     );
         return {state, psum_count};
     endfunction
 
     task automatic send_config(
-        input logic [2:0]  state,
-        input logic [15:0] psum_cnt
+        input MS_State     state,
+        input MS_PSumCount psum_cnt
     );
         @(posedge clk);
         putCfg_en  = putCfg_rdy;
@@ -258,20 +258,20 @@ module tb_MN_MultiplierSwitch_Controller;
 
         // === TC2: ms_initSteadyVal ===
         $display("\n=== TC2: ms_initSteadyVal ===");
-        send_config(3'b001, 16'd0);  // psumCount=0 -> updateState can fire
+        send_config(MS_State'(3'b001), MS_PSumCount'(16'd0));  // psumCount=0 -> updateState can fire
         repeat (3) @(posedge clk);
         print_outputs("initSteadyVal");
         // ipt=01(stationary), fwd=00(nothing), arg=00(nothing), doCompute=0
 
         // === TC3: ms_runLEdgeFirst -> ms_runLEdge (transit) ===
         $display("\n=== TC3: ms_runLEdgeFirst -> transit -> ms_runLEdge ===");
-        send_config(3'b010, 16'd3);  // LEdgeFirst, psumCount=3
-        repeat (3) @(posedge clk);
+        send_config(MS_State'(3'b010), MS_PSumCount'(16'd3));  // LEdgeFirst, psumCount=3
         print_outputs("runLEdgeFirst");
+        repeat (3) @(posedge clk);
         @(posedge clk); #1;
         print_outputs("runLEdge (after transit)");
 
-        // === TC4: putPSumGenNotice giảm pSumCounter ===
+        // === TC4: putPSumGenNotice decreases pSumCounter ===
         $display("\n=== TC4: putPSumGenNotice ===");
         send_psum_notice(3);
         repeat (3) @(posedge clk);
@@ -279,32 +279,32 @@ module tb_MN_MultiplierSwitch_Controller;
 
         // === TC5: ms_runMiddleFirst -> ms_runMiddle ===
         $display("\n=== TC5: ms_runMiddleFirst ===");
-        send_config(3'b100, 16'd2);
-        repeat (2) @(posedge clk);
+        send_config(MS_State'(3'b100), MS_PSumCount'(16'd2));
         print_outputs("runMiddleFirst");
+        repeat (2) @(posedge clk);
         @(posedge clk); #1;
         print_outputs("runMiddle (after transit)");
 
         // === TC6: ms_runREdgeFirst -> ms_runREdge ===
         $display("\n=== TC6: ms_runREdgeFirst ===");
-        send_psum_notice(2);  // drain psumCount trước
-        send_config(3'b110, 16'd1);
-        repeat (2) @(posedge clk);
+        send_psum_notice(2);  // drain psumCount before
+        send_config(MS_State'(3'b110), MS_PSumCount'(16'd1));
         print_outputs("runREdgeFirst");
+        repeat (2) @(posedge clk);
         @(posedge clk); #1;
         print_outputs("runREdge (after transit)");
 
-        // === TC7: putPSumGenNotice khi pSumCounter==0 -> blocked ===
-        $display("\n=== TC7: putPSumGenNotice blocked khi counter=0 ===");
+        // === TC7: putPSumGenNotice within pSumCounter==0 -> blocked ===
+        $display("\n=== TC7: putPSumGenNotice blocked within counter=0 ===");
         send_psum_notice(1);  // drain psumCount=1
         send_psum_notice(1);  // block (pSumCounter=0)
 
-        // === TC8: putNewConfig khi busy (notFull test) ===
+        // === TC8: putNewConfig when busy (notFull test) ===
         $display("\n=== TC8: putNewConfig quadra send ===");
-        send_config(3'b001, 16'd5);
-        send_config(3'b010, 16'd3);
-        send_config(3'b010, 16'd1);
-        send_config(3'b010, 16'd1); // block (notFull=0)
+        send_config(MS_State'(3'b001), MS_PSumCount'(16'd5));
+        send_config(MS_State'(3'b010), MS_PSumCount'(16'd3));
+        send_config(MS_State'(3'b010), MS_PSumCount'(16'd1));
+        send_config(MS_State'(3'b010), MS_PSumCount'(16'd1)); // block (notFull=0)
 
         repeat (5) @(posedge clk);
         $display("\n=== Done ===");
