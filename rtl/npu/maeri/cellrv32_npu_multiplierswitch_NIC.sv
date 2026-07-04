@@ -142,18 +142,15 @@ module cellrv32_npu_multiplierswitch_NIC (
     // ----------------------------------------------------------------
     // putIptData
     // ----------------------------------------------------------------
-    assign putIptData_rdy_o = iptSel_en & ((iptSel_val == MS_IPT_STATIONARY) | ((iptSel_val == MS_IPT_STREAM) & stream_notFull));
-
-    wire putIptData_fire = putIptData_en_i & putIptData_rdy_o;
-
-    assign stream_enq_en  = putIptData_fire;
+    assign putIptData_rdy_o = iptSel_en & ((iptSel_val == MS_IPT_STATIONARY) || ((iptSel_val == MS_IPT_STREAM) & stream_notFull));
+    assign stream_enq_en = putIptData_en_i & iptSel_en & (iptSel_val == MS_IPT_STREAM) & stream_notFull;
     assign stream_enq_val = putIptData_val_i;
 
     // stationaryData update (sequential)
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
             stationaryData <= '0;
-        end else if (putIptData_fire) begin
+        end else if (iptSel_en && (iptSel_val == MS_IPT_STATIONARY) && putIptData_en_i) begin
             stationaryData <= putIptData_val_i;
         end
     end
@@ -161,7 +158,7 @@ module cellrv32_npu_multiplierswitch_NIC (
     // ----------------------------------------------------------------
     // putFwdData
     // ----------------------------------------------------------------
-    assign putFwdData_rdy_o = fwdSel_en;
+    assign putFwdData_rdy_o = fwdSel_en & fwd_notFull;
 
     assign fwd_enq_en  = putFwdData_en_i & putFwdData_rdy_o & fwd_notFull;
     assign fwd_enq_val = putFwdData_val_i;
@@ -214,7 +211,7 @@ module cellrv32_npu_multiplierswitch_NIC (
     // ----------------------------------------------------------------
     // getFwdData
     // ----------------------------------------------------------------
-    assign getFwdData_rdy_o = fwdSel_en;
+    assign getFwdData_rdy_o = fwdSel_en & fwd_notEmpty;
 
     always_comb begin
         case (fwdSel_val)
