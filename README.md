@@ -63,4 +63,4 @@ For questions or collaboration opportunities, please open an issue on GitHub.
 
 ---
 
-**Note**: This is a portfolio project demonstrating IC design capabilities. Suitable for educational purposes and as a reference for clock management IP design.
+**Note**: This is a portfolio project demonstrating IC design capabilities. Suitable for educational purposes.
