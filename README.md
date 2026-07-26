@@ -57,7 +57,7 @@ informed via _precise and resumable_ hardware exceptions.
 - [ ] Stage 2: Designed a custom RISC-V MCU-class with lightweight
 snooping-based cache coherence and heterogeneous acceleration: integrating multiple CPU cores, vector extensions, scratchpad memory, DMA engine, an INT16/INT32 NPU, and a lightweight programmable GPU with parallel compute cores.
 
-## Contact
+## 7. Contact
 
 For questions or collaboration opportunities, please open an issue on GitHub.
 
