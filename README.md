@@ -13,6 +13,7 @@
 4. [Performance](#4-Performance)
 5. [Software Framework & Tooling](#5-Software-Framework-and-Tooling)
 6. [Getting Started](#6-Getting-Started)
+7. [Contact](#7-Contact)
 
 ## 1. Overview
 ![cellrv32 overview](https://github.com/DatNguyen97-VN/cellrv32/blob/main/doc/figures/cellrv32%20top.png)
@@ -55,3 +56,11 @@ informed via _precise and resumable_ hardware exceptions.
 
 - [ ] Stage 2: Designed a custom RISC-V MCU-class with lightweight
 snooping-based cache coherence and heterogeneous acceleration: integrating multiple CPU cores, vector extensions, scratchpad memory, DMA engine, an INT16/INT32 NPU, and a lightweight programmable GPU with parallel compute cores.
+
+## Contact
+
+For questions or collaboration opportunities, please open an issue on GitHub.
+
+---
+
+**Note**: This is a portfolio project demonstrating IC design capabilities. Suitable for educational purposes and as a reference for clock management IP design.
