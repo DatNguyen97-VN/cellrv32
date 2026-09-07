@@ -1,3 +1,12 @@
+// ################################################################################################################################################
+// # << CELLRV32 - NPU Multiplier Switch Controller >>                                                                                            #
+// # ******************************************************************************************************************************************** #
+// # The module receives a new configuration (state, psumCount) and stores it in two FIFOs pending processing.                                    #
+// # When pSumCounter reaches 0, the module retrieves the next configuration from the FIFO and transitions stateReg to the corresponding state.   #
+// # During operation, pSumCounter decrements each time a putPSumGenNotice is received, until it reaches 0.                                       #
+// # stateReg determines the control signals—Input Select, Forward Select, Argument Select, and Do Compute—for the NPU multiplier switch.         #
+// # Upon completing a configuration, the module automatically retrieves the next configuration from the FIFO, if available.                      #
+// # ******************************************************************************************************************************************** #
 `ifndef  _INCL_NPU_DEFINITIONS
   `define _INCL_NPU_DEFINITIONS
   import cellrv32_npu_package::*;
@@ -31,8 +40,8 @@ module cellrv32_npu_multiplierswitch_controller (
     MS_State ins_enq_val, ins_first;
 
     PipelineFifo #(
-      .T     (MS_State       ),
-      .DEPTH (2              )
+      .T     (MS_State),
+      .DEPTH (2       )
     ) incomingNextState (
       .clk_i       (clk_i       ),
       .rstn_i      (rstn_i      ),
@@ -51,8 +60,8 @@ module cellrv32_npu_multiplierswitch_controller (
     MS_PSumCount inpc_enq_val, inpc_first;
 
     PipelineFifo #(
-      .T     (MS_PSumCount       ),
-      .DEPTH (2                  )
+      .T     (MS_PSumCount),
+      .DEPTH (2           )
     ) incomingNextPSumCount (
       .clk_i       (clk_i        ),
       .rstn_i      (rstn_i       ),

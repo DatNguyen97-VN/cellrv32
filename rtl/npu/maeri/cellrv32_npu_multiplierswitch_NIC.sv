@@ -1,3 +1,11 @@
+// ################################################################################################################################################
+// # << CELLRV32 - NPU Multiplier Switch NIC >>                                                                                                   #
+// # ******************************************************************************************************************************************** #
+// # This module functions as a Network Interface Controller (NIC) for the core switch, managing input, forwarding, and partial-sum data via      #
+// # dedicated FIFO queues. It stores static data directly while buffering streaming, forwarding, and partial-sum data for subsequent processing. #
+// # Control signals determine whether dynamic parameters are selected from the input data stream or the forwarding FIFO. The module supplies the #
+// # selected data to the core switch's computation logic while maintaining a FIFO flow control mechanism using a "ready/enable" handshake.       #
+// # ******************************************************************************************************************************************** #
 `ifndef  _INCL_NPU_DEFINITIONS
   `define _INCL_NPU_DEFINITIONS
   import cellrv32_npu_package::*;
@@ -41,7 +49,6 @@ module cellrv32_npu_multiplierswitch_NIC (
     output logic        getPSum_rdy_o     ,
     output INT16        getPSum_val_o     ,
     // getFwdData
-    input  logic        getFwdData_en_i   ,
     output logic        getFwdData_rdy_o  ,
     output INT16        getFwdData_val_o
 );
@@ -142,7 +149,7 @@ module cellrv32_npu_multiplierswitch_NIC (
     // ----------------------------------------------------------------
     // putIptData
     // ----------------------------------------------------------------
-    assign putIptData_rdy_o = iptSel_en & ((iptSel_val == MS_IPT_STATIONARY) || ((iptSel_val == MS_IPT_STREAM) & stream_notFull));
+    assign putIptData_rdy_o = (iptSel_val == MS_IPT_STATIONARY) || ((iptSel_val == MS_IPT_STREAM) & stream_notFull);
     assign stream_enq_en = putIptData_en_i & iptSel_en & (iptSel_val == MS_IPT_STREAM) & stream_notFull;
     assign stream_enq_val = putIptData_val_i;
 
@@ -158,10 +165,9 @@ module cellrv32_npu_multiplierswitch_NIC (
     // ----------------------------------------------------------------
     // putFwdData
     // ----------------------------------------------------------------
-    assign putFwdData_rdy_o = fwdSel_en & fwd_notFull;
-
-    assign fwd_enq_en  = putFwdData_en_i & putFwdData_rdy_o & fwd_notFull;
-    assign fwd_enq_val = putFwdData_val_i;
+    assign putFwdData_rdy_o = fwd_notFull;
+    assign fwd_enq_en       = putFwdData_en_i & fwd_notFull;
+    assign fwd_enq_val      = putFwdData_val_i;
 
     // ----------------------------------------------------------------
     // putPSum
@@ -181,16 +187,16 @@ module cellrv32_npu_multiplierswitch_NIC (
     always_comb begin
         case (argSel_val)
             MS_ARG_INPUT : begin
-                getDynArg_rdy_o = argSel_en & stream_notEmpty;
+                getDynArg_rdy_o = stream_notEmpty;
                 getDynArg_val_o = stream_first;
-                stream_deq_en   = getDynArg_rdy_o & getDynArg_en_i;
+                stream_deq_en   = stream_notEmpty & getDynArg_en_i;
                 fwd_deq_en      = 1'b0;
             end
             MS_ARG_FWD : begin
-                getDynArg_rdy_o = argSel_en & fwd_notEmpty;
+                getDynArg_rdy_o = fwd_notEmpty;
                 getDynArg_val_o = fwd_first;
                 stream_deq_en   = 1'b0;
-                fwd_deq_en      = getDynArg_rdy_o & getDynArg_en_i;
+                fwd_deq_en      = fwd_notEmpty & getDynArg_en_i;
             end
             default : begin
                 getDynArg_rdy_o = 1'b0;
@@ -211,7 +217,7 @@ module cellrv32_npu_multiplierswitch_NIC (
     // ----------------------------------------------------------------
     // getFwdData
     // ----------------------------------------------------------------
-    assign getFwdData_rdy_o = fwdSel_en & fwd_notEmpty;
+    assign getFwdData_rdy_o = getDynArg_rdy_o;
 
     always_comb begin
         case (fwdSel_val)
@@ -255,7 +261,7 @@ module tb_cellrv32_npu_multiplierswitch_NIC;
     logic          getDynArg_en_i,   getDynArg_rdy_o;
                                                        logic [DW-1:0] getDynArg_val_o;
     logic          getPSum_en_i,     getPSum_rdy_o;    logic [DW-1:0] getPSum_val_o;
-    logic          getFwdData_en_i,  getFwdData_rdy_o;
+    logic          getFwdData_rdy_o;
                                                        logic [DW-1:0] getFwdData_val_o;
 
     cellrv32_npu_multiplierswitch_NIC dut (
@@ -274,7 +280,7 @@ module tb_cellrv32_npu_multiplierswitch_NIC;
         .getDynArg_val_o(getDynArg_val_o),
         .getPSum_en_i(getPSum_en_i),          .getPSum_rdy_o(getPSum_rdy_o),
         .getPSum_val_o(getPSum_val_o),
-        .getFwdData_en_i(getFwdData_en_i),    .getFwdData_rdy_o(getFwdData_rdy_o),
+        .getFwdData_rdy_o(getFwdData_rdy_o),
         .getFwdData_val_o(getFwdData_val_o)
     );
 
@@ -292,7 +298,7 @@ module tb_cellrv32_npu_multiplierswitch_NIC;
         putFwdSel_val = MS_FWD_NOTHING;
         putArgSel_val = MS_ARG_NOTHING;
         putIptData_en_i = 0; putFwdData_en_i = 0; putPSum_en_i = 0;
-        getDynArg_en_i = 0; getPSum_en_i = 0; getFwdData_en_i = 0;
+        getDynArg_en_i = 0; getPSum_en_i = 0;
 
         repeat (3) @(posedge clk_i); 
         rstn_i = 1; 
@@ -337,10 +343,9 @@ module tb_cellrv32_npu_multiplierswitch_NIC;
         // putFwdData enq into fwd FIFO within fwdSel valid
         @(posedge clk_i);
         set_sel(2'bXX, 2'b10, 2'bXX);  // fwdSel=fwdFwd: getFwdData peek fwdData
-        getFwdData_en_i = 1;
         #1;
         $display("  getFwdData_rdy_o=%b val=0x%04X", getFwdData_rdy_o, getFwdData_val_o);
-        @(negedge clk_i); getFwdData_en_i = 0; {putIptSel_en,putFwdSel_en,putArgSel_en} = '0;
+        @(negedge clk_i); {putIptSel_en,putFwdSel_en,putArgSel_en} = '0;
 
         // getDynArg = argFwd for deq
         @(posedge clk_i);
