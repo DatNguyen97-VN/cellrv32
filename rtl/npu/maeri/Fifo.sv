@@ -27,6 +27,7 @@ module PipelineFifo #(
             count  <= '0; 
             rd_ptr <= '0; 
             wr_ptr <= '0;
+            mem    <= '{default: '0};
         end else begin
             case ({enq_en_i & notFull_o, deq_en_i & notEmpty_o})
                 // write-only
