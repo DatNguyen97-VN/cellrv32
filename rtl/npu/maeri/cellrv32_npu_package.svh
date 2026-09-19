@@ -15,7 +15,7 @@ package cellrv32_npu_package;
     // Accelerator Config
     localparam int DistributionBandwidth = 16;
     localparam int CollectionBandwidth   = 16;
-    localparam int NumMultSwitches       = 128;
+    localparam int NumMultSwitches       = 16; //128
 
     // ==============================================================
     // Distribution Network
@@ -292,6 +292,6 @@ package cellrv32_npu_package;
       MS_PSumCount psumCount;
     } MS_Config;
 
-    typedef MS_Config MN_Config [NumMultSwitches];
+    typedef MS_Config MN_Config [NumMultSwitches-1:0];
 
 endpackage
