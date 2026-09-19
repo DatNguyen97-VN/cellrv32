@@ -82,12 +82,9 @@ module cellrv32_npu_multiplierswitch (
     cellrv32_npu_multiplierswitch_NIC nic_inst (
         .clk_i              (clk_i             ), 
         .rstn_i             (rstn_i            ),
-        /* ---- controlPorts ---- */
-        .putIptSelect_en_i  (1'b1              ),  
+        /* ---- controlPorts ---- */  
         .putIptSelect_val_i (ctrl_iptSel_val   ),
-        .putFwdSelect_en_i  (1'b1              ),  
         .putFwdSelect_val_i (ctrl_fwdSel_val   ),
-        .putArgSelect_en_i  (1'b1              ),  
         .putArgSelect_val_i (ctrl_argSel_val   ),
         /* ---- dataPorts ---- */
         // putIptData
@@ -123,8 +120,7 @@ module cellrv32_npu_multiplierswitch (
     // ================================================================
     INT16 alu_argA, alu_argB, alu_res;
 
-    cellrv32_npu_multiplier #(.WIDTH($bits(INT16))
-    ) alu_inst (
+    cellrv32_npu_multiplier alu_inst (
         .clk_i      (clk_i   ),
         .rstn_i     (rstn_i  ),
         .argA_i     (alu_argA),
