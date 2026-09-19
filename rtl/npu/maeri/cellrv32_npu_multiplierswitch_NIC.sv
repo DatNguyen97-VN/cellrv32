@@ -16,13 +16,10 @@ module cellrv32_npu_multiplierswitch_NIC (
     input  logic        rstn_i            ,
     /* ---- controlPorts ---- */
     // putIptSelect
-    input  logic        putIptSelect_en_i ,
     input  MS_IptSelect putIptSelect_val_i,  
     // putFwdSelect
-    input  logic        putFwdSelect_en_i ,
     input  MS_FwdSelect putFwdSelect_val_i, 
     // putArgSelect
-    input  logic        putArgSelect_en_i ,
     input  MS_ArgSelect putArgSelect_val_i,
     /* ---- dataPorts ---- */
     // putIptData
@@ -54,22 +51,12 @@ module cellrv32_npu_multiplierswitch_NIC (
 );
 
     /* Control singal wires */
-    logic        iptSel_en;
     MS_IptSelect iptSel_val;
-
-    assign iptSel_en  = putIptSelect_en_i;
-    assign iptSel_val = putIptSelect_val_i;
-
-    logic        fwdSel_en;
     MS_FwdSelect fwdSel_val;
-
-    assign fwdSel_en  = putFwdSelect_en_i;
-    assign fwdSel_val = putFwdSelect_val_i;
-
-    logic        argSel_en;
     MS_ArgSelect argSel_val;
 
-    assign argSel_en  = putArgSelect_en_i;
+    assign iptSel_val = putIptSelect_val_i;
+    assign fwdSel_val = putFwdSelect_val_i;
     assign argSel_val = putArgSelect_val_i;
 
     // ----------------------------------------------------------------
@@ -150,14 +137,14 @@ module cellrv32_npu_multiplierswitch_NIC (
     // putIptData
     // ----------------------------------------------------------------
     assign putIptData_rdy_o = (iptSel_val == MS_IPT_STATIONARY) || ((iptSel_val == MS_IPT_STREAM) & stream_notFull);
-    assign stream_enq_en = putIptData_en_i & iptSel_en & (iptSel_val == MS_IPT_STREAM) & stream_notFull;
+    assign stream_enq_en = putIptData_en_i & (iptSel_val == MS_IPT_STREAM) & stream_notFull;
     assign stream_enq_val = putIptData_val_i;
 
     // stationaryData update (sequential)
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
             stationaryData <= '0;
-        end else if (iptSel_en && (iptSel_val == MS_IPT_STATIONARY) && putIptData_en_i) begin
+        end else if ((iptSel_val == MS_IPT_STATIONARY) && putIptData_en_i) begin
             stationaryData <= putIptData_val_i;
         end
     end
@@ -266,9 +253,9 @@ module tb_cellrv32_npu_multiplierswitch_NIC;
 
     cellrv32_npu_multiplierswitch_NIC dut (
         .clk_i(clk_i), .rstn_i(rstn_i),
-        .putIptSelect_en_i(putIptSel_en),     .putIptSelect_val_i(putIptSel_val),
-        .putFwdSelect_en_i(putFwdSel_en),     .putFwdSelect_val_i(putFwdSel_val),
-        .putArgSelect_en_i(putArgSel_en),     .putArgSelect_val_i(putArgSel_val),
+        .putIptSelect_val_i(putIptSel_val),
+        .putFwdSelect_val_i(putFwdSel_val),
+        .putArgSelect_val_i(putArgSel_val),
         .putIptData_en_i(putIptData_en_i),    .putIptData_rdy_o(putIptData_rdy_o),
         .putIptData_val_i(putIptData_val_i),
         .putFwdData_en_i(putFwdData_en_i),    .putFwdData_rdy_o(putFwdData_rdy_o),
