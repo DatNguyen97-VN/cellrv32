@@ -15,7 +15,7 @@ package cellrv32_npu_package;
     // Accelerator Config
     localparam int DistributionBandwidth = 16;
     localparam int CollectionBandwidth   = 16;
-    localparam int NumMultSwitches       = 16; //128
+    localparam int NumMultSwitches       = 128; //128
 
     // ==============================================================
     // Distribution Network
@@ -29,7 +29,7 @@ package cellrv32_npu_package;
     localparam int DN_SubTreeIngressControlFifoDepth = 4;
 
     localparam int DN_SubTreeEgressDataFifoDepth    = 4;
-    localparam int DN_SubTreeEgressControlFifoDepth = 1;
+    localparam int DN_SubTreeEgressControlFifoDepth = 4;
 
     // Deduced parameters
     localparam int DN_NumSubTrees            = DistributionBandwidth;
@@ -49,8 +49,9 @@ package cellrv32_npu_package;
     typedef logic [DN_NumSubTreeDistSwitches-1:0][1:0] DN_SubTreeConfig;
     DN_TopSubTreeConfig dn_topSubtree_nullConfig = '0;
 
-    localparam int DN_SubTreeIngressFifoDepth = 16;
-    localparam int DN_IngressFifoDepth        = 16;
+    localparam int DN_SubTreeIngressFifoDepth = 4;
+    localparam int DN_SubTreeEngressFifoDepth = 4;
+    localparam int DN_IngressFifoDepth        = 1;
     localparam int DN_EgressFifoDepth         = 1;
 
     typedef logic [NumMultSwitches-1:0] DN_Config;
