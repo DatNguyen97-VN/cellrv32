@@ -25,17 +25,18 @@ module cellrv32_npu_subtree_egress_NIC (
     genvar idx;
     generate
         for (idx = 0; idx < DN_SubTreeSz; idx++) begin : gen_outData
-            BypassFifo #(
-              .T(INT16)
+            PipelineFifo #(
+              .T     (INT16                     ),
+              .DEPTH (DN_SubTreeEngressFifoDepth)
             ) outData_inst (
-              .clk       (clk_i             ),      
-              .rst_n     (rstn_i            ),
-              .enq_en    (fifo_enq_en[idx]  ), 
-              .notFull   (fifo_notFull[idx] ),
-              .enq_val   (fifo_enq_val[idx] ),
-              .deq_en    (fifo_deq_en[idx]  ), 
-              .notEmpty  (fifo_notEmpty[idx]),
-              .first_val (fifo_first[idx]   )
+              .clk_i       (clk_i             ),      
+              .rstn_i      (rstn_i            ),
+              .enq_en_i    (fifo_enq_en[idx]  ), 
+              .notFull_o   (fifo_notFull[idx] ),
+              .enq_val_i   (fifo_enq_val[idx] ),
+              .deq_en_i    (fifo_deq_en[idx]  ), 
+              .notEmpty_o  (fifo_notEmpty[idx]),
+              .first_val_o (fifo_first[idx]   )
             );
         end : gen_outData
     endgenerate

@@ -32,14 +32,14 @@ module cellrv32_npu_subtree_ingress_NIC (
       .T     (INT16                     ),
       .DEPTH (DN_SubTreeIngressFifoDepth)
     ) incomingData (
-      .clk       (clk_i         ),        
-      .rst_n     (rstn_i        ),
-      .enq_en    (idata_enq_en  ),  
-      .notFull   (idata_notFull ),
-      .enq_val   (idata_enq_val ),
-      .deq_en    (idata_deq_en  ),  
-      .notEmpty  (idata_notEmpty),
-      .first_val (idata_first   )
+      .clk_i       (clk_i         ),        
+      .rstn_i      (rstn_i        ),
+      .enq_en_i    (idata_enq_en  ),  
+      .notFull_o   (idata_notFull ),
+      .enq_val_i   (idata_enq_val ),
+      .deq_en_i    (idata_deq_en  ),  
+      .notEmpty_o  (idata_notEmpty),
+      .first_val_o (idata_first   )
     );
  
     // ----------------------------------------------------------------
@@ -53,14 +53,14 @@ module cellrv32_npu_subtree_ingress_NIC (
       .T     (DN_Epoch                  ),
       .DEPTH (DN_SubTreeIngressFifoDepth)
     ) epochStore (
-      .clk       (clk_i         ),        
-      .rst_n     (rstn_i        ),
-      .enq_en    (epoch_enq_en  ),  
-      .notFull   (epoch_notFull ),
-      .enq_val   (epoch_enq_val ),
-      .deq_en    (epoch_deq_en  ),  
-      .notEmpty  (epoch_notEmpty),
-      .first_val (epoch_first   )
+      .clk_i       (clk_i         ),        
+      .rstn_i      (rstn_i        ),
+      .enq_en_i    (epoch_enq_en  ),  
+      .notFull_o   (epoch_notFull ),
+      .enq_val_i   (epoch_enq_val ),
+      .deq_en_i    (epoch_deq_en  ),  
+      .notEmpty_o  (epoch_notEmpty),
+      .first_val_o (epoch_first   )
     );
  
     // ================================================================
