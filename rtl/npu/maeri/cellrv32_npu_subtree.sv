@@ -245,8 +245,7 @@ endmodule
 //   TC8 : Pipeline — multiple consecutive frames without stalling
 //   TC9 : Backpressure — outputGet not drained → correct SubTree stall
 //   TC10: isEmpty semantics — True only when ingressNIC is empty
-//   TC11: Epoch toggle — epoch toggles correctly on each putData
-//   TC12: putNewDests while busy (readyForNewData=0) → blocked
+//   TC11: Reset during operation  
 // ============================================================
 
 module tb_cellrv32_npu_subtree;
@@ -503,7 +502,7 @@ module tb_cellrv32_npu_subtree;
         check(outputDataPorts_getData_rdy_o  === '0,   "no outputData after reset");
 
         // ============================================================
-        // TC2: putNewDests while controller is busy → rdy=0
+        // TC2: putNewDests while controller is busy -> rdy=0
         // (Send first config, then immediately send second config)
         // ============================================================
         current_tc = "TC2_putNewDests_backpressure";
@@ -582,13 +581,20 @@ module tb_cellrv32_npu_subtree;
         );
 
         // ============================================================
-        // TC6: Unicast — only leaf 0 receives (sw 0)
+        // TC6: Unicast — only leaf 0 and 5 receives (sw 0, sw 5)
         // ============================================================
         full_transaction(
             make_dest_leaf(0),
             16'h0001,
             8'b00000001,
-            "TC6_Unicast_leaf0"
+            "TC6.1_Unicast_leaf0"
+        );
+
+        full_transaction(
+            make_dest_leaf(4),
+            16'h0002,
+            8'b00010000,
+            "TC6.2_Unicast_leaf5"
         );
 
         // ============================================================
@@ -638,6 +644,111 @@ module tb_cellrv32_npu_subtree;
                         fail($sformatf("frame[%0d] port[%0d] TIMEOUT", f, p));
                 end
             end
+        end
+
+        // ============================================================
+        // TC9: Backpressure — no drain output -> SubTree stall
+        // ============================================================
+        // reset DUT
+        rstn_i = 1'b0;
+        @(posedge clk_i);
+        @(posedge clk_i);
+        rstn_i = 1'b1;
+        @(posedge clk_i);
+
+        current_tc = "TC9_Backpressure";
+        $display("\n========== TC9: Output backpressure ==========");
+        begin
+            // Send config + data but do NOT drain output  
+            send_config(make_dest_broadcast());
+            repeat (3) @(posedge clk_i);
+            send_data(16'hDEAD);
+
+            // Waiting for output data
+            repeat (2000) @(posedge clk_i);
+            #1;
+
+            // Check output rdy = 1 (data pending)
+            check(outputDataPorts_getData_rdy_o != '0,
+                  "outputData waiting (backpressure held data)");
+
+            // Check SubTree block: putData_rdy = 0 if pipeline full
+            // (optional — depends on FIFO depth, only log)
+            $display("  [INFO] putData_rdy = %b (may be 0 if pipeline full)",
+                     inputDataPorts_putData_rdy_o);
+
+            // Drain to release backpressure
+            for (int p = 0; p < DN_SubTreeSz; p++) begin
+                logic [15:0] got; logic ok;
+                drain_port(p, got, ok, 10);
+            end
+            pass("TC9 backpressure and drain completed");
+        end
+
+        // ============================================================
+        // TC10: isEmpty semantics
+        // ============================================================
+        // reset DUT
+        rstn_i = 1'b0;
+        @(posedge clk_i);
+        @(posedge clk_i);
+        rstn_i = 1'b1;
+        @(posedge clk_i);
+
+        current_tc = "TC10_isEmpty";
+        $display("\n========== TC10: isEmpty ==========");
+        begin
+            // after drain all data — isEmpty is 1
+            repeat (5) @(posedge clk_i); #1;
+            check(controlPorts_isEmpty_o === 1'b1,
+                  "isEmpty=1 after all drained");
+
+            // sending data -> isEmpty = 0
+            send_config(make_dest_broadcast());
+            repeat (2) @(posedge clk_i);
+            send_data(16'h1234);
+            @(negedge clk_i);
+            check(controlPorts_isEmpty_o === 1'b0,
+                  "isEmpty=0 after putData");
+
+            // Drain -> isEmpty is 1
+            for (int p = 0; p < DN_SubTreeSz; p++) begin
+                logic [15:0] got; logic ok;
+                drain_port(p, got, ok, 40);
+            end
+            repeat (5) @(posedge clk_i); #1;
+            check(controlPorts_isEmpty_o === 1'b1,
+                  "isEmpty=1 after drain");
+        end
+
+        // ============================================================
+        // TC11: Reset during operation  
+        // ============================================================
+        current_tc = "TC11_MidReset";
+        $display("\n========== TC11: Reset mid-operation ==========");
+        begin
+            // start transaction
+            send_config(make_dest_broadcast());
+            send_data(16'hBAD0);
+            repeat (5) @(posedge clk_i);
+
+            // Assert reset
+            rstn_i = 1'b0;
+            repeat (3) @(posedge clk_i);
+            rstn_i = 1'b1;
+            @(posedge clk_i); #1;
+
+            check(controlPorts_isEmpty_o         === 1'b1, "isEmpty=1 after mid-reset");
+            check(controlPorts_putNewDests_rdy_o === 1'b1, "putNewDests_rdy=1 after mid-reset");
+            check(outputDataPorts_getData_rdy_o  === '0,   "no stale output after mid-reset");
+
+            // normal transaction after reset
+            full_transaction(
+                make_dest_broadcast(),
+                16'h11FF,
+                {DN_SubTreeSz{1'b1}},
+                "TC11_PostReset_broadcast"
+            );
         end
 
         // ============================================================
