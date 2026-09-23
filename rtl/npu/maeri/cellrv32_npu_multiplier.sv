@@ -20,4 +20,3 @@ module cellrv32_npu_multiplier #(
   // output assignment
   assign resValue_o = {extendedRes[31], extendedRes[26:12]};
 endmodule
-
