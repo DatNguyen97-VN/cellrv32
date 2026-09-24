@@ -100,8 +100,8 @@ package cellrv32_npu_package;
     localparam int RN_NumColletionBuses = CollectionBandwidth;
     localparam int RN_NumCollectionBusInputPorts = NumMultSwitches / RN_NumColletionBuses + 1;
 
-    const int RN_CollectionBusIngressFifoDepth = 4;
-    const int RN_CollectionBusEngressFifoDepth = 1;
+    localparam int RN_CollectionBusIngressFifoDepth = 4;
+    localparam int RN_CollectionBusEngressFifoDepth = 2;
 
     // ==============================================================
     // CR types
