@@ -35,75 +35,57 @@ module cellrv32_npu_matrix_arbiter #(
     logic [NUM_REQ-1:0] priorityBits [NUM_REQ-1:0];  // [row][col]
 
     // ----------------------------------------------------------------
-    // getPermitSignal — Check if IDX is allowed to win based on current priority bits.
+    // Permit Bits — Check if all IDX (gi) is allowed to win based on current priority bits.
     // ----------------------------------------------------------------
-    function automatic logic getPermitSignal(
-        input logic [NUM_REQ-1:0]         reqVec,
-        input logic [$clog2(NUM_REQ)-1:0] idx,
-        input logic [NUM_REQ-1:0]         pBits [NUM_REQ-1:0]
-    );
-        logic [NUM_REQ-1:0] priBits;
-        logic [NUM_REQ-1:0] priTest;
+    logic [NUM_REQ-1:0] permitBits;
+    genvar gi, gj;
+    generate
+        for (gi = NUM_REQ-1; gi >= 0; gi--) begin : g_permit
+            logic [NUM_REQ-1:0] priBits;   
+            logic [NUM_REQ-1:0] priTest; 
 
-        for (int i = NUM_REQ-1; i >= 0; i--) begin
-            priBits[i] = (i < idx) ? ~pBits[idx][i] : pBits[i][idx];
-        end
-
-        priTest = priBits & reqVec;
-        return (priTest == '0);
-    endfunction
-
-    // ----------------------------------------------------------------
-    // getGrantIdx — finding winner
-    //   → The result is the HIGHEST index that satisfies the condition.
-    // ----------------------------------------------------------------
-    function automatic logic [$clog2(NUM_REQ)-1:0] getGrantIdx(
-        input logic [NUM_REQ-1:0] reqVec,
-        input logic [NUM_REQ-1:0] pBits [NUM_REQ-1:0]
-    );
-        logic [$clog2(NUM_REQ)-1:0] ret;
-        logic permit;
-
-        ret = 0;  // default
-        for (int i = NUM_REQ-1; i >= 0; i--) begin
-            permit = getPermitSignal(reqVec, i, pBits);
-            if (reqVec[i] && permit) begin
-              ret = i;
+            always_comb begin
+                for (int gj = NUM_REQ-1; gj >= 0; gj--) begin
+                    priBits[gj] = (gj < gi) ? ~priorityBits[gi][gj] : priorityBits[gj][gi];
+                end
+                priTest = priBits & getArbit_reqBit_i;
             end
-        end
-        return ret;
-    endfunction
+            assign permitBits[gi] = (priTest == '0);
+        end : g_permit
+    endgenerate
 
     // ----------------------------------------------------------------
-    // Generate an one-hot code from index
+    // finding winner
+    // The result is the HIGHEST index that satisfies the condition.
     // ----------------------------------------------------------------
-    function automatic logic [NUM_REQ-1:0] packGrantIdx(input logic [$clog2(NUM_REQ)-1:0] idx);
-        logic [NUM_REQ-1:0] ret;
-        ret = '0;
-        ret[idx] = 1'b1;
-        return ret;
-    endfunction
-
-    // ================================================================
-    // getArbit
-    // ================================================================
-    logic [NUM_REQ-1:0]         grant_val_comb;
     logic [$clog2(NUM_REQ)-1:0] grant_idx_comb;
+    logic [NUM_REQ-1:0]         grant_val_comb;
+    logic                       any_req_comb;
+
+    assign any_req_comb = |getArbit_reqBit_i;
 
     always_comb begin
-        if (getArbit_reqBit_i == '0) begin
-            grant_val_comb = '0;
-            grant_idx_comb = 0;
-        end else begin
-            grant_idx_comb = getGrantIdx(getArbit_reqBit_i, priorityBits);
-            grant_val_comb = packGrantIdx(grant_idx_comb);
+        grant_idx_comb = '0;
+        if (any_req_comb) begin
+            for (int i = NUM_REQ-1; i >= 0; i--) begin
+                if (getArbit_reqBit_i[i] && permitBits[i]) begin
+                    grant_idx_comb = i[$clog2(NUM_REQ)-1:0];
+                end
+            end
+        end
+    end
+
+    always_comb begin
+        grant_val_comb = '0;
+        if (any_req_comb) begin
+            grant_val_comb[grant_idx_comb] = 1'b1;
         end
     end
 
     assign getArbit_val_o = grant_val_comb;
 
     // ================================================================
-    // Sequential: cập nhật priorityBits và inited
+    // Sequential: update priorityBits
     // ================================================================
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
@@ -145,7 +127,7 @@ endmodule
 // ================================================================
 // Testbench
 // ================================================================
-module tb_mkMatrixArbiter;
+module tb_cellrv32_npu_matrix_arbiter;
 
     localparam int N = 4;
 
