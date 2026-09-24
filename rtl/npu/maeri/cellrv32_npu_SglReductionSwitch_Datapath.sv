@@ -30,82 +30,88 @@ module cellrv32_npu_SglReductionSwitch_Datapath (
   assign mode = mode_val_i;
 
   // -------------------------------------------------------------------------
-  // BypassFifo: fifo_inputL
+  // fifo_inputL
   // -------------------------------------------------------------------------
   INT16 fifoL_data;
-  logic fifoL_valid;
+  logic fifoL_notFull;
   logic fifoL_enq;
   logic fifoL_deq;
   INT16 fifoL_enq_data;
+  logic fifoL_valid;
 
-  assign inputL_ready_o = ~fifoL_valid;
-  assign fifoL_enq      = inputL_en_i & inputL_ready_o;
+  assign inputL_ready_o = fifoL_notFull;
+  assign fifoL_enq      = inputL_en_i & fifoL_notFull;
   assign fifoL_enq_data = inputL_data_i;
 
-  always_ff @(posedge clk_i or negedge rstn_i) begin
-    if (!rstn_i) begin
-      fifoL_valid <= 1'b0;
-      fifoL_data  <= '0;
-    end else begin
-      case ({fifoL_enq, fifoL_deq})
-        2'b10: begin fifoL_valid <= 1'b1; fifoL_data <= fifoL_enq_data; end
-        2'b01: begin fifoL_valid <= 1'b0;                               end
-        2'b11: begin fifoL_valid <= 1'b1; fifoL_data <= fifoL_enq_data; end
-      endcase
-    end
-  end
+  PipelineFifo #(
+    .T     (INT16),
+    .DEPTH (2    )
+  ) inputLBuffer_inst (
+    .clk_i       (clk_i         ),
+    .rstn_i      (rstn_i        ),
+    .enq_en_i    (fifoL_enq     ),
+    .notFull_o   (fifoL_notFull ),
+    .enq_val_i   (fifoL_enq_data),
+    .deq_en_i    (fifoL_deq     ),
+    .notEmpty_o  (fifoL_valid   ),
+    .first_val_o (fifoL_data    )
+  );
 
   // -------------------------------------------------------------------------
-  // BypassFifo: fifo_inputR
+  // fifo_inputR
   // -------------------------------------------------------------------------
   INT16 fifoR_data;
-  logic fifoR_valid;
+  logic fifoR_notFull;
   logic fifoR_enq;
   logic fifoR_deq;
   INT16 fifoR_enq_data;
+  logic fifoR_valid;
 
-  assign inputR_ready_o = ~fifoR_valid;
-  assign fifoR_enq      = inputR_en_i & inputR_ready_o;
+  assign inputR_ready_o = fifoR_notFull;
+  assign fifoR_enq      = inputR_en_i & fifoR_notFull;
   assign fifoR_enq_data = inputR_data_i;
 
-  always_ff @(posedge clk_i or negedge rstn_i) begin
-    if (!rstn_i) begin
-      fifoR_valid <= 1'b0;
-      fifoR_data  <= '0;
-    end else begin
-      case ({fifoR_enq, fifoR_deq})
-        2'b10: begin fifoR_valid <= 1'b1; fifoR_data <= fifoR_enq_data; end
-        2'b01: begin fifoR_valid <= 1'b0;                               end
-        2'b11: begin fifoR_valid <= 1'b1; fifoR_data <= fifoR_enq_data; end
-      endcase
-    end
-  end
+  PipelineFifo #(
+    .T     (INT16),
+    .DEPTH (2    )
+  ) inputRBuffer_inst (
+    .clk_i       (clk_i         ),
+    .rstn_i      (rstn_i        ),
+    .enq_en_i    (fifoR_enq     ),
+    .notFull_o   (fifoR_notFull ),
+    .enq_val_i   (fifoR_enq_data),
+    .deq_en_i    (fifoR_deq     ),
+    .notEmpty_o  (fifoR_valid   ),
+    .first_val_o (fifoR_data    )
+  );
 
   // -------------------------------------------------------------------------
-  // BypassFifo: fifo_out
+  // fifo_out
   // -------------------------------------------------------------------------
   INT16 fifoOut_data;
-  logic fifoOut_valid;
+  logic fifoOut_notFull;
   logic fifoOut_enq;
   logic fifoOut_deq;
   INT16 fifoOut_enq_data;
+  logic fifoOut_valid;
 
-  assign output_data_o  = fifoOut_data;
-  assign output_ready_o = fifoOut_valid;
   assign fifoOut_deq    = fifoOut_valid & output_en_i;
+  assign output_ready_o = fifoOut_valid;
+  assign output_data_o  = fifoOut_data;
 
-  always_ff @(posedge clk_i or negedge rstn_i) begin
-    if (!rstn_i) begin
-      fifoOut_valid <= 1'b0;
-      fifoOut_data  <= '0;
-    end else begin
-      case ({fifoOut_enq, fifoOut_deq})
-        2'b10: begin fifoOut_valid <= 1'b1; fifoOut_data <= fifoOut_enq_data; end
-        2'b01: begin fifoOut_valid <= 1'b0;                                   end
-        2'b11: begin fifoOut_valid <= 1'b1; fifoOut_data <= fifoOut_enq_data; end
-      endcase
-    end
-  end
+  PipelineFifo #(
+    .T     (INT16),
+    .DEPTH (2    )
+  ) resultBuffers_inst (
+    .clk_i       (clk_i         ),
+    .rstn_i      (rstn_i        ),
+    .enq_en_i    (fifoOut_enq     ),
+    .notFull_o   (fifoOut_notFull ),
+    .enq_val_i   (fifoOut_enq_data),
+    .deq_en_i    (fifoOut_deq     ),
+    .notEmpty_o  (fifoOut_valid   ),
+    .first_val_o (fifoOut_data    )
+  );
 
   // -------------------------------------------------------------------------
   // Submodule: 16-bits Adder
@@ -129,9 +135,9 @@ module cellrv32_npu_SglReductionSwitch_Datapath (
   logic rule_flowLeft;
   logic rule_flowRight;
 
-  assign rule_addTwo    = (mode == rn_sgrs_mode_addTwo) & fifoL_valid & fifoR_valid & ~fifoOut_valid;
-  assign rule_flowLeft  = (mode == rn_sgrs_mode_flowLeft) & fifoL_valid & ~fifoOut_valid;
-  assign rule_flowRight = (mode == rn_sgrs_mode_flowRight) & fifoR_valid & ~fifoOut_valid;
+  assign rule_addTwo    = (mode == rn_sgrs_mode_addTwo) & fifoL_valid & fifoR_valid & fifoOut_notFull;
+  assign rule_flowLeft  = (mode == rn_sgrs_mode_flowLeft) & fifoL_valid & fifoOut_notFull;
+  assign rule_flowRight = (mode == rn_sgrs_mode_flowRight) & fifoR_valid & fifoOut_notFull;
 
   // fifoL / fifoR deq 
   assign fifoL_deq = rule_addTwo | rule_flowLeft;
@@ -141,9 +147,9 @@ module cellrv32_npu_SglReductionSwitch_Datapath (
   always_comb begin
     fifoOut_enq      = 1'b0;
     fifoOut_enq_data = '0;
-    if      (rule_addTwo)    begin fifoOut_enq = 1'b1; fifoOut_enq_data = adder_res;  end
-    else if (rule_flowLeft)  begin fifoOut_enq = 1'b1; fifoOut_enq_data = fifoL_data; end
-    else if (rule_flowRight) begin fifoOut_enq = 1'b1; fifoOut_enq_data = fifoR_data; end
+    if      (rule_addTwo)    begin fifoOut_enq = fifoOut_notFull; fifoOut_enq_data = adder_res;  end
+    else if (rule_flowLeft)  begin fifoOut_enq = fifoOut_notFull; fifoOut_enq_data = fifoL_data; end
+    else if (rule_flowRight) begin fifoOut_enq = fifoOut_notFull; fifoOut_enq_data = fifoR_data; end
   end
 
 endmodule
