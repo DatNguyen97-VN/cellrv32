@@ -13,9 +13,9 @@ package cellrv32_npu_package;
     localparam logic [4:0] dimEnd = 5'b00110;
 
     // Accelerator Config
-    localparam int DistributionBandwidth = 8;
-    localparam int CollectionBandwidth   = 8;
-    localparam int NumMultSwitches       = 64; //128
+    localparam int DistributionBandwidth = 4;
+    localparam int CollectionBandwidth   = 4;
+    localparam int NumMultSwitches       = 16; //128
 
     // ==============================================================
     // Distribution Network
@@ -57,7 +57,7 @@ package cellrv32_npu_package;
     typedef logic [NumMultSwitches-1:0] DN_Config;
 
     // ==============================================================
-    // RN Types
+    // Reduction Network
     // ==============================================================
     typedef logic [1:0] RN_SGRS_Mode;
     typedef logic [3:0] RN_DBRS_Mode;
@@ -73,10 +73,9 @@ package cellrv32_npu_package;
     const logic [1:0] rn_sgrs_mode_flowLeft  = 2'b10;
     const logic [1:0] rn_sgrs_mode_flowRight = 2'b11;
 
-    localparam int RN_NumLevels        = $clog2(NumMultSwitches);
-    localparam int RN_NumAdderSwitches = NumMultSwitches - 1;
-    localparam int RN_NumSglRSes       = (RN_NumLevels * 2) - 1;
-    localparam int RN_NumDblRSes       = (RN_NumAdderSwitches - RN_NumSglRSes) / 2;
+    localparam int RN_NumLevels  = $clog2(NumMultSwitches); // except root level
+    localparam int RN_NumSglRSes = 2 * RN_NumLevels - 1;
+    localparam int RN_NumDblRSes = (NumMultSwitches - 1 - RN_NumSglRSes) / 2;
 
     // Struct RN_SglRSConfig
     typedef struct packed {
@@ -98,7 +97,7 @@ package cellrv32_npu_package;
 
     /* ----- Collection Bus ----- */
     localparam int RN_NumColletionBuses = CollectionBandwidth;
-    localparam int RN_NumCollectionBusInputPorts = NumMultSwitches / RN_NumColletionBuses + 1;
+    localparam int RN_NumCollectionBusInputPorts = $clog2(2 ** (RN_NumLevels - 1) + RN_NumLevels - 1);
 
     localparam int RN_CollectionBusIngressFifoDepth = 4;
     localparam int RN_CollectionBusEngressFifoDepth = 2;
@@ -265,7 +264,7 @@ package cellrv32_npu_package;
     endfunction
 
     // ==============================================================
-    // MN Types
+    // Multiplier Network
     // ==============================================================
     localparam int MS_IngressFifoDepth = 2;
     localparam int MS_EgressFifoDepth  = 2;
