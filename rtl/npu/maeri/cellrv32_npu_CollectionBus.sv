@@ -7,9 +7,9 @@ module cellrv32_npu_CollectionBus (
   input  logic                                           clk_i                      ,
   input  logic                                           rstn_i                     ,
   // putData
-  input  logic [RN_NumCollectionBusInputPorts-1:0]       inputDataPorts_put_en_i    ,
-  output logic [RN_NumCollectionBusInputPorts-1:0]       inputDataPorts_put_ready_o ,
-  input  logic [RN_NumCollectionBusInputPorts-1:0][15:0] inputDataPorts_put_data_i  ,
+  input  logic [RN_NumCollectionBusInputPorts-1:0]         inputDataPorts_put_en_i    ,
+  output logic [RN_NumCollectionBusInputPorts-1:0]         inputDataPorts_put_ready_o ,
+  input  logic [RN_NumCollectionBusInputPorts-1:0][15:0]   inputDataPorts_put_data_i  ,
   // getData
   input  logic                                           outputDataPorts_get_en_i   ,
   output logic                                           outputDataPorts_get_ready_o,
