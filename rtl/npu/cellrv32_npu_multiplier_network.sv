@@ -18,7 +18,7 @@ module cellrv32_npu_multiplier_network (
   input  logic                             putConfig_en_i ,
   output logic                             putConfig_rdy_o,
   input  MN_Config                         putConfig_val_i,
-  input  logic [31:0]                      putConfig_numActualActiveMultSwitches_i
+  input  logic [31:0]                      putConfig_numAct_i
 );
 
   // =========================================================================
@@ -121,7 +121,7 @@ module cellrv32_npu_multiplier_network (
     putConfig_rdy_o = 1'b1;
 
     for (int idx = 0; idx < NumMultSwitches; idx++) begin
-      if (idx < putConfig_numActualActiveMultSwitches_i) begin
+      if (idx < putConfig_numAct_i) begin
         sw_putConfig_en[idx]  = putConfig_en_i;
         putConfig_rdy_o      &= sw_putConfig_rdy[idx]; // ready if all active switches are ready
         sw_putConfig_val[idx] = putConfig_val_i[idx];
@@ -177,18 +177,18 @@ module tb_cellrv32_npu_multiplier_network();
   // DUT instance
   // -------------------------------------------------------------------------
   cellrv32_npu_multiplier_network dut (
-    .clk_i                                   (clk                                  ),
-    .rstn_i                                  (rst_n                                ),
-    .putData_en_i                            (putData_en                           ),
-    .putData_rdy_o                           (putData_rdy                          ),
-    .putData_val_i                           (putData_val                          ),
-    .getData_rdy_o                           (getData_rdy                          ),
-    .getData_en_i                            (getData_en                           ),
-    .getData_val_o                           (getData_val                          ),
-    .putConfig_en_i                          (putConfig_en                         ),
-    .putConfig_val_i                         (putConfig_val                        ),
-    .putConfig_rdy_o                         (putConfig_rdy                        ),
-    .putConfig_numActualActiveMultSwitches_i (putConfig_numActualActiveMultSwitches)
+    .clk_i              (clk                                  ),
+    .rstn_i             (rst_n                                ),
+    .putData_en_i       (putData_en                           ),
+    .putData_rdy_o      (putData_rdy                          ),
+    .putData_val_i      (putData_val                          ),
+    .getData_rdy_o      (getData_rdy                          ),
+    .getData_en_i       (getData_en                           ),
+    .getData_val_o      (getData_val                          ),
+    .putConfig_en_i     (putConfig_en                         ),
+    .putConfig_val_i    (putConfig_val                        ),
+    .putConfig_rdy_o    (putConfig_rdy                        ),
+    .putConfig_numAct_i (putConfig_numActualActiveMultSwitches)
   );
 
   // -------------------------------------------------------------------------

@@ -4,13 +4,13 @@ package cellrv32_npu_package;
     localparam int NumLayerDimensions = 6;
     typedef logic [4:0] LayerDimension;
 
-    localparam logic [4:0] dimK   = 5'b00000;
-    localparam logic [4:0] dimC   = 5'b00001;
-    localparam logic [4:0] dimR   = 5'b00010;
-    localparam logic [4:0] dimS   = 5'b00011;
-    localparam logic [4:0] dimY   = 5'b00100;
-    localparam logic [4:0] dimX   = 5'b00101;
-    localparam logic [4:0] dimEnd = 5'b00110;
+    localparam logic [4:0] dimK   = 5'b00000; // Output channels
+    localparam logic [4:0] dimC   = 5'b00001; // Input channels
+    localparam logic [4:0] dimR   = 5'b00010; // Filter height
+    localparam logic [4:0] dimS   = 5'b00011; // Filter width
+    localparam logic [4:0] dimY   = 5'b00100; // height feature map
+    localparam logic [4:0] dimX   = 5'b00101; // width feature map
+    localparam logic [4:0] dimEnd = 5'b00110; // end of dimensions
 
     // Accelerator Config
     localparam int DistributionBandwidth = 4;
@@ -103,7 +103,7 @@ package cellrv32_npu_package;
     localparam int RN_CollectionBusEngressFifoDepth = 2;
 
     // ==============================================================
-    // CR types
+    // Configuration Memory
     // ==============================================================
     typedef logic [9:0]  CR_ConfigIdx;
     typedef logic [31:0] CR_ConfigData;
@@ -114,8 +114,8 @@ package cellrv32_npu_package;
     // -------------------------------------------------------------------------
     // Parameters
     // -------------------------------------------------------------------------
-    localparam int CR_DBRS_ConfigAddressBound = RN_NumDblRSes / 4;
-    localparam int CR_SGRS_ConfigAddressBound = RN_NumSglRSes / 8 + CR_DBRS_ConfigAddressBound;
+    localparam int CR_DBRS_ConfigAddressBound = (RN_NumDblRSes + 1) / 4;
+    localparam int CR_SGRS_ConfigAddressBound = (RN_NumSglRSes + 1) / 8 + CR_DBRS_ConfigAddressBound;
 
     // -------------------------------------------------------------------------
     // Tile info types
@@ -141,127 +141,6 @@ package cellrv32_npu_package;
       InputChannelTransition,
       FinishState
     } TrafficGenStatus;
-
-    // -------------------------------------------------------------------------
-    // function getCR_DBRS_ConfigData
-    // fullData[8*configIdx+7 : 8*configIdx]
-    // -------------------------------------------------------------------------
-    function automatic CR_DBRS_ConfigData getCR_DBRS_ConfigData(
-      input CR_ConfigData fullData,
-      input logic [5:0]   configIdx
-    );
-      logic [5:0] baseIdx = 8 * configIdx;
-      return fullData[baseIdx +: 8];
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // function getDBRS_ModeFromRawData
-    // truncateLSB: lay 4 bit tren cua 8-bit => [7:4]
-    // -------------------------------------------------------------------------
-    function automatic RN_DBRS_Mode getDBRS_ModeFromRawData(
-      input CR_DBRS_ConfigData rawData
-    );
-      return rawData[7:4];
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // function getDBRS_GenOutputL: rawData[3]
-    // -------------------------------------------------------------------------
-    function automatic logic getDBRS_GenOutputL(
-      input CR_DBRS_ConfigData rawData
-    );
-      return rawData[3];
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // function getDBRS_GenOutputR: rawData[2]
-    // -------------------------------------------------------------------------
-    function automatic logic getDBRS_GenOutputR(
-      input CR_DBRS_ConfigData rawData
-    );
-      return rawData[2];
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // function getCR_SGRS_ConfigData
-    // fullData[4*configIdx+3 : 4*configIdx]
-    // -------------------------------------------------------------------------
-    function automatic CR_SGRS_ConfigData getCR_SGRS_ConfigData(
-      input CR_ConfigData fullData,
-      input logic [5:0]   configIdx
-    );
-      logic [5:0] baseIdx = 4 * configIdx;
-      return fullData[baseIdx +: 4];
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // function getSGRS_ModeFromRawData
-    // truncateLSB: lay 2 bit tren cua 4-bit => [3:2]
-    // -------------------------------------------------------------------------
-    function automatic RN_SGRS_Mode getSGRS_ModeFromRawData(
-      input CR_SGRS_ConfigData rawData
-    );
-      return rawData[3:2];
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // function getSGRS_GenOutput: rawData[1]
-    // -------------------------------------------------------------------------
-    function automatic logic getSGRS_GenOutput(
-      input CR_SGRS_ConfigData rawData
-    );
-      return rawData[1];
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // Tile info functions
-    // -------------------------------------------------------------------------
-
-    // getTileInfo_DimSz: truncateLSB => lay 16 bit tren => [31:16]
-    function automatic CR_TileInfo getTileInfo_DimSz(
-      input CR_TileInfoData rawData
-    );
-      return rawData[31:16];
-    endfunction
-
-    // aliases
-    function automatic CR_TileInfo getTileInfo_DimEdgeSz(
-      input CR_TileInfoData rawData
-    );
-      return getTileInfo_DimSz(rawData);
-    endfunction
-
-    function automatic CR_TileInfo getTileInfo_NumMultSwitches(
-      input CR_TileInfoData rawData
-    );
-      return getTileInfo_DimSz(rawData);
-    endfunction
-
-    // getTileInfo_TileSz: truncate => lay 16 bit duoi => [15:0]
-    function automatic CR_TileInfo getTileInfo_TileSz(
-      input CR_TileInfoData rawData
-    );
-      return rawData[15:0];
-    endfunction
-
-    // aliases
-    function automatic CR_TileInfo getTileInfo_DimNumIters(
-      input CR_TileInfoData rawData
-    );
-      return getTileInfo_TileSz(rawData);
-    endfunction
-
-    function automatic CR_TileInfo getTileInfo_NumMappedVNs(
-      input CR_TileInfoData rawData
-    );
-      return getTileInfo_TileSz(rawData);
-    endfunction
-
-    function automatic CR_TileInfo getTileInfo_VNSize(
-      input CR_TileInfoData rawData
-    );
-      return getTileInfo_TileSz(rawData);
-    endfunction
 
     // ==============================================================
     // Multiplier Network
